@@ -1,0 +1,8 @@
+.depends
+*.o
+taltos
+.*.swp
+Session.vim
+gen_constants
+gen_constants.dSYM
+move_gen_const.inc
