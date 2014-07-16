@@ -28,16 +28,16 @@ char *index_to_str(char str[static 2], int index, player turn)
 
 char piece_to_char(piece p)
 {
-	switch (p) {
-		case pawn: return 'p';
-		case rook: return 'r';
-		case knight: return 'n';
-		case bishop: return 'b';
-		case queen: return 'q';
-		case king: return 'k';
-		case 0: return ' ';
-		default: assert(0);
-	}
+    switch (p) {
+        case pawn: return 'p';
+        case rook: return 'r';
+        case knight: return 'n';
+        case bishop: return 'b';
+        case queen: return 'q';
+        case king: return 'k';
+        case 0: return ' ';
+        default: assert(0);
+    }
 }
 
 char square_to_char(piece p, player pl)
@@ -49,26 +49,26 @@ char square_to_char(piece p, player pl)
 
 piece char_to_piece(char p)
 {
-	switch (tolower(p)) {
-		case 'p': return pawn;
-		case 'r': return rook;
-		case 'b': return bishop;
-		case 'n': return knight;
-		case 'q': return queen;
-		case 'k': return king;
-		default: return 0;
-	}
+    switch (tolower(p)) {
+        case 'p': return pawn;
+        case 'r': return rook;
+        case 'b': return bishop;
+        case 'n': return knight;
+        case 'q': return queen;
+        case 'k': return king;
+        default: return 0;
+    }
 }
 
 bool is_file(char c)
 {
-	return ( ((c >= 'a') && (c <= 'h'))
-		|| ((c >= 'A') && (c <= 'H')) );
+    return ( ((c >= 'a') && (c <= 'h'))
+            || ((c >= 'A') && (c <= 'H')) );
 }
 
 bool is_rank(char c)
 {
-	return ((c >= '1') && (c <= '8'));
+    return ((c >= '1') && (c <= '8'));
 }
 
 bool is_coordinate(const char *str)
@@ -80,13 +80,13 @@ bool is_coordinate(const char *str)
 unsigned char_to_file(char ch)
 {
     assert(is_file(ch));
-	return 7 - (toupper(ch) - 'A');
+    return 7 - (toupper(ch) - 'A');
 }
 
 unsigned char_to_rank(char ch, player turn)
 {
     assert(is_rank(ch));
-	return (turn == black) ? (ch - '1') : (7 - (ch - '1'));
+    return (turn == black) ? (ch - '1') : (7 - (ch - '1'));
 }
 
 int str_to_index(const char str[static 2], player turn)

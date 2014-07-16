@@ -16,10 +16,11 @@
 #include "taltos.h"
 #include "hash.h"
 #include "trace.h"
+#include "eval.h"
 
 struct cmd_entry {
-	const char text[16];
-	void (*cmd_func)(void);
+    const char text[16];
+    void (*cmd_func)(void);
     const char *paramstr;
 };
 
@@ -39,12 +40,12 @@ static void param_error(void)
 }
 
 static const char *features[] = {
-	"ping=1",
-	"setboard=1",
-	"sigint=1",
-	"reuse=1",
-	"myname=\"Taltos\"",
-	NULL
+    "ping=1",
+    "setboard=1",
+    "sigint=1",
+    "reuse=1",
+    "myname=\"Taltos\"",
+    NULL
 };
 
 static bool is_force_mode;
@@ -90,7 +91,7 @@ static bool is_comp_turn(void)
 
 static bool is_opp_turn(void)
 {
-	return !is_comp_turn();
+    return !is_comp_turn();
 }
 
 static bool is_end(void)
@@ -113,11 +114,11 @@ static void dispatch_command(const char *cmd);
 
 static void set_xboard(void)
 {
-	is_xboard = true;
-	printf("\n");
-#	if !defined(WIN32) && !defined(WIN64)
-	signal(SIGINT, SIG_IGN);
-#	endif
+    is_xboard = true;
+    printf("\n");
+#   if !defined(WIN32) && !defined(WIN64)
+    signal(SIGINT, SIG_IGN);
+#   endif
 }
 
 static char *get_str_arg_opt(void)
@@ -227,23 +228,23 @@ static void operator_move(move m)
 
 static void print_nice_number(uintmax_t n)
 {
-	if (n >= 10000) {
-		if (n >= 1000000) {
-			n /= 100000;
-			if (n % 10 == 0) {
-				printf("%" PRIuMAX "m", n / 10);
-			}
-			else {
-				printf("%" PRIuMAX ".%" PRIuMAX "m", n / 10, n % 10);
-			}
-		}
-		else {
-			printf("%" PRIuMAX "k", n/1000);
-		}
-	}
-	else {
-		printf("%" PRIuMAX, n);
-	}
+    if (n >= 10000) {
+        if (n >= 1000000) {
+            n /= 100000;
+            if (n % 10 == 0) {
+                printf("%" PRIuMAX "m", n / 10);
+            }
+            else {
+                printf("%" PRIuMAX ".%" PRIuMAX "m", n / 10, n % 10);
+            }
+        }
+        else {
+            printf("%" PRIuMAX "k", n/1000);
+        }
+    }
+    else {
+        printf("%" PRIuMAX, n);
+    }
 }
 
 static void print_move_path(const struct game *original_game,
@@ -335,43 +336,43 @@ static void print_current_result(struct engine_result res)
 
 static void computer_move(void)
 {
-	move m;
+    move m;
 
-	if (engine_get_best_move(&m) != 0) {
+    if (engine_get_best_move(&m) != 0) {
         printf("-\n");
         return;
-	}
-	print_computer_move(m);
-	if (exit_on_done) {
+    }
+    print_computer_move(m);
+    if (exit_on_done) {
         log_close();
-		exit(EXIT_SUCCESS);
-	}
+        exit(EXIT_SUCCESS);
+    }
     add_move(m);
     engine_move_count_inc();
 }
 
 static int try_read_move(const char *cmd)
 {
-	move move;
+    move move;
 
-	switch (read_move(current_position(), cmd, &move, turn())) {
-	case NONE_MOVE:
-		return 1;
-	case ILLEGAL_MOVE:
-		printf("Illegal move: %s\n", cmd);
-		return 0;
-	case 0:
-		if (!is_force_mode && !is_opp_turn()) {
-			printf("It is not %s's turn\n",
-				whose_turn[opponent(computer_side)]);
-			return 0;
-		}
-        trace("Operator move: %s\n", cmd);
-		operator_move(move);
-		return 0;
-	default: assert(0);
-	}
-	return 0;
+    switch (read_move(current_position(), cmd, &move, turn())) {
+        case NONE_MOVE:
+            return 1;
+        case ILLEGAL_MOVE:
+            printf("Illegal move: %s\n", cmd);
+            return 0;
+        case 0:
+            if (!is_force_mode && !is_opp_turn()) {
+                printf("It is not %s's turn\n",
+                        whose_turn[opponent(computer_side)]);
+                return 0;
+            }
+            trace("Operator move: %s\n", cmd);
+            operator_move(move);
+            return 0;
+        default: assert(0);
+    }
+    return 0;
 }
 
 static void init_settings(void);
@@ -411,9 +412,9 @@ static void cmd_quit(void)
 
 static unsigned get_uint(unsigned min, unsigned max)
 {
-	long n;
+    long n;
 
-	n = get_long_arg();
+    n = get_long_arg();
     if (n < min) {
         fprintf(stderr, "Number too low: %ld\n", n);
         param_error();
@@ -422,45 +423,45 @@ static unsigned get_uint(unsigned min, unsigned max)
         fprintf(stderr, "Number too high: %ld\n", n);
         param_error();
     }
-	return (unsigned int)n;
+    return (unsigned int)n;
 }
 
 static void cmd_perft(void)
 {
-	printf("%lu\n", perft(current_position(), get_uint(1, 1024)));
+    printf("%lu\n", perft(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perfto(void)
 {
-	printf("%lu\n", perft_ordered(current_position(), get_uint(1, 1024)));
+    printf("%lu\n", perft_ordered(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perft_distinct(void)
 {
-	printf("%ld\n", perft_distinct(current_position(), get_uint(1, 1024)));
+    printf("%ld\n", perft_distinct(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perfts(void)
 {
-	unsigned depth;
+    unsigned depth;
 
-	depth = get_uint(1, 1024);
-	for (unsigned i = 1; i <= depth; ++i) {
-		unsigned long n = perft(current_position(), i);
-		printf("%s%u : %ld\n", (i<10) ? " " : "", i, n);
-	}
+    depth = get_uint(1, 1024);
+    for (unsigned i = 1; i <= depth; ++i) {
+        unsigned long n = perft(current_position(), i);
+        printf("%s%u : %ld\n", (i<10) ? " " : "", i, n);
+    }
 }
 
 static void run_cmd_divide(bool ordered)
 {
-	struct divide_info *dinfo;
-	const char *line;
+    struct divide_info *dinfo;
+    const char *line;
 
-	dinfo = divide_init(current_position(), get_uint(0, 1024), turn(), ordered);
-	while ((line = divide(dinfo, horse->move_not)) != NULL) {
-		printf("%s\n", line);
-	}
-	divide_destruct(dinfo);
+    dinfo = divide_init(current_position(), get_uint(0, 1024), turn(), ordered);
+    while ((line = divide(dinfo, horse->move_not)) != NULL) {
+        printf("%s\n", line);
+    }
+    divide_destruct(dinfo);
 }
 
 static void cmd_divide(void)
@@ -489,27 +490,27 @@ static void cmd_setboard(void)
 
 static void cmd_printboard(void)
 {
-	char str[BOARD_BUFFER_LENGTH];
+    char str[BOARD_BUFFER_LENGTH];
 
-	board_print(str, current_position(), turn());
-	fputs(str, stdout);
+    board_print(str, current_position(), turn());
+    fputs(str, stdout);
 }
 
 static void cmd_printfen(void)
 {
-	char str[FEN_BUFFER_LENGTH];
+    char str[FEN_BUFFER_LENGTH];
 
     game_print_fen(game, str);
-	printf("%s\n", str);
+    printf("%s\n", str);
 }
 
 static void cmd_echo(void)
 {
-	char *str;
+    char *str;
 
-	if ((str = get_str_arg_opt()) != NULL) {
-		printf("%s\n", str);
-	}
+    if ((str = get_str_arg_opt()) != NULL) {
+        printf("%s\n", str);
+    }
 }
 
 static void cmd_new(void)
@@ -532,7 +533,7 @@ static void cmd_new(void)
 
 static void cmd_sd(void)
 {
-	set_search_depth_limit(get_uint(0, MAX_PLY));
+    set_search_depth_limit(get_uint(0, MAX_PLY));
 }
 
 static void cmd_hint(void)
@@ -548,18 +549,18 @@ static void cmd_hint(void)
 
 static void cmd_hard(void)
 {
-	can_ponder = true;
-	if (!is_force_mode && game_started) {
-		start_thinking();
-	}
+    can_ponder = true;
+    if (!is_force_mode && game_started) {
+        start_thinking();
+    }
 }
 
 static void cmd_easy(void)
 {
-	can_ponder = false;
-	if (is_comp_turn()) {
-		stop_thinking();
-	}
+    can_ponder = false;
+    if (is_comp_turn()) {
+        stop_thinking();
+    }
 }
 
 static void cmd_result(void)
@@ -570,102 +571,102 @@ static void cmd_result(void)
 
 static void cmd_time(void)
 {
-	set_computer_clock(get_uint(0, UINT_MAX));
+    set_computer_clock(get_uint(0, UINT_MAX));
 }
 
 static void cmd_otim(void)
 {
-	set_opponent_clock(get_uint(0, UINT_MAX));
+    set_opponent_clock(get_uint(0, UINT_MAX));
 }
 
 static void cmd_black(void)
 {
-	computer_side = black;
-	if (is_comp_turn() && !is_force_mode && game_started) {
-		start_thinking();
-	}
+    computer_side = black;
+    if (is_comp_turn() && !is_force_mode && game_started) {
+        start_thinking();
+    }
 }
 
 static void cmd_white(void)
 {
-	computer_side = white;
-	if (is_comp_turn() && !is_force_mode && game_started) {
-		start_thinking();
-	}
+    computer_side = white;
+    if (is_comp_turn() && !is_force_mode && game_started) {
+        start_thinking();
+    }
 }
 
 static void cmd_level(void)
 {
-	unsigned mps, base, inc;
+    unsigned mps, base, inc;
 
-	mps = get_uint(0, 1024);
-	base = get_uint(0, 1024);
-	inc = get_uint(0, 1024);
-	set_moves_left_in_time(mps);
-	set_computer_clock(base * 100);
-	set_time_inc(inc * 100);
+    mps = get_uint(0, 1024);
+    base = get_uint(0, 1024);
+    inc = get_uint(0, 1024);
+    set_moves_left_in_time(mps);
+    set_computer_clock(base * 100);
+    set_time_inc(inc * 100);
 }
 
 static void cmd_protover(void)
 {
-	printf("feature");
+    printf("feature");
     for (const char **f = features; *f != NULL; ++f) {
-		printf(" %s", *f);
-	}
-	printf("\nfeature done=1\n");
+        printf(" %s", *f);
+    }
+    printf("\nfeature done=1\n");
 }
 
 static void cmd_force(void)
 {
-	stop_thinking();
-	is_force_mode = true;
+    stop_thinking();
+    is_force_mode = true;
 }
 
 static void cmd_go(void)
 {
-	if (game_started && is_comp_turn()) {
-		return;
-	}
-	if (!is_comp_turn()) {
-		computer_side = opponent(computer_side);
-	}
-	is_force_mode = false;
-	game_started = true;
-	start_thinking();
+    if (game_started && is_comp_turn()) {
+        return;
+    }
+    if (!is_comp_turn()) {
+        computer_side = opponent(computer_side);
+    }
+    is_force_mode = false;
+    game_started = true;
+    start_thinking();
 }
 
 static void cmd_playother(void)
 {
-	if (!game_started || !is_force_mode || is_comp_turn()) {
-		return;
-	}
-	stop_thinking();
-	computer_side = opponent(computer_side);
-	start_thinking();
+    if (!game_started || !is_force_mode || is_comp_turn()) {
+        return;
+    }
+    stop_thinking();
+    computer_side = opponent(computer_side);
+    start_thinking();
 }
 
 static void cmd_st(void)
 {
-	set_secs_per_move(get_uint(1, 0x10000));
+    set_secs_per_move(get_uint(1, 0x10000));
 }
 
 static void set_var_onoff(bool *variable)
 {
-	char *str;
+    char *str;
 
-	if ((str = get_str_arg_lower_opt()) == NULL) {
-		*variable = true;
+    if ((str = get_str_arg_lower_opt()) == NULL) {
+        *variable = true;
         return;
-	}
-	if (strcmp(str, "on") == 0) {
-		*variable = true;
-	}
-	else if (strcmp(str, "off") == 0) {
-		*variable = false;
-	}
-	else {
+    }
+    if (strcmp(str, "on") == 0) {
+        *variable = true;
+    }
+    else if (strcmp(str, "off") == 0) {
+        *variable = false;
+    }
+    else {
         param_error();
-	}
+    }
 }
 
 static void set_verbosity(void)
@@ -680,18 +681,18 @@ static void set_exitonmove(void)
 
 static void search_cb(void)
 {
-	move m;
+    move m;
 
-	if (engine_get_best_move(&m) != 0) {
-		// error?
-		return;
-	}
-	print_computer_move(m);
-	set_thinking_done_cb(computer_move);
-	if (exit_on_done) {
+    if (engine_get_best_move(&m) != 0) {
+        // error?
+        return;
+    }
+    print_computer_move(m);
+    set_thinking_done_cb(computer_move);
+    if (exit_on_done) {
         log_close();
         exit(EXIT_SUCCESS);
-	}
+    }
 }
 
 static void cmd_search(void)
@@ -714,30 +715,30 @@ static void cmd_analyze(void)
 
 static void cmd_undo(void)
 {
-	if (is_force_mode) {
+    if (is_force_mode) {
         revert();
         set_engine_root_node(current_position());
-	}
+    }
 }
 
 static void cmd_redo(void)
 {
-	if (is_force_mode) {
+    if (is_force_mode) {
         forward();
         set_engine_root_node(current_position());
-	}
+    }
 }
 
 static void cmd_setmovenot(void)
 {
-	char *str = get_str_arg_lower();
+    char *str = get_str_arg_lower();
 
-	if (strcmp(str, "coor") == 0) {
-		horse->move_not = mn_coordinate;
-	}
+    if (strcmp(str, "coor") == 0) {
+        horse->move_not = mn_coordinate;
+    }
     else if (strcmp(str, "san") == 0) {
-		horse->move_not = mn_san;
-	}
+        horse->move_not = mn_san;
+    }
     else {
         param_error();
     }
@@ -745,32 +746,32 @@ static void cmd_setmovenot(void)
 
 static void cmd_getmovenot(void)
 {
-	switch (horse->move_not) {
-	case mn_coordinate:
-		printf("Using Coordinate move notation\n");
-		break;
-	case mn_san:
-		printf("Using Standard algebraic notation\n");
-		break;
-	default:
-		break;
-	}
+    switch (horse->move_not) {
+        case mn_coordinate:
+            printf("Using Coordinate move notation\n");
+            break;
+        case mn_san:
+            printf("Using Standard algebraic notation\n");
+            break;
+        default:
+            break;
+    }
 }
 
 static void cmd_set_show_thinking(void)
 {
-	set_show_thinking(print_current_result);
+    set_show_thinking(print_current_result);
 }
 
 static void cmd_ping(void)
 {
-	char *str;
+    char *str;
 
-	if ((str = get_str_arg_opt()) == NULL) {
-		printf("pong\n");
-		return;
-	}
-	printf("pong %s\n", str);
+    if ((str = get_str_arg_opt()) == NULL) {
+        printf("pong\n");
+        return;
+    }
+    printf("pong %s\n", str);
 }
 
 static void cmd_trace(void)
@@ -789,6 +790,26 @@ static void cmd_trace(void)
     }
 }
 
+static void cmd_eval(void)
+{
+    static char const evaluation_description[] =
+" evaluation =\n"
+"      material + basic_mobility\n"
+"      + middle_game * (pawn_structure + king_fortress + piece_placement)\n"
+"      + end_game * passed_pawn_score\n";
+
+    eval_factors ef = compute_eval_factors(current_position());
+    printf(" material:          %d\n", ef.material);
+    printf(" middle_game:       %d\n", ef.middle_game);
+    printf(" end_game:          %d\n", ef.end_game);
+    printf(" basic_mobility:    %d\n", ef.basic_mobility);
+    printf(" pawn_structure:    %d\n", ef.pawn_structure);
+    printf(" passed_pawn_score: %d\n", ef.passed_pawn_score);
+    printf(" king_fortress:     %d\n", ef.king_fortress);
+    printf(" piece_placement:   %d\n", ef.piece_placement);
+    printf("%s  %d\n", evaluation_description, eval(current_position()));
+}
+
 static void cmd_getpv(void)
 {
 }
@@ -796,56 +817,57 @@ static void cmd_getpv(void)
 static void nop(void) {}
 
 static struct cmd_entry cmd_list[] = {
-    {"q",                	cmd_quit,  NULL},
-    {"quit",              	cmd_quit,  NULL},
-    {"exit",                cmd_quit,  NULL},
-    {"perft",            	cmd_perft,  NULL},
-    {"perfto",            	cmd_perfto,  NULL},
-    {"perftd",  	cmd_perft_distinct,  NULL},
-    {"perfts",          	cmd_perfts,  NULL},
-    {"divide",          	cmd_divide,  "depth"},
-    {"divideo",          	cmd_divideo,  "depth"},
-    {"setboard",      	cmd_setboard,  "FENSTRING"},
-    {"printboard",  	cmd_printboard,  NULL},
-    {"printfen",      	cmd_printfen,  NULL},
-    {"echo",              	cmd_echo,  NULL},
-    {"print",                cmd_echo,  NULL},
-    {"getpv",            	cmd_getpv,  NULL},
-    {"xboard",          	set_xboard,  NULL},
-    {"new",                	cmd_new,  NULL},
-    {"protover",      	cmd_protover,  NULL},
-    {"time",              	cmd_time,  NULL},
-    {"force",            	cmd_force,  NULL},
-    {"otim",              	cmd_otim,  NULL},
-    {"sd",                  	cmd_sd,  NULL},
-    {"go",                  	cmd_go,  NULL},
-    {"result",          	cmd_result,  NULL},
-    {"hint",              	cmd_hint,  NULL},
-    {"hard",              	cmd_hard,  NULL},
-    {"easy",              	cmd_easy,  NULL},
-    {"post", 	cmd_set_show_thinking,  NULL},
-    {"nopost",	set_no_show_thinking,  NULL},
-    {"level",            	cmd_level,  NULL},
-    {"black",            	cmd_black,  NULL},
-    {"white",            	cmd_white,  NULL},
-    {"playother",    	cmd_playother,  NULL},
-    {"st",                  	cmd_st,  NULL},
-    {"accepted",               	nop,  NULL},
-    {"exitonmove",  	set_exitonmove,  "on|off"},
-    {"random",                 	nop,  NULL},
-    {"rejected",               	nop,  NULL},
-    {"random",                 	nop,  NULL},
-    {"computer",               	nop,  NULL},
-    {"name",                   	nop,  NULL},
-    {"search",          	cmd_search,  NULL},
-    {"analyze",             cmd_analyze,  NULL},
-    {"undo",              	cmd_undo,  NULL},
-    {"redo",              	cmd_redo,  NULL},
-    {"verbose",              set_verbosity, "on|off"},
-    {"setmovenot",  	cmd_setmovenot,  "coor|san"},
-    {"getmovenot",  	cmd_getmovenot,  NULL},
-    {"ping",              	cmd_ping, NULL},
-    {"trace",               cmd_trace, "on|off"}
+    {"q",            cmd_quit,  NULL},
+    {"quit",         cmd_quit,  NULL},
+    {"exit",         cmd_quit,  NULL},
+    {"perft",        cmd_perft,  NULL},
+    {"perfto",       cmd_perfto,  NULL},
+    {"perftd",       cmd_perft_distinct,  NULL},
+    {"perfts",       cmd_perfts,  NULL},
+    {"divide",       cmd_divide,  "depth"},
+    {"divideo",      cmd_divideo,  "depth"},
+    {"setboard",     cmd_setboard,  "FENSTRING"},
+    {"printboard",   cmd_printboard,  NULL},
+    {"printfen",     cmd_printfen,  NULL},
+    {"echo",         cmd_echo,  NULL},
+    {"print",        cmd_echo,  NULL},
+    {"getpv",        cmd_getpv,  NULL},
+    {"xboard",       set_xboard,  NULL},
+    {"new",          cmd_new,  NULL},
+    {"protover",     cmd_protover,  NULL},
+    {"time",         cmd_time,  NULL},
+    {"force",        cmd_force,  NULL},
+    {"otim",         cmd_otim,  NULL},
+    {"sd",           cmd_sd,  NULL},
+    {"go",           cmd_go,  NULL},
+    {"result",       cmd_result,  NULL},
+    {"hint",         cmd_hint,  NULL},
+    {"hard",         cmd_hard,  NULL},
+    {"easy",         cmd_easy,  NULL},
+    {"post",         cmd_set_show_thinking,  NULL},
+    {"nopost",       set_no_show_thinking,  NULL},
+    {"level",        cmd_level,  NULL},
+    {"black",        cmd_black,  NULL},
+    {"white",        cmd_white,  NULL},
+    {"playother",    cmd_playother,  NULL},
+    {"st",           cmd_st,  NULL},
+    {"accepted",     nop,  NULL},
+    {"exitonmove",   set_exitonmove,  "on|off"},
+    {"random",       nop,  NULL},
+    {"rejected",     nop,  NULL},
+    {"random",       nop,  NULL},
+    {"computer",     nop,  NULL},
+    {"name",         nop,  NULL},
+    {"search",       cmd_search,  NULL},
+    {"analyze",      cmd_analyze,  NULL},
+    {"undo",         cmd_undo,  NULL},
+    {"redo",         cmd_redo,  NULL},
+    {"verbose",      set_verbosity, "on|off"},
+    {"setmovenot",   cmd_setmovenot,  "coor|san"},
+    {"getmovenot",   cmd_getmovenot,  NULL},
+    {"ping",         cmd_ping, NULL},
+    {"trace",        cmd_trace, "on|off"},
+    {"eval",         cmd_eval, NULL}
 };
 
 static void init_settings(void)
@@ -870,7 +892,7 @@ static void init_settings(void)
 
 static void dispatch_command(const char *cmd)
 {
-	const struct cmd_entry *e;
+    const struct cmd_entry *e;
     char cmdlower[strlen(cmd)+1];
 
     for (size_t i = 0;; ++i) {
@@ -878,10 +900,10 @@ static void dispatch_command(const char *cmd)
         if (cmd[i] == '\0') break;
     }
     e = bsearch(cmdlower,
-                cmd_list,
-                sizeof cmd_list / sizeof cmd_list[0],
-                sizeof *cmd_list,
-                (int (*)(const void *, const void *))strcmp);
+            cmd_list,
+            sizeof cmd_list / sizeof cmd_list[0],
+            sizeof *cmd_list,
+            (int (*)(const void *, const void *))strcmp);
     if (e != NULL) {
         switch (setjmp(command_error)) {
             case 0:

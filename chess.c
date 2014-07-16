@@ -14,7 +14,7 @@
 #include "hash.h"
 
 const char *start_position_fen = 
-	"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 static int coor_str_to_index(const char *str, player turn, jmp_buf jb)
 {
@@ -25,11 +25,11 @@ static int coor_str_to_index(const char *str, player turn, jmp_buf jb)
 
 static char *board_print_fen(const struct position *pos, char *str)
 {
-	int empty_count;
+    int empty_count;
 
-	for (rank_t rank = rank_8;; rank += rsouth) {
-		empty_count = 0;
-		for (file_t file = file_a; is_valid_file(file); file += east) {
+    for (rank_t rank = rank_8;; rank += rsouth) {
+        empty_count = 0;
+        for (file_t file = file_a; is_valid_file(file); file += east) {
             piece p = get_piece_at(pos, ind(rank, file));
             if (p != nonpiece) {
                 if (empty_count > 0) {
@@ -41,30 +41,30 @@ static char *board_print_fen(const struct position *pos, char *str)
             else {
                 ++empty_count;
             }
-		}
-		if (empty_count > 0) {
-			*str++ = '0' + empty_count;
-		}
-		if (rank == rank_1) {
+        }
+        if (empty_count > 0) {
+            *str++ = '0' + empty_count;
+        }
+        if (rank == rank_1) {
             return str;
         }
         else {
-			*str++ = '/';
-		}
-	}
-	return str;
+            *str++ = '/';
+        }
+    }
+    return str;
 }
 
 static char *castle_rights_print_fen(const struct position *pos, char *str)
 {
     char *c = str;
 
-	if (pos->castle_right_1) *c++ = 'K';
-	if (pos->castle_left_1) *c++ = 'Q';
-	if (pos->castle_right_0) *c++ = 'k';
-	if (pos->castle_left_0) *c++ = 'q';
-	if (c == str) *c++ = '-';
-	return c;
+    if (pos->castle_right_1) *c++ = 'K';
+    if (pos->castle_left_1) *c++ = 'Q';
+    if (pos->castle_right_0) *c++ = 'k';
+    if (pos->castle_left_0) *c++ = 'q';
+    if (c == str) *c++ = '-';
+    return c;
 }
 
 char *position_print_fen(const struct position *pos,
@@ -195,7 +195,7 @@ read_ep_pos(unsigned char *ep_pos, const char *str, player turn, jmp_buf jb)
 
 void setup_empty_position(struct position *pos)
 {
-	memset(pos, 0, sizeof(*pos));
+    memset(pos, 0, sizeof(*pos));
 }
 
 static const char *skip_space(const char *str)
@@ -222,7 +222,7 @@ int position_read_fen(struct position *pos,
                       unsigned *half_move,
                       player *turn)
 {
-	jmp_buf jb;
+    jmp_buf jb;
 
     if (str == NULL || pos == NULL) return -1;
     if (setjmp(jb) != 0) return -1;
@@ -291,8 +291,8 @@ bool is_legal_move(const struct position *pos, move m)
     gen_moves(pos, moves);
     for (unsigned i = 0; moves[i] != 0; ++i) {
         if (moves[i] == m) return true;
-	}
-	return false;
+    }
+    return false;
 }
 
 bool is_move_irreversible(const struct position *pos, move m)

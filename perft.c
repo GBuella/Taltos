@@ -12,13 +12,13 @@
 #include "search.h"
 
 struct divide_info {
-	struct position pos;
-	unsigned depth;
-	move moves[MOVE_ARRAY_LENGTH];
-	move *m;
-	char str[32];
+    struct position pos;
+    unsigned depth;
+    move moves[MOVE_ARRAY_LENGTH];
+    move *m;
+    char str[32];
     player turn;
-	bool is_ordered;
+    bool is_ordered;
 };
 
 unsigned long perft(const struct position *pos, unsigned depth)
@@ -52,29 +52,29 @@ static unsigned long do_perft_ordered(struct node *node)
         return 1;
     }
     move_fsm_setup(node, move_order);
-	if (move_order->plegal_count == 0) return 0;
-	if (rand() & 1) {
-		unsigned mi = rand() % move_order->plegal_count;
+    if (move_order->plegal_count == 0) return 0;
+    if (rand() & 1) {
+        unsigned mi = rand() % move_order->plegal_count;
 
-		node->hte = ht_set_move_index(HT_NULL, mi);
-		
-		if (rand() % 12 == 0) {
-			node->killer = move_order->moves[mi];
-		}
-		else {
-			if (rand() & 1) {
-			    mi = rand() % move_order->plegal_count;
-			    node->killer = move_order->moves[mi];
-			}
-			else {
-				node->killer = 0;
-			}
-		}
-		
-	}
-	else {
-		node->hte = HT_NULL;
-	}
+        node->hte = ht_set_move_index(HT_NULL, mi);
+
+        if (rand() % 12 == 0) {
+            node->killer = move_order->moves[mi];
+        }
+        else {
+            if (rand() & 1) {
+                mi = rand() % move_order->plegal_count;
+                node->killer = move_order->moves[mi];
+            }
+            else {
+                node->killer = 0;
+            }
+        }
+
+    }
+    else {
+        node->hte = HT_NULL;
+    }
     node[1].depth = node->depth - 1;
     n = 0;
     do {
@@ -88,12 +88,12 @@ static unsigned long do_perft_ordered(struct node *node)
 
 unsigned long perft_ordered(const struct position *pos, unsigned depth)
 {
-	struct node nodes[depth + 1];
+    struct node nodes[depth + 1];
 
-	memset(nodes, 0, (depth + 1) * sizeof *nodes);
-	nodes[0].depth = depth;
-	position_copy(nodes[0].pos, pos);
-	return do_perft_ordered(nodes);
+    memset(nodes, 0, (depth + 1) * sizeof *nodes);
+    nodes[0].depth = depth;
+    position_copy(nodes[0].pos, pos);
+    return do_perft_ordered(nodes);
 }
 
 unsigned long perft_distinct(const struct position *pos, unsigned depth)
@@ -106,8 +106,8 @@ unsigned long perft_distinct(const struct position *pos, unsigned depth)
 
 struct divide_info *
 divide_init(const struct position *pos,
-		    unsigned depth,
-			player turn, bool ordered)
+            unsigned depth,
+            player turn, bool ordered)
 {
     assert(pos != NULL);
     assert(depth > 0 && depth <= MAX_PLY);
@@ -119,7 +119,7 @@ divide_init(const struct position *pos,
     if (dinfo == NULL) return NULL;
     dinfo->depth = depth;
     dinfo->turn = turn;
-	dinfo->is_ordered = ordered;
+    dinfo->is_ordered = ordered;
     memcpy(&dinfo->pos, pos, sizeof dinfo->pos);
     gen_moves(pos, dinfo->moves);
     dinfo->m = dinfo->moves;
@@ -131,19 +131,19 @@ const char *divide(struct divide_info *dinfo, enum move_notation_type mn)
     assert(dinfo != NULL);
     if (*dinfo->m == 0) return NULL;
     struct position t;
-	unsigned long n;
+    unsigned long n;
 
     char *str;
 
     str = print_move(&dinfo->pos, *dinfo->m, dinfo->str, mn, dinfo->turn);
     memcpy(&t, &dinfo->pos, sizeof t);
     make_move(&t, *dinfo->m);
-	if (dinfo->is_ordered) {
+    if (dinfo->is_ordered) {
         n = perft_ordered(&t, dinfo->depth-1);
-	}
-	else {
+    }
+    else {
         n = perft(&t, dinfo->depth-1);
-	}
+    }
     sprintf(str, " %lu", n);
     ++dinfo->m;
     return dinfo->str; 

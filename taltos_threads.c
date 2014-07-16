@@ -17,7 +17,7 @@ static void *timer_cb_arg;
 
 static void alarm_handler(int n UNUSED)
 {
-	(*timer_cb)(timer_cb_arg);
+    (*timer_cb)(timer_cb_arg);
 }
 
 void set_timer(unsigned int csecs)
@@ -48,21 +48,21 @@ unsigned get_timer(void)
 
 void thread_create(pthread_t *thread, entry_t entry, void *arg)
 {
-	if (pthread_create(thread, NULL, entry, arg) != 0) {
-		exit(EXIT_FAILURE);
-	}
+    if (pthread_create(thread, NULL, entry, arg) != 0) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 void thread_exit(void)
 {
-	pthread_exit(NULL);
+    pthread_exit(NULL);
 }
 
 void thread_join(pthread_t *thread)
 {
-	if (thread != NULL && *thread != 0) {
-		pthread_join(*thread, NULL);
-	}
+    if (thread != NULL && *thread != 0) {
+        pthread_join(*thread, NULL);
+    }
 }
 
 void thread_kill(pthread_t *thread)
@@ -79,15 +79,15 @@ void thread_kill(pthread_t *thread)
 
 void cancel_timer(void)
 {
-	struct itimerval itimerval;
+    struct itimerval itimerval;
 
-	itimerval.it_interval.tv_sec = 0;
-	itimerval.it_interval.tv_usec = 0;
-	itimerval.it_value.tv_sec = 0;
-	itimerval.it_value.tv_usec = 0;
-	if (setitimer(ITIMER_REAL, &itimerval, NULL) == -1) {
-		exit(EXIT_FAILURE);
-	}
+    itimerval.it_interval.tv_sec = 0;
+    itimerval.it_interval.tv_usec = 0;
+    itimerval.it_value.tv_sec = 0;
+    itimerval.it_value.tv_usec = 0;
+    if (setitimer(ITIMER_REAL, &itimerval, NULL) == -1) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 #elif WINDOWS_BUILD
@@ -102,90 +102,90 @@ static int64_t timer_time_out;
 
 static DWORD timer_handler(void *arg)
 {
-	HANDLE timer_id;
-	LARGE_INTEGER rel_time;
-	
-	timer_id = CreateWaitableTimer(NULL, TRUE, NULL);
-	if (timer_id == NULL) {
-		TerminateThread(timer_thread, 0);
-		return 0;
-	}
-	rel_time.QuadPart = -(timer_time_out * 10000000 / 1000);
-	if (!SetWaitableTimer(timer_id, &rel_time,
-				0, NULL, NULL, FALSE))
-	{
-		CloseHandle(timer_id);
-		TerminateThread(timer_thread, 0);
-		return 0;
-	}
-	if (!WaitForSingleObject(timer_id, INFINITE)) {
-		(*timer_cb)(timer_cb_arg);
-	}
-	CloseHandle(timer_id);
-	TerminateThread(timer_thread, 0);
-	return 0;
+    HANDLE timer_id;
+    LARGE_INTEGER rel_time;
+
+    timer_id = CreateWaitableTimer(NULL, TRUE, NULL);
+    if (timer_id == NULL) {
+        TerminateThread(timer_thread, 0);
+        return 0;
+    }
+    rel_time.QuadPart = -(timer_time_out * 10000000 / 1000);
+    if (!SetWaitableTimer(timer_id, &rel_time,
+                0, NULL, NULL, FALSE))
+    {
+        CloseHandle(timer_id);
+        TerminateThread(timer_thread, 0);
+        return 0;
+    }
+    if (!WaitForSingleObject(timer_id, INFINITE)) {
+        (*timer_cb)(timer_cb_arg);
+    }
+    CloseHandle(timer_id);
+    TerminateThread(timer_thread, 0);
+    return 0;
 }
 
 void set_timer(unsigned int csecs)
 {
-	if (timer_thread != NULL) {
-		return;
-	}
-	timer_time_out = csecs * 10;
-	thread_create(&timer_thread, (entry_t) timer_handler, NULL);
+    if (timer_thread != NULL) {
+        return;
+    }
+    timer_time_out = csecs * 10;
+    thread_create(&timer_thread, (entry_t) timer_handler, NULL);
 }
 
 unsigned int get_timer(void)
 {
-	retur 0;
+    retur 0;
 }
 
 void thread_create(HANDLE *thread, entry_t entry, void *arg)
 {
-	*thread = CreateThread(NULL, 0,
-			(LPTHREAD_START_ROUTINE) entry, arg, 0, NULL);
-	if (*thread == NULL) {
-		exit(EXIT_FAILURE);
-	}
+    *thread = CreateThread(NULL, 0,
+            (LPTHREAD_START_ROUTINE) entry, arg, 0, NULL);
+    if (*thread == NULL) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 void thread_exit(void)
 {
-	ExitThread(0);
+    ExitThread(0);
 }
 
 void thread_kill(HANDLE *thread)
 {
-	if (*thread) {
-		TerminateThread(*thread, 0);
-		*thread = NULL;
-	}
+    if (*thread) {
+        TerminateThread(*thread, 0);
+        *thread = NULL;
+    }
 }
 
 void cancel_timer(void)
 {
-	if (timer_thread == NULL) {
-		return;
-	}
-	TerminateThread(timer_thread, 0);
-	timer_thread = NULL;
+    if (timer_thread == NULL) {
+        return;
+    }
+    TerminateThread(timer_thread, 0);
+    timer_thread = NULL;
 }
 
 void thread_join(HANDLE *thread)
 {
-	if (timer_thread != NULL) {
-		WaitForSingleObject(thread);
-	}
+    if (timer_thread != NULL) {
+        WaitForSingleObject(thread);
+    }
 }
 
 #endif /* WINDOWS_BUILD */
 
 void set_timer_cb(void (*func)(void *), void *arg)
 {
-#	if POSIX_BUILD
-	signal(SIGALRM, alarm_handler);
-#	endif
-	timer_cb = func;
-	timer_cb_arg = arg;
+#   if POSIX_BUILD
+    signal(SIGALRM, alarm_handler);
+#   endif
+    timer_cb = func;
+    timer_cb_arg = arg;
 }
 

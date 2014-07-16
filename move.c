@@ -54,8 +54,8 @@ print_san_move_capture(const struct position *pos, int to, char *str)
 static char *print_san_promotion(move m, char *str)
 {
     if (is_promotion(m)) {
-		*(str++) = '=';
-		*(str++) = toupper(piece_to_char(mpromotion(m)));
+        *(str++) = '=';
+        *(str++) = toupper(piece_to_char(mpromotion(m)));
     } 
     return str;
 }
@@ -68,7 +68,7 @@ static char *print_san_check(const struct position *pos UNUSED, move m UNUSED, c
 static char *
 print_san_move(const struct position *pos, move m, char *str, player turn)
 {
-	int piece = get_piece_at(pos, mfrom(m));
+    int piece = get_piece_at(pos, mfrom(m));
 
     if (m == mcastle_right) {
         return str + sprintf(str, "O-O");
@@ -79,13 +79,13 @@ print_san_move(const struct position *pos, move m, char *str, player turn)
     if (piece != pawn) {
         *str++ = toupper(piece_to_char(piece));
     }
-	str = print_san_move_from(pos, m, str, turn);
-	str = print_san_move_capture(pos, mto(m), str);
+    str = print_san_move_from(pos, m, str, turn);
+    str = print_san_move_capture(pos, mto(m), str);
     str = index_to_str(str, mto(m), turn);
     str = print_san_promotion(m, str);
-	str = print_san_check(pos, m, str);
-	*str = '\0';
-	return str;
+    str = print_san_check(pos, m, str);
+    *str = '\0';
+    return str;
 }
 
 char *
@@ -93,11 +93,11 @@ print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH], player turn)
 {
     str = index_to_str(str, mfrom(m), turn);
     str = index_to_str(str, mto(m), turn);
-	if (is_promotion(m)) {
-		*str++ = toupper(piece_to_char(mpromotion(m)));
-	}
-	*str = '\0';
-	return str;
+    if (is_promotion(m)) {
+        *str++ = toupper(piece_to_char(mpromotion(m)));
+    }
+    *str = '\0';
+    return str;
 }
 
 char *print_move(const struct position* pos,
@@ -112,15 +112,15 @@ char *print_move(const struct position* pos,
     assert(is_valid_piece(get_piece_at(pos, mfrom(m))));
     assert(get_player_at(pos, mfrom(m)) != get_player_at(pos, mto(m)));
 
-	switch (t) {
-	case mn_coordinate:
-		return print_coor_move(m, str, turn);
-		break;
-	default:
-	case mn_san:
-		return print_san_move(pos, m, str, turn);
-		break;
-	}
+    switch (t) {
+        case mn_coordinate:
+            return print_coor_move(m, str, turn);
+            break;
+        default:
+        case mn_san:
+            return print_san_move(pos, m, str, turn);
+            break;
+    }
 }
 
 static bool move_str_eq(const char *user_move, const char *move)
@@ -146,9 +146,9 @@ int read_move(const struct position *pos, const char *str, move *m, player turn)
 
     move moves[MOVE_ARRAY_LENGTH];
 
-	if (str[0] == '\0') {
-		return NONE_MOVE;
-	}
+    if (str[0] == '\0') {
+        return NONE_MOVE;
+    }
     gen_moves(pos, moves);
     for (move *mp = moves; *mp != 0; ++mp) {
         char tstr[MOVE_STR_BUFFER_LENGTH];
@@ -164,6 +164,6 @@ int read_move(const struct position *pos, const char *str, move *m, player turn)
             return 0;
         }
     }
-	return NONE_MOVE;
+    return NONE_MOVE;
 }
 

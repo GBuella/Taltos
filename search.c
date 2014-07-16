@@ -8,6 +8,7 @@
 #include "hash.h"
 #include "taltos_threads.h"
 #include "trace.h"
+#include "eval.h"
 
 uintmax_t node_count;
 uintmax_t first_move_cutoff_count;
@@ -163,7 +164,7 @@ static int node_init(struct node *node, struct move_fsm *ml)
         }
     }
     if (node->root_distance >= MAX_PLY + MAX_Q_PLY - 1) {
-        node->value = eval(node);
+        node->value = eval(node->pos);
         return leaf_reached;
     }
     if (in_check(node->pos)) {
@@ -172,7 +173,7 @@ static int node_init(struct node *node, struct move_fsm *ml)
     move_fsm_setup(node, ml);
     if (ml->plegal_count == 0) {
         if (is_qsearch(node)) {
-            node->value = eval(node);
+            node->value = eval(node->pos);
         }
         else {
             node->value = in_check(node->pos) ? -MATE_VALUE-MAX_PLY : 0;
@@ -192,7 +193,7 @@ static int node_init(struct node *node, struct move_fsm *ml)
         return cutoff;
     }
     if (is_qsearch(node)) {
-        int value = eval(node);
+        int value = eval(node->pos);
         if (value > node->alpha) {
             node->value = value;
             if (value >= node->beta) {
@@ -327,7 +328,7 @@ static void save_node_hash(const struct node *node)
     if (node->is_GHI_barrier || !node->sd.strict_repetitions) {
         save_node_hash_regular(node);
     }
-	else {
+    else {
         save_node_hash_move_only(node);
     }
 }
@@ -572,7 +573,7 @@ static int negamax(struct node *node)
     } while (node->alpha < node->beta);
     if (is_qsearch(node)) {
         if (node->alpha < node->beta) {
-            int value = eval(node);
+            int value = eval(node->pos);
             if (ml->legal_counter == 0) {
                 return value;
             }

@@ -228,6 +228,21 @@ static inline uint64_t bb_bishops_map0(const uint64_t bb[static 5])
     return bb_bishops_map(bb) & bb[bb_side_0];
 }
 
+static inline uint64_t bb_bishops_only_map(const uint64_t bb[static 3])
+{
+    return bb[1] & bb[2] & ~bb[0];
+}
+
+static inline uint64_t bb_bishops_only_map1(const uint64_t bb[static 5])
+{
+    return bb_bishops_only_map(bb) & bb[bb_side_1];
+}
+
+static inline uint64_t bb_bishops_only_map0(const uint64_t bb[static 5])
+{
+    return bb_bishops_only_map(bb) & bb[bb_side_0];
+}
+
 static inline uint64_t bb_queens_map(const uint64_t bb[static 3])
 {
     return bb[0] & bb[2];
@@ -395,9 +410,34 @@ static inline uint64_t bishops_map1(const struct position *pos)
     return pside1(pos) & bishops_map(pos);
 }
 
+static inline uint64_t bishops_only_map(const struct position *pos)
+{
+    return bb_bishops_map(pos->bb);
+}
+
+static inline uint64_t bishops_only_map1(const struct position *pos)
+{
+    return bishops_only_map(pos) & pside1(pos);
+}
+
+static inline uint64_t bishops_only_map0(const struct position *pos)
+{
+    return bishops_only_map(pos) & pside0(pos);
+}
+
 static inline uint64_t queens_map(const struct position *pos)
 {
     return bb_queens_map(pos->bb);
+}
+
+static inline uint64_t queens_map1(const struct position *pos)
+{
+    return queens_map(pos) & pside1(pos);
+}
+
+static inline uint64_t queens_map0(const struct position *pos)
+{
+    return queens_map(pos) & pside0(pos);
 }
 
 static inline uint64_t occupied(const struct position *pos)

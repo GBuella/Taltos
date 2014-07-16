@@ -11,16 +11,6 @@
 #include "hash.h"
 #include "time.h"
 
-#define MAX_VALUE 0x7ff
-#define MATE_VALUE (MAX_VALUE - 100)
-#define PAWN_VALUE 0x10
-#define KNIGHT_VALUE 0x30
-#define BISHOP_VALUE 0x31
-#define ROOK_VALUE 0x50
-#define QUEEN_VALUE 0x90
-#define XQUEEN_VALUE (QUEEN_VALUE - BISHOP_VALUE - ROOK_VALUE)
-
-extern const int piece_value[8];
 
 enum move_order_phase {
     initial,
@@ -100,8 +90,6 @@ int search(const struct position *,
            int *qdepth);
 void move_fsm_setup(const struct node *, struct move_fsm *);
 void select_next_move(struct node *, struct move_fsm *);
-int eval(const struct node *node);
-int eval_material(const uint64_t bb[static 5]);
 
 static inline bool is_qsearch(const struct node *node)
 {

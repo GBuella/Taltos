@@ -10,6 +10,7 @@
 #include "search.h"
 #include "hash.h"
 #include "trace.h"
+#include "eval.h"
 
 static struct position *root = NULL;
 static thread_t thinking_thread;
@@ -42,40 +43,40 @@ void set_search_depth_limit(unsigned limit)
 
 void unset_search_depth_limit(void)
 {
-	depth_limit = -1;
+    depth_limit = -1;
 }
 
 void set_time_inc(unsigned n)
 {
-	stop_thinking();
-	is_tc_secs_per_move = 0;
-	time_inc = n;
+    stop_thinking();
+    is_tc_secs_per_move = 0;
+    time_inc = n;
 }
 
 void set_moves_left_in_time(unsigned n)
 {
-	cancel_timer();
-	is_tc_secs_per_move = 0;
-	moves_left_in_time = n;
+    cancel_timer();
+    is_tc_secs_per_move = 0;
+    moves_left_in_time = n;
     base_moves_per_time = n;
 }
 
 void set_computer_clock(unsigned t)
 {
-	cancel_timer();
-	computer_time = t;
+    cancel_timer();
+    computer_time = t;
 }
 
 void set_secs_per_move(unsigned t)
 {
-	cancel_timer();
-	is_tc_secs_per_move = 1;
-	computer_time = t * 100;
+    cancel_timer();
+    is_tc_secs_per_move = 1;
+    computer_time = t * 100;
 }
 
 void set_opponent_clock(unsigned t)
 {
-	opponent_time = t;
+    opponent_time = t;
 }
 
 void stop_thinking(void)
@@ -88,26 +89,26 @@ void stop_thinking(void)
 
 void wait_thinking(void)
 {
-	thread_join(&thinking_thread);
+    thread_join(&thinking_thread);
 }
 
 int engine_get_best_move(move *m)
 {
-	if (engine_best_move != 0) {
-		*m = engine_best_move;
-		return 0;
-	}
-	else {
-		return -1;
-	}
+    if (engine_best_move != 0) {
+        *m = engine_best_move;
+        return 0;
+    }
+    else {
+        return -1;
+    }
 }
 
 static void search_time_end(void *arg UNUSED)
 {
     trace("search_time_end called\n");
-	if (thinking_thread == NULL) return;
-	thread_kill(&thinking_thread);
-	(*thinking_cb)();
+    if (thinking_thread == NULL) return;
+    thread_kill(&thinking_thread);
+    (*thinking_cb)();
 }
 
 static void fill_best_move(void)
@@ -115,7 +116,7 @@ static void fill_best_move(void)
     move moves[MOVE_ARRAY_LENGTH];
 
     memset(moves, 0, sizeof moves);
-	if (gen_moves(root, moves) != moves) {
+    if (gen_moves(root, moves) != moves) {
         engine_best_move = moves[0];
     }
     else {
@@ -131,12 +132,12 @@ void set_engine_root_node(const struct position *pos)
 
 void set_show_thinking(void (*cb)(const struct engine_result))
 {
-	show_thinking_cb = cb;
+    show_thinking_cb = cb;
 }
 
 void set_no_show_thinking(void)
 {
-	show_thinking_cb = NULL;
+    show_thinking_cb = NULL;
 }
 
 static void
@@ -206,13 +207,13 @@ static void *iterative_deepening(void *arg)
 
 static unsigned get_time_for_move(void)
 {
-	if (is_tc_secs_per_move) {
-		return computer_time;
-	}
-	if (moves_left_in_time) {
-		return (computer_time / moves_left_in_time) - 1;
-	}
-	return computer_time / 10;
+    if (is_tc_secs_per_move) {
+        return computer_time;
+    }
+    if (moves_left_in_time) {
+        return (computer_time / moves_left_in_time) - 1;
+    }
+    return computer_time / 10;
 }
 
 static void start_thinking_one_thread(struct search_description *sd)
@@ -251,7 +252,7 @@ void start_thinking(void)
 
 void set_thinking_done_cb(void (*cb)(void))
 {
-	thinking_cb = cb;
+    thinking_cb = cb;
 }
 
 void engine_move_count_inc(void)

@@ -2,10 +2,10 @@
 #include <assert.h>
 #include <string.h>
 
-#include "stdio.h"
+#include <stdio.h>
 
 #include "search.h"
-
+#include "eval.h"
 
 
 #define USED_MOVE 0xffff
