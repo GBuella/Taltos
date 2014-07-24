@@ -1,0 +1,8 @@
+setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+echo rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6

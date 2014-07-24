@@ -1,0 +1,8 @@
+setboard n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1
+echo n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6

@@ -1,0 +1,8 @@
+setboard 6KQ/8/8/8/8/8/8/7k b - - 0 1
+echo 6KQ/8/8/8/8/8/8/7k b - - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6

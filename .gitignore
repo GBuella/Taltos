@@ -1,8 +1,9 @@
-.depends
+*.swp
+Session.vim
 *.o
 taltos
-.*.swp
-Session.vim
-gen_constants
 gen_constants.dSYM
+gen_constants
 move_gen_const.inc
+.out
+.time

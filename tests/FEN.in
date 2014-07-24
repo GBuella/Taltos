@@ -1,0 +1,13 @@
+printfen
+setboard 7k/8/8/1p6/P7/8/8/7K b - - 0 1
+printboard
+printfen
+setboard 7k/8/8/1p6/P7/8/8/7K b - -
+printfen
+printboard
+setboard k7/8/8/6p1/7P/8/8/K7 b - - 0 1
+printboard
+printfen
+setboard r1bqkbnr/ppp1pppp/n7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6
+printboard
+printfen

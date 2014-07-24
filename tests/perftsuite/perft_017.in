@@ -1,0 +1,8 @@
+setboard 2r1k2r/8/8/8/8/8/8/R3K2R w KQk - 0 1
+echo 2r1k2r/8/8/8/8/8/8/R3K2R w KQk - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6

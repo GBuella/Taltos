@@ -1,0 +1,8 @@
+setboard 7k/8/8/3p4/8/8/3P4/K7 w - - 0 1
+echo 7k/8/8/3p4/8/8/3P4/K7 w - - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6

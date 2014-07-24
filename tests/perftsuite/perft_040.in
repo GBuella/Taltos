@@ -1,0 +1,8 @@
+setboard k7/8/2N5/1N6/8/8/8/K6n w - - 0 1
+echo k7/8/2N5/1N6/8/8/8/K6n w - - 0 1
+perft 1
+perft 2
+perft 3
+perft 4
+perft 5
+perft 6
