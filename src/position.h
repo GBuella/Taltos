@@ -18,7 +18,7 @@ struct position {
     uint64_t king_attack_map;
     uint64_t king_reach_map_1;
     uint64_t king_reach_map_0;
-    unsigned char ep_ind;
+    int ep_ind;
     bool castle_left_0;
     bool castle_right_0;
     bool castle_left_1;

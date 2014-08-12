@@ -6,10 +6,6 @@
 
 #include "macros.h"
 
-#ifdef HAS_C11_ATOMICS
-#include <stdatomic.h>
-#endif
-
 #include "hash.h"
 #include "position.h"
 #include "z_random.inc"
@@ -29,12 +25,7 @@
 #endif
 
 struct hash_table {
-    /* Assume ht_entry is uint64_t */
-#   ifdef HAS_C11_ATOMICS
-    atomic_uint_fast64_t *table;
-#   else
-    volatile uint64_t *table;
-#   endif
+    ht_entry *table;
     size_t size;
     uint64_t zhash_mask;
     bool is_dual;
@@ -152,6 +143,17 @@ static bool hash_ok(uint64_t a, uint64_t b)
        uint64_t
      */
     return (a >> 29) == (b >> 29);
+}
+
+void ht_prefetch(const struct hash_table *ht, zobrist_hash hash)
+{
+    if (ht == NULL) return;
+
+    unsigned index = (unsigned)(hash & ht->zhash_mask);
+    if (ht->is_dual) {
+        index <<= 1;
+    }
+    PREFETCH(ht->table + index);
 }
 
 ht_entry ht_lookup(const struct hash_table *ht, zobrist_hash hash)
@@ -319,10 +321,6 @@ void ht_extract_pv(const struct hash_table *ht,
     memcpy(child, pos, sizeof child);
     make_move(child, pv[0]);
     ht_extract_pv(ht, child, depth - PLY, pv + 1);
-}
-
-void ht_clean_up_after_move(const struct position *pos UNUSED, move m UNUSED)
-{
 }
 
 void ht_swap(struct hash_table *ht)

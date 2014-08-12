@@ -33,7 +33,7 @@ static char *board_print_fen(const struct position *pos, char *str)
             piece p = get_piece_at(pos, ind(rank, file));
             if (p != nonpiece) {
                 if (empty_count > 0) {
-                    *str++ = '0' + empty_count;
+                    *str++ = '0' + (char)empty_count;
                     empty_count = 0;
                 }
                 *str++ = square_to_char(p, get_player_at(pos, ind(rank, file)));
@@ -178,7 +178,7 @@ read_castle_rights_fen(struct position *pos, const char *str, jmp_buf jb)
 }
 
 static const char *
-read_ep_pos(unsigned char *ep_pos, const char *str, player turn, jmp_buf jb)
+read_ep_pos(int *ep_pos, const char *str, player turn, jmp_buf jb)
 {
     if (*str == '-') {
         ++str;
@@ -216,7 +216,7 @@ read_move_counter(unsigned *n, const char *str, jmp_buf jb)
 }
 
 int position_read_fen(struct position *pos,
-                      const char *str,
+                      const char * volatile str,
                       unsigned *full_move,
                       unsigned *half_move,
                       player *turn)
@@ -287,7 +287,7 @@ bool is_legal_move(const struct position *pos, move m)
 {
     move moves[MOVE_ARRAY_LENGTH];
 
-    gen_moves(pos, moves);
+    (void)gen_moves(pos, moves);
     for (unsigned i = 0; moves[i] != 0; ++i) {
         if (moves[i] == m) return true;
     }

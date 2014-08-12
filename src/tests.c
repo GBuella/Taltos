@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "str_util.h"
 #include "perft.h"

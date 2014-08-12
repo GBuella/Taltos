@@ -32,7 +32,7 @@ static void onexit(void)
 {
     if (horse.timing) {
         float t = (float)(clock() - horse.start_time);
-        fprintf(stderr, "%.2f\n", t / CLOCKS_PER_SEC);
+        (void)fprintf(stderr, "%.2f\n", t / CLOCKS_PER_SEC);
     }
     log_close();
 }
@@ -60,9 +60,9 @@ int main(int argc, char **argv)
     init_threading();
     init_engine(&horse);
     process_args(argc, argv);
-    atexit(onexit);
+    if (atexit(onexit) != 0) return EXIT_FAILURE;
 #   if !defined(WIN32) && !defined(WIN64)
-    setvbuf(stdout, NULL, _IOLBF, 0x1000);
+    (void)setvbuf(stdout, NULL, _IOLBF, 0x1000);
 #   endif /* !WIN */
     loop_cli(&horse);
     return EXIT_SUCCESS;

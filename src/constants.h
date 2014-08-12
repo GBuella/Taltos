@@ -136,7 +136,7 @@ struct magical {
 #ifdef SLIDING_BYTE_LOOKUP
     const uint8_t *attack_index_table;
 #endif
-    unsigned shift;
+    int shift;
 };
 
 extern struct magical rook_magics[64];

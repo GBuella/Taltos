@@ -84,12 +84,10 @@ enum player {
 
 typedef enum player player;
 
-static const unsigned player_mask = white|black;
-
-static inline enum player opponent(player p)
+static inline player opponent(player p)
 {
     assert(p == white || p == black);
-    return p ^ player_mask;
+    return p ^ (white|black);
 }
 
 enum sq_index_enum_set {
@@ -99,7 +97,7 @@ enum sq_index_enum_set {
     sq_h8 = 0,  sq_g8, sq_f8, sq_e8, sq_d8, sq_c8, sq_b8, sq_a8
 };
 
-typedef uint16_t move;
+typedef int move;
 
 static const move mcastle_left = castle_left | sq_e1 | (sq_c1 << 6);
 static const move mcastle_right = castle_right | sq_e1 | (sq_g1 << 6);
@@ -339,7 +337,7 @@ char *position_print_fen(const struct position *,
                          unsigned half_move,
                          player turn);
 int position_read_fen(struct position *,
-                      const char *,
+                      const char *buffer,
                       unsigned *full_move,
                       unsigned *half_move,
                       player *turn);

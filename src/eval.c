@@ -53,8 +53,8 @@ static uint64_t knights_attacks(uint64_t knights)
     return attacks;
 }
 
-static uint64_t
-gen_range(uint64_t occ, uint64_t src_map, const struct magical *magics)
+static int
+count_range_att(uint64_t occ, uint64_t src_map, const struct magical *magics)
 {
     uint64_t map = EMPTY;
 
@@ -62,7 +62,7 @@ gen_range(uint64_t occ, uint64_t src_map, const struct magical *magics)
         map |= sliding_map(occ, magics + bsf(src_map));
         src_map = reset_lsb(src_map);
     }
-    return map;
+    return spopcnt(map);
 }
 
 #define END_MAX 2
@@ -96,8 +96,8 @@ static int pawn_structure(uint64_t pawns0, uint64_t pawns1,
     return value;
 }
 
-static int passed_pawn_score_side1(uint64_t pawns1, uint64_t pawns0,
-                                   uint64_t attacked, uint64_t s0)
+static int
+passed_pawn_score_side1(uint64_t pawns1, uint64_t pawns0, uint64_t s0)
 {
     int value = spopcnt(pawns1 & RANK_7) * PAWN_RANK_7_VALUE;
     uint64_t opponent_block, passed;
@@ -109,33 +109,27 @@ static int passed_pawn_score_side1(uint64_t pawns1, uint64_t pawns0,
     passed = pawns1 & ~opponent_block;
     value += spopcnt(passed) * PASSED_PAWN_VALUE;
     passed = kogge_stone_north(passed);
-    value -= spopcnt(kogge_stone_north(passed) & attacked)
-                * PASSED_PAWN_PATH_ATTACKED_PENALTY;
     value -= spopcnt(kogge_stone_north(passed) & s0)
                 * PASSED_PAWN_PATH_BLOCKED_PENALTY;
     return value;
 }
 
-static int passed_pawn_score(const uint64_t bb[static 5],
-                        uint64_t ranged_1, uint64_t ranged_0)
+static int passed_pawn_score(const uint64_t bb[static 5])
 {
     int value = 0;
 
     value += passed_pawn_score_side1(bb_pawns_map1(bb),
                                      bb_pawns_map0(bb),
-                                     ranged_0 & ~ranged_1,
                                      side0(bb));
     value -= passed_pawn_score_side1(bswap(bb_pawns_map0(bb)),
                                      bswap(bb_pawns_map1(bb)),
-                                     bswap(ranged_1 & ~ranged_0),
                                      bswap(side1(bb)));
     return value;
 }
 
-static int eval_endgame(const uint64_t bb[static 5],
-                        uint64_t ranged_1, uint64_t ranged_0)
+static int eval_endgame(const uint64_t bb[static 5])
 {
-    return passed_pawn_score(bb, ranged_1, ranged_0);
+    return passed_pawn_score(bb);
 }
 
 static int king_fortress(uint64_t pawns, uint64_t rooks, uint64_t king)
@@ -209,24 +203,18 @@ static int eval_middlegame(const struct position *pos,
     return value;
 }
 
-static int basic_mobility(const struct position *pos,
-                              uint64_t *ranged_1, uint64_t *ranged_0)
+static int basic_mobility(const struct position *pos)
 {
     uint64_t occ = occupied(pos);
     int value;
 
-    *ranged_1 = gen_range(occ, rooks_only_map1(pos), rook_magics);
-    *ranged_1 |= gen_range(occ, bishops_only_map1(pos), bishop_magics);
-    *ranged_1 |= knights_attacks(knights_map1(pos));
-    *ranged_0 = gen_range(occ, rooks_only_map0(pos), rook_magics);
-    *ranged_0 |= gen_range(occ, bishops_only_map0(pos), bishop_magics);
-    *ranged_0 |= knights_attacks(knights_map0(pos));
-    value = (spopcnt(*ranged_1) - spopcnt(*ranged_0)) / 2;
-    *ranged_1 |= gen_range(occ, queens_map1(pos), rook_magics);
-    *ranged_1 |= gen_range(occ, queens_map1(pos), bishop_magics);
-    *ranged_0 |= gen_range(occ, queens_map0(pos), rook_magics);
-    *ranged_0 |= gen_range(occ, queens_map0(pos), bishop_magics);
-    return value;
+    value = count_range_att(occ, rooks_only_map1(pos), rook_magics);
+    value += count_range_att(occ, bishops_only_map1(pos), bishop_magics);
+    value += spopcnt(knights_attacks(knights_map1(pos)));
+    value -= count_range_att(occ, rooks_only_map0(pos), rook_magics);
+    value -= count_range_att(occ, bishops_only_map0(pos), bishop_magics);
+    value -= spopcnt(knights_attacks(knights_map0(pos)));
+    return value / 2;
 }
 
 int eval(const struct position *pos)
@@ -234,14 +222,13 @@ int eval(const struct position *pos)
     assert(pos != NULL);
 
     int value;
-    uint64_t ranged_1, ranged_0;
     int end = compute_endgame_factor(pos->bb);
 
     value = eval_material(pos->bb);
-    value += basic_mobility(pos, &ranged_1, &ranged_0);
+    value += basic_mobility(pos);
 
     if (end > 0) {
-        value += end * eval_endgame(pos->bb, ranged_1, ranged_0);
+        value += end * eval_endgame(pos->bb);
     }
     if (end < END_MAX) {
         uint64_t outposts1, outposts0;
@@ -258,17 +245,16 @@ int eval(const struct position *pos)
 
 eval_factors compute_eval_factors(const struct position *pos)
 {
-    uint64_t ranged_1, ranged_0;
     uint64_t outposts1, outposts0;
     eval_factors ef;
 
     ef.material = eval_material(pos->bb);
-    ef.basic_mobility = basic_mobility(pos, &ranged_1, &ranged_0);
+    ef.basic_mobility = basic_mobility(pos);
     ef.end_game = compute_endgame_factor(pos->bb);
     ef.middle_game = END_MAX - ef.end_game;
     ef.pawn_structure = pawn_structure(pawns_map0(pos), pawns_map1(pos),
                                        &outposts1, &outposts0);
-    ef.passed_pawn_score = passed_pawn_score(pos->bb, ranged_1, ranged_0);
+    ef.passed_pawn_score = passed_pawn_score(pos->bb);
     ef.king_fortress = king_fortress1(pos) - king_fortress0(pos);
     ef.piece_placement = piece_placement(pos, outposts1, outposts0);
     return ef;

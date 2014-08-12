@@ -1,0 +1,74 @@
+
+Board represention in each 64 bit unsigned integer:
+
+Bitboards are always oriented to represent the point of view of the
+player who's turn it is, i.e. it is always white's turn to move,
+with the squares listed from the north-east
+corner ( H8 ) at the LSB, to the south-west corner ( A1 ) at the MSB.
+
+A quick explanation of the directions used:
+north -> towards rank 8,
+south -> towards rank 1
+so moving one square to the north means a shift right by eight on the bitboard.
+east -> towards file H
+west -> towards file A
+so moving one square to the east on the board means a shit right by one
+on the bitboard, moving towards the west means a shift left by one.
+
+ A  B  C  D  E  F  G  H
+
+ 7  6  5  4  3  2  1  0   8
+15 14 13 12 11 10  9  8   7
+23 22 21 20 19 18 17 16   6
+31 30 29 28 27 26 25 24   5
+39 38 37 36 35 34 33 32   4
+47 46 45 44 43 42 41 40   3
+55 54 53 52 51 50 49 48   2
+63 62 61 60 59 58 57 56   1
+
+ A  B  C  D  E  F  G  H
+
+A chess board is represented by an array of bitboards, where an array of
+three bitboards represents a board with pieces wihtout color,
+using three bits for each square. In the code these are referred to as:
+uint64_t bb[static 3]   ( where bb is short for bitboard )
+uint64_t board[static 3]
+
+Another convention also stores the color of each piece, with a bit in
+the fourth bitboard set for each piece of the next player ( or call it white,
+the player to make the next move ), and a bit in the fifth bitboard set for each
+piece of the other player. These can be found in the code in the following form:
+
+uint64_t bb[static 5]
+or
+uint64_t board[static 5]
+
+The struct called position contains a chess board, and also holds some
+additional information required to describe a chess position,
+which don't fit into the board representation:
+The current castling rights, the index of the pawn which can be captured
+en passant, if any.
+Besides these, it also hold some information always updated from the bitboards:
+
+
+uint64_t king_reach_map_1;
+uint64_t king_reach_map_0;
+    These have the squares which can be reached from each king's current square
+    in horizontal, vertical, or diagonal rays ( as if a queen would
+    reside on that square). Used to determine after a move can possibly result in
+    checking a king, or in a discovered check. The only exception the case of
+    knights moves, which can attack a king from outside these maps.
+
+uint64_t king_attack_map;
+    Stores the squares of the pieces attacking the players king, and if it
+    is attacked by any ranged piece ( bishop, rook, or queen ), this bitboards
+    also has the squares between the attacker and the king set. There is only
+    one of this map, since the opponents king can not be in check.
+
+
+zobrist_hash hash[2];
+    Two zobrist hashes, one from each players point of view. These are swapped
+    following each move made, so e.g. the hash of a position from black's point
+    of view is the same as the a symmetric transposition of that one from
+    white's point of view, even their square indexes are flipped ( white's A2
+    is hashed as A7 in black's hash )

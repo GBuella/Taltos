@@ -8,14 +8,14 @@
 char index_to_file_ch(int index)
 {
     assert(ivalid(index));
-    return 'h' - ind_file(index);
+    return (char)('h' - ind_file(index));
 }
 
 char index_to_rank_ch(int index, player turn)
 {
     assert(ivalid(index));
     rank_t rank = ind_rank(index);
-    return (turn == black) ? ('1' + rank) : ('8' - rank);
+    return (char)((turn == black) ? ('1' + rank) : ('8' - rank));
 }
 
 char *index_to_str(char str[static 2], int index, player turn)
@@ -44,7 +44,7 @@ char square_to_char(piece p, player pl)
 {
     char pc = piece_to_char(p);
 
-    return (pl == black) ? pc : toupper(pc);
+    return (pl == black) ? pc : (char)toupper(pc);
 }
 
 piece char_to_piece(char p)

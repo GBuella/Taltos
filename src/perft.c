@@ -33,7 +33,7 @@ unsigned long perft(const struct position *pos, unsigned depth)
     if (depth == 0) {
         return 1;
     }
-    gen_plegal_moves(pos, moves);
+    (void)gen_plegal_moves(pos, moves);
     for (move *i = moves; *i != 0; ++i) {
         memcpy(child, pos, sizeof child);
         if (make_plegal_move(child, *i) == 0) {
@@ -121,7 +121,7 @@ divide_init(const struct position *pos,
     dinfo->turn = turn;
     dinfo->is_ordered = ordered;
     memcpy(&dinfo->pos, pos, sizeof dinfo->pos);
-    gen_moves(pos, dinfo->moves);
+    (void)gen_moves(pos, dinfo->moves);
     dinfo->m = dinfo->moves;
     return dinfo;
 }
@@ -144,7 +144,7 @@ const char *divide(struct divide_info *dinfo, enum move_notation_type mn)
     else {
         n = perft(&t, dinfo->depth-1);
     }
-    sprintf(str, " %lu", n);
+    (void)sprintf(str, " %lu", n);
     ++dinfo->m;
     return dinfo->str; 
 }

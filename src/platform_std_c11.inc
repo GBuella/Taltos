@@ -114,7 +114,7 @@ void thread_create(thread_pointer t, void (*entry)(void *), void *arg)
     xlock();
     
     int *thread = (int*)t;
-    for (int i = 1; i < ARRAY_LENGTH(threads); ++i) {
+    for (int i = 1; i < (int)ARRAY_LENGTH(threads); ++i) {
         volatile struct thread_wrap *tw = threads + i;
         if (!tw->used) {
             thrd_t *thrd = (thrd_t*)&(tw->thread);

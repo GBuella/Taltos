@@ -17,7 +17,7 @@ print_san_move_from(const struct position *pos, move m, char *str, player turn)
     uint64_t ambig_pieces = UINT64_C(0);
     piece p = get_piece_at(pos, mfrom(m));
 
-    gen_moves(pos, moves);
+    (void)gen_moves(pos, moves);
     for (move *im = moves; *im != 0; ++im) {
         if ((mfrom(*im) != mfrom(m)) && (mto(*im) == mto(m))
                 && (get_piece_at(pos, mfrom(*im)) == p))
@@ -55,7 +55,7 @@ static char *print_san_promotion(move m, char *str)
 {
     if (is_promotion(m)) {
         *(str++) = '=';
-        *(str++) = toupper(piece_to_char(mpromotion(m)));
+        *(str++) = (char)toupper(piece_to_char(mpromotion(m)));
     } 
     return str;
 }
@@ -77,7 +77,7 @@ print_san_move(const struct position *pos, move m, char *str, player turn)
         return str + sprintf(str, "O-O-O");
     }
     if (piece != pawn) {
-        *str++ = toupper(piece_to_char(piece));
+        *str++ = (char)toupper(piece_to_char(piece));
     }
     str = print_san_move_from(pos, m, str, turn);
     str = print_san_move_capture(pos, mto(m), str);
@@ -94,7 +94,7 @@ print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH], player turn)
     str = index_to_str(str, mfrom(m), turn);
     str = index_to_str(str, mto(m), turn);
     if (is_promotion(m)) {
-        *str++ = toupper(piece_to_char(mpromotion(m)));
+        *str++ = (char)toupper(piece_to_char(mpromotion(m)));
     }
     *str = '\0';
     return str;
@@ -149,16 +149,16 @@ int read_move(const struct position *pos, const char *str, move *m, player turn)
     if (str[0] == '\0') {
         return NONE_MOVE;
     }
-    gen_moves(pos, moves);
+    (void)gen_moves(pos, moves);
     for (move *mp = moves; *mp != 0; ++mp) {
         char tstr[MOVE_STR_BUFFER_LENGTH];
 
-        print_coor_move(*mp, tstr, turn);
+        (void)print_coor_move(*mp, tstr, turn);
         if (move_str_eq(str, tstr)) {
             *m = *mp;
             return 0;
         }
-        print_san_move(pos, *mp, tstr, turn);
+        (void)print_san_move(pos, *mp, tstr, turn);
         if (move_str_eq(str, tstr)) {
             *m = *mp;
             return 0;

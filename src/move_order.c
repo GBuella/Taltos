@@ -167,6 +167,7 @@ pawn_protection_value(move m, uint64_t pattack UNUSED, uint64_t opp_pattack)
     uint64_t to64 = mto64(m);
     uint64_t from64 = mfrom64(m);
 
+    (void)pattack;
     if (empty(opp_pattack & to64) && nonempty(opp_pattack & from64)) {
         ++value;
     }
@@ -185,6 +186,9 @@ move_value(const struct node *node, struct move_fsm *fsm, move m,
 
     value = move_value_basic(node->pos->bb, m, p,
                              opp_attack, pattack, opp_pattack);
+    if (value < -CHECKING_VALUE) {
+        return value;
+    }
     value += pawn_protection_value(m, pattack, opp_pattack);
     if (is_checking(node->pos, fsm, m, p)) {
         value += CHECKING_VALUE;

@@ -1,6 +1,8 @@
 *.swp
+tmp.c
 Session.vim
 *.o
+*.gcda
 taltos
 gen_constants.dSYM
 gen_constants

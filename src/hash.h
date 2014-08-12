@@ -26,7 +26,7 @@ typedef uint64_t zobrist_hash;
 
 static inline int ht_move_index(ht_entry e)
 {
-    return e & 0x7f;
+    return (int)e & 0x7f;
 }
 
 static inline ht_entry ht_set_move_index(ht_entry e, unsigned i)
@@ -73,12 +73,12 @@ static inline ht_entry ht_set_no_move(ht_entry e)
 
 static inline int ht_depth(ht_entry e)
 {
-    return (e >> 7) & 0xff;
+    return (int)(e >> 7) & 0xff;
 }
 
 static inline value_type ht_value_type(ht_entry e)
 {
-    return (e >> 15) & 3;
+    return (value_type)((e >> 15) & 3);
 }
 
 static inline int ht_value(ht_entry e)
@@ -217,6 +217,8 @@ void ht_destroy(struct hash_table *);
 
 ht_entry ht_lookup(const struct hash_table *, zobrist_hash);
 
+void ht_prefetch(const struct hash_table *ht, zobrist_hash hash);
+
 ht_entry ht_pos_lookup(const struct hash_table *,
                        const struct position *,
                        unsigned move_count);
@@ -230,8 +232,6 @@ void ht_insert(struct hash_table *, zobrist_hash, ht_entry);
 void ht_pos_insert(struct hash_table *,
                    const struct position *,
                    ht_entry);
-
-void ht_clean_up_after_move(const struct position*, move);
 
 void ht_extract_pv(const struct hash_table *,
                    const struct position *,

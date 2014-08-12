@@ -170,6 +170,8 @@ static int node_init(struct node *node, struct move_fsm *ml)
     if (in_check(node->pos)) {
         node->depth = max(node->depth + 1, PLY);
     }
+    ht_prefetch(node->sd.ht_main, node->pos->hash[1]);
+    ht_prefetch(node->sd.ht_aux, node->pos->hash[1]);
     move_fsm_setup(node, ml);
     if (ml->plegal_count == 0) {
         if (is_qsearch(node)) {

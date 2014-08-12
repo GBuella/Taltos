@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "perft.h"
 #include "game.h"
@@ -28,14 +29,20 @@ static struct taltos_conf *horse;
 static jmp_buf command_error;
 
 #define CMD_PARAM_ERROR 1
+#define CMD_GENERAL_ERROR 2
 
 #define INTERNAL_ERROR() { \
-    fprintf(stderr, "Internal error in %s\n", __func__); \
+    (void)fprintf(stderr, "Internal error in %s\n", __func__); \
     exit(EXIT_FAILURE); }
 
 static void param_error(void)
 {
     longjmp(command_error, CMD_PARAM_ERROR);
+}
+
+static void general_error(void)
+{
+    longjmp(command_error, CMD_GENERAL_ERROR);
 }
 
 static const char *features[] = {
@@ -57,6 +64,14 @@ static bool exit_on_done;
 static bool verbose = false;
 
 static struct game *game = NULL;
+
+static void print(const char format[], ...)
+{
+    va_list args;
+    va_start(args, format);
+    if (vprintf(format, args) < 0) INTERNAL_ERROR();
+    va_end(args);
+}
 
 static void add_move(move m)
 {
@@ -113,9 +128,9 @@ static void dispatch_command(const char *cmd);
 static void set_xboard(void)
 {
     is_xboard = true;
-    printf("\n");
+    print("\n");
 #   if !defined(WIN32) && !defined(WIN64)
-    signal(SIGINT, SIG_IGN);
+    (void)signal(SIGINT, SIG_IGN);
 #   endif
 }
 
@@ -143,7 +158,7 @@ static long get_long_arg(void)
     str = get_str_arg();
     n = strtol(str, &endptr, 0);
     if (n == LONG_MAX || n == LONG_MIN || *endptr != '\0') {
-        fprintf(stderr, "Invalid numeric argument\n");
+        (void)fprintf(stderr, "Invalid numeric argument\n");
         param_error();
     }
     return n;
@@ -152,7 +167,7 @@ static long get_long_arg(void)
 static char *str_to_lower(char *str)
 {
     for (char *c = str; *c != '\0'; ++c) {
-        *c = tolower(*c);
+        *c = (char)tolower(*c);
     }
     return str;
 }
@@ -162,7 +177,7 @@ static char *get_str_arg_lower_opt(void)
     char *str;
 
     if ((str = get_str_arg_opt()) != NULL) {
-        str_to_lower(str);
+        (void)str_to_lower(str);
     }
     return str;
 }
@@ -183,16 +198,16 @@ static void print_computer_move(move m)
     else {
         mn = horse->move_not;
     }
-    print_move(current_position(), m, str, mn, turn());
+    (void)print_move(current_position(), m, str, mn, turn());
     if (is_xboard) {
-        printf("move %s\n", str);
+        print("move %s\n", str);
     }
     else {
-        printf("%d. ", game_full_move_count(game));
+        print("%d. ", game_full_move_count(game));
         if (turn() == black) {
-            printf("... ");
+            print("... ");
         }
-        printf("%s\n", str);
+        print("%s\n", str);
     }
 }
 
@@ -202,14 +217,13 @@ static void operator_move(move m)
     if (!is_force_mode) {
         game_started = true;
     }
-    ht_clean_up_after_move(current_position(), m);
     add_move(m);
     if (!is_end()) {
         if (game_started && has_single_response()) {
-            move m = get_single_response();
+            move single_move = get_single_response();
 
-            print_computer_move(m);
-            add_move(m);
+            print_computer_move(single_move);
+            add_move(single_move);
             engine_move_count_inc();
         }
         else {
@@ -230,18 +244,18 @@ static void print_nice_number(uintmax_t n)
         if (n >= 1000000) {
             n /= 100000;
             if (n % 10 == 0) {
-                printf("%" PRIuMAX "m", n / 10);
+                print("%" PRIuMAX "m", n / 10);
             }
             else {
-                printf("%" PRIuMAX ".%" PRIuMAX "m", n / 10, n % 10);
+                print("%" PRIuMAX ".%" PRIuMAX "m", n / 10, n % 10);
             }
         }
         else {
-            printf("%" PRIuMAX "k", n/1000);
+            print("%" PRIuMAX "k", n/1000);
         }
     }
     else {
-        printf("%" PRIuMAX, n);
+        print("%" PRIuMAX, n);
     }
 }
 
@@ -256,14 +270,14 @@ static void print_move_path(const struct game *original_game,
     if (g == NULL) INTERNAL_ERROR();
     for (; *m != 0; ++m) {
         if (game_turn(g) == white || first) {
-            printf("%u. ", game_full_move_count(g));
+            print("%u. ", game_full_move_count(g));
         }
         if (first && game_turn(g) == black) {
-            printf("... ");
+            print("... ");
         }
         first = false;
-        print_move(game_current_position(g), *m, str, mn, game_turn(g));
-        printf("%s ", str);
+        (void)print_move(game_current_position(g), *m, str, mn, game_turn(g));
+        print("%s ", str);
         if (game_append(g, *m) != 0) INTERNAL_ERROR();
     }
     game_destroy(g);
@@ -272,38 +286,38 @@ static void print_move_path(const struct game *original_game,
 static void print_percent(int p)
 {
     if (p == -1) {
-        printf("-");
+        print("-");
     }
     else {
-        printf("%d.%d%%", p/10, p%10);
+        print("%d.%d%%", p/10, p%10);
     }
 }
 
 static void print_result_header(void)
 {
     if (verbose) {
-        printf("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tPV\n");
+        print("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tPV\n");
     }
     else {
-        printf("  D\ttime\tvalue\tnodes\tPV\n");
+        print("  D\ttime\tvalue\tnodes\tPV\n");
     }
 }
 
 static void print_verbose_search_info(struct engine_result res)
 {
     print_percent(get_fmc_percent());
-    printf("\t");
+    print("\t");
     print_percent(ht_usage(res.ht_main));
-    printf("\t");
+    print("\t");
 }
 
 static void print_depth(struct engine_result res)
 {
-    printf("%u", res.depth);
+    print("%u", res.depth);
     if (!is_xboard) {
-        printf("/%d", (res.selective_depth > 0) ? res.selective_depth : 0);
+        print("/%d", (res.selective_depth > 0) ? res.selective_depth : 0);
         if (verbose) {
-            printf("\t%d", (res.qdepth > 0) ? res.qdepth : 0);
+            print("\t%d", (res.qdepth > 0) ? res.qdepth : 0);
         }
     }
 }
@@ -312,24 +326,24 @@ static void print_current_result(struct engine_result res)
 {
     if (is_xboard) {
         print_depth(res);
-        printf(" %.0f %.0f %" PRIuMAX " ",
+        print(" %.0f %.0f %" PRIuMAX " ",
                 res.value*100, res.time_spent*100, res.node_count);
     }
     else {
         if (res.first) {
             print_result_header();
         }
-        printf(" ");
+        print(" ");
         print_depth(res);
-        printf("\t%.2f\t%.2f\t", res.time_spent, res.value);
+        print("\t%.2f\t%.2f\t", res.time_spent, res.value);
         if (verbose) {
             print_verbose_search_info(res);
         }
         print_nice_number(res.node_count);
-        printf("N\t");
+        print("N\t");
     }
     print_move_path(game, res.pv, horse->move_not);
-    printf("\n");
+    print("\n");
 }
 
 static void computer_move(void)
@@ -337,7 +351,7 @@ static void computer_move(void)
     move m;
 
     if (engine_get_best_move(&m) != 0) {
-        printf("-\n");
+        print("-\n");
         return;
     }
     print_computer_move(m);
@@ -356,11 +370,11 @@ static int try_read_move(const char *cmd)
         case NONE_MOVE:
             return 1;
         case ILLEGAL_MOVE:
-            printf("Illegal move: %s\n", cmd);
+            print("Illegal move: %s\n", cmd);
             return 0;
         case 0:
             if (!is_force_mode && !is_opp_turn()) {
-                printf("It is not %s's turn\n",
+                print("It is not %s's turn\n",
                         whose_turn[opponent(computer_side)]);
                 return 0;
             }
@@ -411,11 +425,11 @@ static unsigned get_uint(unsigned min, unsigned max)
 
     n = get_long_arg();
     if (n < (long)min) {
-        fprintf(stderr, "Number too low: %ld\n", n);
+        (void)fprintf(stderr, "Number too low: %ld\n", n);
         param_error();
     }
     if (n > (long)max) {
-        fprintf(stderr, "Number too high: %ld\n", n);
+        (void)fprintf(stderr, "Number too high: %ld\n", n);
         param_error();
     }
     return (unsigned)n;
@@ -423,17 +437,17 @@ static unsigned get_uint(unsigned min, unsigned max)
 
 static void cmd_perft(void)
 {
-    printf("%lu\n", perft(current_position(), get_uint(1, 1024)));
+    print("%lu\n", perft(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perfto(void)
 {
-    printf("%lu\n", perft_ordered(current_position(), get_uint(1, 1024)));
+    print("%lu\n", perft_ordered(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perft_distinct(void)
 {
-    printf("%ld\n", perft_distinct(current_position(), get_uint(1, 1024)));
+    print("%ld\n", perft_distinct(current_position(), get_uint(1, 1024)));
 }
 
 static void cmd_perfts(void)
@@ -443,7 +457,7 @@ static void cmd_perfts(void)
     depth = get_uint(1, 1024);
     for (unsigned i = 1; i <= depth; ++i) {
         unsigned long n = perft(current_position(), i);
-        printf("%s%u : %ld\n", (i<10) ? " " : "", i, n);
+        print("%s%u : %ld\n", (i<10) ? " " : "", i, n);
     }
 }
 
@@ -454,7 +468,7 @@ static void run_cmd_divide(bool ordered)
 
     dinfo = divide_init(current_position(), get_uint(0, 1024), turn(), ordered);
     while ((line = divide(dinfo, horse->move_not)) != NULL) {
-        printf("%s\n", line);
+        print("%s\n", line);
     }
     divide_destruct(dinfo);
 }
@@ -475,7 +489,7 @@ static void cmd_setboard(void)
 
     if (game_started) return;
     if ((g = game_create_fen(strtok(NULL, "\n\r"))) == NULL) {
-        fprintf(stderr, "Unable to parse FEN\n");
+        (void)fprintf(stderr, "Unable to parse FEN\n");
         return;
     }
     game_destroy(game);
@@ -487,16 +501,16 @@ static void cmd_printboard(void)
 {
     char str[BOARD_BUFFER_LENGTH];
 
-    board_print(str, current_position(), turn());
-    fputs(str, stdout);
+    (void)board_print(str, current_position(), turn());
+    (void)fputs(str, stdout);
 }
 
 static void cmd_printfen(void)
 {
     char str[FEN_BUFFER_LENGTH];
 
-    game_print_fen(game, str);
-    printf("%s\n", str);
+    (void)game_print_fen(game, str);
+    print("%s\n", str);
 }
 
 static void cmd_echo(void)
@@ -504,7 +518,7 @@ static void cmd_echo(void)
     char *str;
 
     if ((str = strtok(NULL, "\n\r")) != NULL) {
-        printf("%s\n", str);
+        print("%s\n", str);
     }
 }
 
@@ -520,7 +534,7 @@ static void cmd_new(void)
     set_thinking_done_cb(computer_move);
     unset_search_depth_limit();
     if (!is_xboard) {
-        printf("New game - computer black\n");
+        print("New game - computer black\n");
     }
     game_started = false;
     is_force_mode = false;
@@ -538,7 +552,7 @@ static void cmd_hint(void)
 
     if (engine_get_best_move(&m) == 0) {
         print_move(current_position(), m, str, horse->move_not, turn());
-        printf("Hint: %s\n", str);
+        print("Hint: %s\n", str);
     }
 }
 
@@ -604,11 +618,11 @@ static void cmd_level(void)
 
 static void cmd_protover(void)
 {
-    printf("feature");
+    print("feature");
     for (const char **f = features; *f != NULL; ++f) {
-        printf(" %s", *f);
+        print(" %s", *f);
     }
-    printf("\nfeature done=1\n");
+    print("\nfeature done=1\n");
 }
 
 static void cmd_force(void)
@@ -710,7 +724,7 @@ static void cmd_analyze(void)
 static void cmd_undo(void)
 {
     if (is_force_mode) {
-        revert();
+        if (revert() != 0) general_error();
         set_engine_root_node(current_position());
     }
 }
@@ -718,7 +732,7 @@ static void cmd_undo(void)
 static void cmd_redo(void)
 {
     if (is_force_mode) {
-        forward();
+        if (forward() != 0) general_error();
         set_engine_root_node(current_position());
     }
 }
@@ -742,10 +756,10 @@ static void cmd_getmovenot(void)
 {
     switch (horse->move_not) {
         case mn_coordinate:
-            printf("Using Coordinate move notation\n");
+            print("Using Coordinate move notation\n");
             break;
         case mn_san:
-            printf("Using Standard algebraic notation\n");
+            print("Using Standard algebraic notation\n");
             break;
         default:
             break;
@@ -762,10 +776,10 @@ static void cmd_ping(void)
     char *str;
 
     if ((str = get_str_arg_opt()) == NULL) {
-        printf("pong\n");
+        print("pong\n");
         return;
     }
-    printf("pong %s\n", str);
+    print("pong %s\n", str);
 }
 
 static void cmd_trace(void)
@@ -793,15 +807,15 @@ static void cmd_eval(void)
 "      + end_game * passed_pawn_score\n";
 
     eval_factors ef = compute_eval_factors(current_position());
-    printf(" material:          %d\n", ef.material);
-    printf(" middle_game:       %d\n", ef.middle_game);
-    printf(" end_game:          %d\n", ef.end_game);
-    printf(" basic_mobility:    %d\n", ef.basic_mobility);
-    printf(" pawn_structure:    %d\n", ef.pawn_structure);
-    printf(" passed_pawn_score: %d\n", ef.passed_pawn_score);
-    printf(" king_fortress:     %d\n", ef.king_fortress);
-    printf(" piece_placement:   %d\n", ef.piece_placement);
-    printf("%s  %d\n", evaluation_description, eval(current_position()));
+    print(" material:          %d\n", ef.material);
+    print(" middle_game:       %d\n", ef.middle_game);
+    print(" end_game:          %d\n", ef.end_game);
+    print(" basic_mobility:    %d\n", ef.basic_mobility);
+    print(" pawn_structure:    %d\n", ef.pawn_structure);
+    print(" passed_pawn_score: %d\n", ef.passed_pawn_score);
+    print(" king_fortress:     %d\n", ef.king_fortress);
+    print(" piece_placement:   %d\n", ef.piece_placement);
+    print("%s  %d\n", evaluation_description, eval(current_position()));
 }
 
 static void cmd_getpv(void)
@@ -889,10 +903,7 @@ static void dispatch_command(const char *cmd)
     const struct cmd_entry *e;
     char cmdlower[strlen(cmd)+1];
 
-    for (size_t i = 0;; ++i) {
-        cmdlower[i] = tolower(cmd[i]);
-        if (cmd[i] == '\0') break;
-    }
+    (void)str_to_lower(strcpy(cmdlower, cmd));
     e = bsearch(cmdlower,
             cmd_list,
             sizeof cmd_list / sizeof cmd_list[0],
@@ -906,15 +917,18 @@ static void dispatch_command(const char *cmd)
                 break;
             case CMD_PARAM_ERROR:
                 if (e->paramstr != NULL) {
-                    fprintf(stderr, "Usage: %s %s\n", e->text, e->paramstr);
+                    (void)fprintf(stderr, "Usage: %s %s\n", e->text, e->paramstr);
                 }
+                break;
+            case CMD_GENERAL_ERROR:
+                (void)fprintf(stderr, "Unable to do that\n");
                 break;
             default:
                 INTERNAL_ERROR();
         }
     }
     else {
-        fprintf(stderr, "Error: (uknown command): %s\n", cmd);
+        (void)fprintf(stderr, "Error: (uknown command): %s\n", cmd);
     }
 }
 

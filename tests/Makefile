@@ -2,7 +2,7 @@
 .SILENT: ;
 
 tests:
-	../util/runtests ../taltos *.in perftsuite/perft_002.in perftsuite/perft_106.in \
+	../util/runtests.sh ../taltos *.in perftsuite/perft_002.in perftsuite/perft_106.in \
     perftsuite/perft_107.in perftsuite/perft_111.in perftsuite/perft_112.in \
     perftsuite/perft_113.in perftsuite/perft_114.in perftsuite/perft_074.in \
     perftsuite/perft_075.in perftsuite/perft_076.in perftsuite/perft_077.in \
@@ -12,5 +12,5 @@ tests:
     perftsuite/perft_070.in
 
 alltests:
-	../util/runtests ../taltos *.in perftsuite/*.in
+	../util/runtests.sh ../taltos *.in perftsuite/*.in
 

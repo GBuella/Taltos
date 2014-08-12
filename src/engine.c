@@ -101,6 +101,7 @@ int engine_get_best_move(move *m)
 
 static void search_time_end(void *arg UNUSED)
 {
+    (void)arg;
     trace("search_time_end called\n");
     (*thinking_cb)();
 }
@@ -156,7 +157,7 @@ show_thinking(const struct search_description sd, int value,
         result.time_spent = (float)(get_timer()) / 100;
     }
     else {
-        result.time_spent = clock() - sd.thinking_started;
+        result.time_spent = (float)(clock() - sd.thinking_started);
         if (CLOCKS_PER_SEC > 1) {
             result.time_spent /= CLOCKS_PER_SEC;
         }

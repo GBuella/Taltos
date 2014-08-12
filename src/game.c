@@ -210,11 +210,9 @@ char *game_print_fen(const struct game *g, char str[static FEN_BUFFER_LENGTH])
     assert(g != NULL);
     assert(str != NULL);
 
-    position_print_fen(g->current->position,
-                       str,
-                       g->current->full_move,
-                       g->current->half_move,
-                       g->current->turn);
+    (void)position_print_fen(g->current->position, str,
+                   g->current->full_move, g->current->half_move,
+                   g->current->turn);
     return str;
 }
 
@@ -283,7 +281,7 @@ move game_get_single_response(const struct game *g)
 {
     move moves[MOVE_ARRAY_LENGTH];
 
-    gen_moves(g->current->position, moves);
+    (void)gen_moves(g->current->position, moves);
     return moves[0];
 }
 
@@ -291,7 +289,7 @@ bool game_has_single_response(const struct game *g)
 {
     move moves[MOVE_ARRAY_LENGTH];
 
-    gen_moves(g->current->position, moves);
+    (void)gen_moves(g->current->position, moves);
     return moves[0] != 0 && moves[1] == 0;
 }
 

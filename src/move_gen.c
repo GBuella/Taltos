@@ -257,7 +257,7 @@ move * gen_moves(const struct position *pos,
     assert(pos != NULL);
     assert(moves != NULL);
 
-    gen_plegal_moves(pos, moves);
+    (void)gen_plegal_moves(pos, moves);
     move *src = moves;
     move *dst = moves;
     struct position t;
@@ -373,7 +373,7 @@ init_sliding_move_magics(struct magical *dst,
 {
     dst->mask = raw_info[0];
     dst->multiplier = raw_info[1];
-    dst->shift = raw_info[2] & 0xff;
+    dst->shift = (int)(raw_info[2] & 0xff);
 #   ifdef SLIDING_BYTE_LOOKUP
     dst->attack_table = table + raw_info[3];
     dst->attack_index_table = byte_lookup_table + (raw_info[2]>>8);

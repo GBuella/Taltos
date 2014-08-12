@@ -27,19 +27,10 @@ void trace(const char[], ...)
 
 #else
 
-static inline void
-trace_node_count_before(const struct node *node UNUSED)
-{}
-static inline void
-trace_node_count_after(const struct node *a UNUSED) {}
-static inline void trace_node(const void *a UNUSED, const void *b UNUSED)
-{}
-static inline void trace(const char[], ...)
-#ifdef __GNUC__
-    __attribute__ ((format(printf, 1, 2)))
-#endif
-;
-static inline void trace(const char a[] UNUSED, ...) {}
+#define trace_node_count_before(x) ;
+#define trace_node_count_after(x) ;
+#define trace_node(a, b) ;
+#define trace(...) ;
 
 #endif
 
