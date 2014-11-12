@@ -41,7 +41,7 @@ static inline uint64_t bswap(uint64_t value)
     return __builtin_bswap64(value);
 }
 
-static inline unsigned popcnt(uint64_t value)
+static inline int popcnt(uint64_t value)
 {
     return __builtin_popcountll(value);
 }
@@ -79,9 +79,9 @@ static inline uint64_t bswap(uint64_t value)
     return _byteswap_uint64(value);
 }
 
-static inline unsigned popcnt(uint64_t value)
+static inline int popcnt(uint64_t value)
 {
-    return __popcnt64(value);
+    return (int)__popcnt64(value);
 }
 
 #else 
@@ -135,7 +135,7 @@ static inline uint64_t lsb(uint64_t value)
     return (value & (UINT64_C(0) - value));
 }
 
-static inline unsigned popcnt(uint64_t value)
+static inline int popcnt(uint64_t value)
 {
 	static const uint64_t k1 = UINT64_C(0x5555555555555555);
 	static const uint64_t k2 = UINT64_C(0x3333333333333333);
@@ -146,7 +146,7 @@ static inline unsigned popcnt(uint64_t value)
     value = (value & k2) + ((value >> 2)  & k2);
     value = (value       +  (value >> 4)) & k4 ;
     value = (value * kf) >> 56;
-    return (unsigned) value;
+    return (int) value;
 }
 
 #endif
@@ -170,11 +170,6 @@ static inline uint64_t kogge_stone_south(uint64_t map)
     map |= map << 16;
     map |= map << 32;
     return map;
-}
-
-static inline int spopcnt(uint64_t value)
-{
-    return (int)(popcnt(value));
 }
 
 static inline uint64_t pext(uint64_t source, uint64_t selector)

@@ -2,6 +2,8 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#include <stdint.h>
+
 typedef void *thread_pointer;
 
 void init_threading(void);
@@ -15,5 +17,7 @@ void set_timer(unsigned centi_seconds);
 void set_timer_cb(void (*func)(void *), void *arg);
 void cancel_timer(void);
 unsigned get_timer(void);
+
+uintmax_t get_big_endian_num(int size, const unsigned char[size]);
 
 #endif

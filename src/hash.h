@@ -3,7 +3,7 @@
 #define HASH_H
 
 #include <stdbool.h>
-
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "chess.h"
@@ -21,6 +21,7 @@ typedef enum value_type value_type;
 
 typedef uint64_t ht_entry;
 #define HT_NULL UINT64_C(0)
+#define F_ZHASH_HEX PRIx64
 
 typedef uint64_t zobrist_hash;
 
@@ -118,10 +119,10 @@ static inline zobrist_hash z_toggle_ep_file(zobrist_hash hash, file_t file)
     assert(file <= 7);
 
     static const uint64_t zobrist_value[8] = {
-        UINT64_C( 0x31D71DCE64B2C310 ), UINT64_C( 0xF165B587DF898190 ),
-        UINT64_C( 0xA57E6339DD2CF3A0 ), UINT64_C( 0x1EF6E6DBB1961EC9 ),
         UINT64_C( 0x70CC73D90BC26E24 ), UINT64_C( 0xE21A6B35DF0C3AD7 ),
-        UINT64_C( 0x003A93D8B2806962 ), UINT64_C( 0x1C99DED33CB890A1 ) };
+        UINT64_C( 0x003A93D8B2806962 ), UINT64_C( 0x1C99DED33CB890A1 ),
+        UINT64_C( 0xCF3145DE0ADD4289 ), UINT64_C( 0xD0E4427A5514FB72 ),
+        UINT64_C( 0x77C621CC9FB3A483 ), UINT64_C( 0x67A34DAC4356550B ) };
     
     return hash ^ zobrist_value[file];
 }
@@ -155,22 +156,22 @@ z2_toggle_sq(zobrist_hash hash[static 2], int i, piece p, player pl)
 
 static inline zobrist_hash z_toggle_castle_left_1(zobrist_hash hash)
 {
-    return hash ^ UINT64_C(0xCF3145DE0ADD4289);
+    return hash ^ UINT64_C( 0xF165B587DF898190 );
 }
 
 static inline zobrist_hash z_toggle_castle_left_0(zobrist_hash hash)
 {
-    return hash ^ UINT64_C(0xD0E4427A5514FB72);
+    return hash ^ UINT64_C( 0x1EF6E6DBB1961EC9 );
 }
 
 static inline zobrist_hash z_toggle_castle_right_1(zobrist_hash hash)
 {
-    return hash ^ UINT64_C(0x77C621CC9FB3A483);
+    return hash ^ UINT64_C( 0x31D71DCE64B2C310 );
 }
 
 static inline zobrist_hash z_toggle_castle_right_0(zobrist_hash hash)
 {
-    return hash ^ UINT64_C(0x67A34DAC4356550B);
+    return hash ^ UINT64_C( 0xA57E6339DD2CF3A0 );
 }
 
 static inline void z2_toggle_castle_left_1(zobrist_hash hash[static 2])
@@ -243,6 +244,8 @@ void ht_clear(const struct hash_table *);
 void ht_swap(struct hash_table *);
 
 int ht_usage(const struct hash_table *);
+
+uint64_t position_polyglot_key(const struct position *, player turn);
 
 #endif
 

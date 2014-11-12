@@ -74,5 +74,13 @@
 #   endif
 #endif
 
+#define MILLION (1000 * 1000)
+#define BILLION (1000 * MILLION)
+
+/* From Unicode Mathematical Alphanumeric Symbols */
+#define U_ALPHA "\U0001d6fc"
+#define U_BETA "\U0001d6fd"
+#define U_MU "\U0001d707"
+
 #endif /* MACROS_H */
 

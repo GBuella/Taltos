@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "book.h"
 #include "perft.h"
 #include "game.h"
 #include "engine.h"
@@ -18,6 +19,8 @@
 #include "hash.h"
 #include "trace.h"
 #include "eval.h"
+#include "timers.h"
+#include "str_util.h"
 
 struct cmd_entry {
     const char text[16];
@@ -26,6 +29,7 @@ struct cmd_entry {
 };
 
 static struct taltos_conf *horse;
+static struct book *book;
 static jmp_buf command_error;
 
 #define CMD_PARAM_ERROR 1
@@ -211,24 +215,29 @@ static void print_computer_move(move m)
     }
 }
 
-static void operator_move(move m)
+static void decide_move(void)
 {
-    stop_thinking();
-    if (!is_force_mode) {
-        game_started = true;
-    }
-    add_move(m);
     if (!is_end()) {
+        if (is_force_mode || !game_started) {
+            return;
+        }
         if (game_started && has_single_response()) {
-            move single_move = get_single_response();
+            move m = get_single_response();
 
-            print_computer_move(single_move);
-            add_move(single_move);
+            print_computer_move(m);
+            add_move(m);
             engine_move_count_inc();
         }
         else {
-            set_engine_root_node(current_position());
-            if (!is_force_mode) {
+            move m = book_get_move(book, current_position());
+            if (m != NONE_MOVE) {
+                print_computer_move(m);
+                add_move(m);
+                engine_move_count_inc();
+            }
+            else {
+                set_engine_root_node(current_position());
+                timers_reset();
                 start_thinking();
             }
         }
@@ -238,25 +247,14 @@ static void operator_move(move m)
     }
 }
 
-static void print_nice_number(uintmax_t n)
+static void operator_move(move m)
 {
-    if (n >= 10000) {
-        if (n >= 1000000) {
-            n /= 100000;
-            if (n % 10 == 0) {
-                print("%" PRIuMAX "m", n / 10);
-            }
-            else {
-                print("%" PRIuMAX ".%" PRIuMAX "m", n / 10, n % 10);
-            }
-        }
-        else {
-            print("%" PRIuMAX "k", n/1000);
-        }
+    stop_thinking();
+    if (!is_force_mode) {
+        game_started = true;
     }
-    else {
-        print("%" PRIuMAX, n);
-    }
+    add_move(m);
+    decide_move();
 }
 
 static void print_move_path(const struct game *original_game,
@@ -339,7 +337,7 @@ static void print_current_result(struct engine_result res)
         if (verbose) {
             print_verbose_search_info(res);
         }
-        print_nice_number(res.node_count);
+        (void)print_nice_count(res.node_count);
         print("N\t");
     }
     print_move_path(game, res.pv, horse->move_not);
@@ -350,6 +348,7 @@ static void computer_move(void)
 {
     move m;
 
+    timers_print(horse->use_unicode);
     if (engine_get_best_move(&m) != 0) {
         print("-\n");
         return;
@@ -388,21 +387,22 @@ static int try_read_move(const char *cmd)
 
 static void init_settings(void);
 
-void loop_cli(struct taltos_conf *arg_horse)
+void loop_cli(struct taltos_conf *arg_horse, struct book *arg_book)
 {
     char line[1024];
     char *cmd;
 
-    if (arg_horse == NULL) return;
+    assert(arg_horse != NULL && arg_book != NULL);
     trace("Command loop starting");
     horse = arg_horse;
+    book = arg_book;
     init_settings();
     while (true) {
         if (fgets(line, sizeof line, stdin) == NULL) {
             if (exit_on_done) {
                 wait_thinking();
             }
-            return;
+            exit(EXIT_SUCCESS);
         }
         if ((cmd = strtok(line, " \t\n")) == NULL) {
             continue;
@@ -466,7 +466,10 @@ static void run_cmd_divide(bool ordered)
     struct divide_info *dinfo;
     const char *line;
 
-    dinfo = divide_init(current_position(), get_uint(0, 1024), turn(), ordered);
+    dinfo = divide_init(current_position(),
+                        get_uint(0, 1024),
+                        turn(),
+                        ordered);
     while ((line = divide(dinfo, horse->move_not)) != NULL) {
         print("%s\n", line);
     }
@@ -559,9 +562,7 @@ static void cmd_hint(void)
 static void cmd_hard(void)
 {
     can_ponder = true;
-    if (!is_force_mode && game_started) {
-        start_thinking();
-    }
+    decide_move();
 }
 
 static void cmd_easy(void)
@@ -592,7 +593,7 @@ static void cmd_black(void)
 {
     computer_side = black;
     if (is_comp_turn() && !is_force_mode && game_started) {
-        start_thinking();
+        decide_move();
     }
 }
 
@@ -600,7 +601,7 @@ static void cmd_white(void)
 {
     computer_side = white;
     if (is_comp_turn() && !is_force_mode && game_started) {
-        start_thinking();
+        decide_move();
     }
 }
 
@@ -641,7 +642,7 @@ static void cmd_go(void)
     }
     is_force_mode = false;
     game_started = true;
-    start_thinking();
+    decide_move();
 }
 
 static void cmd_playother(void)
@@ -651,7 +652,7 @@ static void cmd_playother(void)
     }
     stop_thinking();
     computer_side = opponent(computer_side);
-    start_thinking();
+    decide_move();
 }
 
 static void cmd_st(void)
@@ -818,6 +819,12 @@ static void cmd_eval(void)
     print("%s  %d\n", evaluation_description, eval(current_position()));
 }
 
+static void cmd_pkey(void)
+{
+    print("%016" PRIx64 "\n",
+          position_polyglot_key(current_position(), turn()));
+}
+
 static void cmd_getpv(void)
 {
 }
@@ -875,7 +882,8 @@ static struct cmd_entry cmd_list[] = {
     {"getmovenot",   cmd_getmovenot,  NULL},
     {"ping",         cmd_ping, NULL},
     {"trace",        cmd_trace, "on|off"},
-    {"eval",         cmd_eval, NULL}
+    {"eval",         cmd_eval, NULL},
+    {"polyglot_key", cmd_pkey, NULL}
 };
 
 static void init_settings(void)
@@ -917,7 +925,8 @@ static void dispatch_command(const char *cmd)
                 break;
             case CMD_PARAM_ERROR:
                 if (e->paramstr != NULL) {
-                    (void)fprintf(stderr, "Usage: %s %s\n", e->text, e->paramstr);
+                    (void)fprintf(stderr,
+                                  "Usage: %s %s\n", e->text, e->paramstr);
                 }
                 break;
             case CMD_GENERAL_ERROR:

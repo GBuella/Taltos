@@ -1,8 +1,14 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <inttypes.h>
+#include <locale.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
+#include "macros.h"
 #include "str_util.h"
 
 char index_to_file_ch(int index)
@@ -94,3 +100,72 @@ int str_to_index(const char str[static 2], player turn)
     return ind(char_to_rank(str[1], turn), char_to_file(str[0]));
 }
 
+const char *next_token(const char *str)
+{
+    static const char separator[] = " \t";
+    static const char line_separator[] = "\n\r";
+
+    if (strchr(separator, *str) != NULL) {
+        str += strspn(str, separator);
+        if (strchr(line_separator, *str) == NULL) {
+            return str;
+        }
+        else {
+            return NULL;
+        }
+    }
+    if (strchr(line_separator, *str) == NULL) {
+        return next_token(str + strcspn(str, separator));
+    }
+    else {
+        return NULL;
+    }
+}
+
+bool empty_line(const char *line)
+{
+    return next_token(line) == NULL;
+}
+
+int print_nice_number(uintmax_t n,
+                      const char **postfix,
+                      const uintmax_t *divider)
+{
+    const struct lconv *lconv = localeconv();
+
+    while (divider[1] != 0 && (*divider > n || divider[1] <= n)) {
+        ++postfix;
+        ++divider;
+    }
+    if (*divider == 1) {
+        return printf("%" PRIuMAX "%s", n, *postfix);
+    }
+    n /= ((*divider) / 10);
+    if (n % 10 == 0) {
+        return printf("%" PRIuMAX "%s", n / 10, *postfix);
+    }
+    else {
+        return printf("%" PRIuMAX "%s%" PRIuMAX "%s",
+                      n / 10, lconv->decimal_point, n % 10, *postfix);
+    }
+}
+
+int print_nice_count(uintmax_t n)
+{
+    return print_nice_number(n,
+                  (const char *[]){"", "k", "m", "g", NULL},
+                  (const uintmax_t[]){1, 1000, MILLION, BILLION, 0});
+}
+
+int print_nice_ns(uintmax_t n, bool use_unicode)
+{
+    static const char *ascii_postfixes[] = {"ns", "s", NULL};
+    static const uintmax_t ascii_dividers[] = {1, BILLION, 0};
+
+    static const char *unicode_postfixes[] = {"ns", U_MU "s", "ms", "s", NULL};
+    static const uintmax_t unicode_dividers[] = {1, 1000, MILLION, BILLION, 0};
+
+    return print_nice_number(n,
+                use_unicode ? unicode_postfixes : ascii_postfixes,
+                use_unicode ? unicode_dividers : ascii_dividers);
+}

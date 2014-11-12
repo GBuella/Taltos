@@ -38,15 +38,6 @@ struct hash_table {
 #   endif
 };
 
-static ht_entry *ht_allocate(size_t size)
-{
-#   if __STDC_VERSION__ >= 201112L
-    return aligned_alloc(sizeof(ht_entry) * 4, size);
-#   else
-    return malloc(size);
-#   endif
-}
-
 int ht_usage(const struct hash_table *ht)
 {
     if (ht == NULL) return -1;
@@ -75,7 +66,7 @@ ht_create(unsigned log2_size, bool is_dual, unsigned slot_count)
         ht->size <<= 1;
     }
     ht->zhash_mask = (1 << log2_size) - 1;
-    ht->table = ht_allocate(ht->size);
+    ht->table = malloc(ht->size);
     if (ht->table == NULL) {
         free(ht);
         return NULL;
@@ -126,13 +117,15 @@ void setup_zhash(struct position *pos)
 {
     pos->hash[1] = pos->hash[0] = UINT64_C(0);
     for (int i = 0; i < 64; ++i) {
-        z2_toggle_sq(pos->hash, i, get_piece_at(pos, i), get_player_at(pos, i));
+        z2_toggle_sq(pos->hash, i,
+                     get_piece_at(pos, i),
+                     get_player_at(pos, i));
     }
     if (pos->castle_left_1) z2_toggle_castle_left_1(pos->hash);
     if (pos->castle_left_0) z2_toggle_castle_left_0(pos->hash);
     if (pos->castle_right_1) z2_toggle_castle_right_1(pos->hash);
     if (pos->castle_right_0) z2_toggle_castle_right_0(pos->hash);
-    if (ind_rank(pos->ep_ind) == RANK_5) {
+    if (ind_rank(pos->ep_ind) == rank_5) {
         pos->hash[1] = z_toggle_ep_file(pos->hash[1], ind_file(pos->ep_ind));
     }
 }
@@ -333,5 +326,55 @@ void ht_swap(struct hash_table *ht)
         ht->table[2*i+1] = ht->table[2*i];
         ht->table[2*i] = HT_NULL;
     }
+}
+
+uint64_t position_polyglot_key(const struct position *position, player turn)
+{
+    uint64_t key = UINT64_C(0);
+
+    /* Taltos an polyglot have different table representations,
+       while Taltos uses the 64 bit constants also used by Polyglot.
+       Hence using here (7-row) and (7-file) for indexing the z_random array.
+    */
+    for (int row = 0; row < 8; ++row) {
+        for (int file = 0; file < 8; ++file) {
+            piece p = get_piece_at(position, ind(row, file));
+            player pl = get_player_at(position, ind(row, file));
+            const uint64_t *z_r;
+
+            if (p != nonpiece) {
+                z_r = z_random[p-1];
+                if (turn == white) {
+                    key ^= z_r[pl*64 + (7-row) * 8 + (7-file)];
+                }
+                else {
+                    key ^= z_r[opponent(pl)*64 + row * 8 + (7-file)];
+                }
+            }
+        }
+    }
+    if (turn == white) {
+        if (position->castle_left_1) key = z_toggle_castle_left_1(key);
+        if (position->castle_left_0) key = z_toggle_castle_left_0(key);
+        if (position->castle_right_1) key = z_toggle_castle_right_1(key);
+        if (position->castle_right_0) key = z_toggle_castle_right_0(key);
+    }
+    else {
+        if (position->castle_left_1) key = z_toggle_castle_left_0(key);
+        if (position->castle_left_0) key = z_toggle_castle_left_1(key);
+        if (position->castle_right_1) key = z_toggle_castle_right_0(key);
+        if (position->castle_right_0) key = z_toggle_castle_right_1(key);
+    }
+    if (ind_rank(position->ep_ind) == rank_5) {
+        if (nonempty(pawn_attacks1(pawns_map1(position))
+                     & bit64(position->ep_ind + NORTH)))
+        {
+            key = z_toggle_ep_file(key, 7 - ind_file(position->ep_ind));
+        }
+    }
+    if (turn == white) {
+        key ^= UINT64_C( 0xF8D626AAAF278509 );
+    }
+    return key;
 }
 

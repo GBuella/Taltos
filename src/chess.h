@@ -93,6 +93,10 @@ static inline player opponent(player p)
 enum sq_index_enum_set {
     sq_h1 = 56, sq_g1, sq_f1, sq_e1, sq_d1, sq_c1, sq_b1, sq_a1,
     sq_h2 = 48, sq_g2, sq_f2, sq_e2, sq_d2, sq_c2, sq_b2, sq_a2,
+    sq_h3 = 40, sq_g3, sq_f3, sq_e3, sq_d3, sq_c3, sq_b3, sq_a3,
+    sq_h4 = 32, sq_g4, sq_f4, sq_e4, sq_d4, sq_c4, sq_b4, sq_a4,
+    sq_h5 = 24, sq_g5, sq_f5, sq_e5, sq_d5, sq_c5, sq_b5, sq_a5,
+    sq_h6 = 16, sq_g6, sq_f6, sq_e6, sq_d6, sq_c6, sq_b6, sq_a6,
     sq_h7 = 8,  sq_g7, sq_f7, sq_e7, sq_d7, sq_c7, sq_b7, sq_a7,
     sq_h8 = 0,  sq_g8, sq_f8, sq_e8, sq_d8, sq_c8, sq_b8, sq_a8
 };
@@ -203,7 +207,7 @@ static inline bool move_match(move a, move b)
 #if __STDC_VERSION__ >= 201112L
 
 _Static_assert(((rook|knight|bishop|queen)<<12) == 0x7000,
-            "piece vs move types assertion failed");
+               "piece vs move types assertion failed");
 
 #endif
 
@@ -323,8 +327,11 @@ struct position;
 
 extern const char *start_position_fen;
 
-int read_move(const struct position*, const char*, move*, player turn);
-char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], player turn);
+
+
+int fen_read_move(const char *fen, const char*, move*);
+int read_move(const struct position*, const char*, move*, player);
+char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], player);
 char *print_move(const struct position*,
                 move,
                 char[static MOVE_STR_BUFFER_LENGTH],
@@ -333,19 +340,26 @@ char *print_move(const struct position*,
 void setup_empty_position(struct position *);
 char *position_print_fen(const struct position *,
                          char[static FEN_BUFFER_LENGTH],
-                         unsigned full_move,
-                         unsigned half_move,
                          player turn);
-int position_read_fen(struct position *,
-                      const char *buffer,
-                      unsigned *full_move,
-                      unsigned *half_move,
-                      player *turn);
+char *position_print_fen_full(const struct position *,
+                              char[static FEN_BUFFER_LENGTH],
+                              unsigned full_move,
+                              unsigned half_move,
+                              player turn);
+
+const char *position_read_fen(struct position *, const char *buffer, player *);
+const char *position_read_fen_full(struct position *,
+                                   const char *buffer,
+                                   unsigned *full_move,
+                                   unsigned *half_move,
+                                   player *turn);
 void board_print(char[static BOARD_BUFFER_LENGTH],
                  const struct position *,
                  player turn);
-move *gen_plegal_moves(const struct position *, move[static MOVE_ARRAY_LENGTH]);
-move *gen_moves(const struct position *, move[static MOVE_ARRAY_LENGTH]);
+move *gen_plegal_moves(const struct position *,
+                       move[static MOVE_ARRAY_LENGTH]);
+move *gen_moves(const struct position *,
+                move[static MOVE_ARRAY_LENGTH]);
 bool is_move_irreversible(const struct position *, move);
 bool is_legal_move(const struct position *, move);
 void position_copy(struct position *dst, const struct position *src);
@@ -359,8 +373,6 @@ void init_move_gen(void);
 bool has_any_legal_move(const struct position *);
 bool is_mate(const struct position *);
 bool is_stalemate(const struct position *);
-
-extern const char *start_position_fen;
 
 #endif /* CHESS_H */
 

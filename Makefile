@@ -11,6 +11,11 @@ debug: util/gen_constants
 	LDFLAGS=`$(UTIL_DIR)/genLDFLAGS.sh debug '$(LDFLAGS)'` \
 	$(MAKE) -C src
 
+with_mach_timer: util/gen_constants
+	CFLAGS=`$(UTIL_DIR)/genCFLAGS.sh with_mach_timer '$(CFLAGS)'` \
+	LDFLAGS=`$(UTIL_DIR)/genLDFLAGS.sh with_mach_timer '$(LDFLAGS)'` \
+	$(MAKE) -C src
+
 for_prof: util/gen_constants
 	CFLAGS=`$(UTIL_DIR)/genCFLAGS.sh gprof '$(CFLAGS)'` \
 	LDFLAGS=`$(UTIL_DIR)/genLDFLAGS.sh gprof '$(LDFLAGS)'` \

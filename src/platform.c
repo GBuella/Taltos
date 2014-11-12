@@ -1,10 +1,23 @@
 
 #include <stdbool.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "macros.h"
+
+uintmax_t get_big_endian_num(int size, const unsigned char str[size])
+{
+    uintmax_t value = 0;
+
+    while (size > 0) {
+        value = (value << 8) + *str;
+        ++str;
+        --size;
+    }
+    return value;
+}
 
 static void check_timeout(void);
 

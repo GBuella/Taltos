@@ -36,7 +36,8 @@ static char *board_print_fen(const struct position *pos, char *str)
                     *str++ = '0' + (char)empty_count;
                     empty_count = 0;
                 }
-                *str++ = square_to_char(p, get_player_at(pos, ind(rank, file)));
+                *str++ =
+                    square_to_char(p, get_player_at(pos, ind(rank, file)));
             }
             else {
                 ++empty_count;
@@ -68,8 +69,6 @@ static char *castle_rights_print_fen(const struct position *pos, char *str)
 
 char *position_print_fen(const struct position *pos,
                          char str[static FEN_BUFFER_LENGTH],
-                         unsigned full_move,
-                         unsigned half_move,
                          player turn)
 {
     assert(pos != NULL);
@@ -93,6 +92,20 @@ char *position_print_fen(const struct position *pos,
     else {
         str = index_to_str(str, pos->ep_ind + NORTH, turn);
     }
+    *str = '\0';
+    return str;
+}
+
+char *position_print_fen_full(const struct position *pos,
+                              char str[static FEN_BUFFER_LENGTH],
+                              unsigned full_move,
+                              unsigned half_move,
+                              player turn)
+{
+    assert(pos != NULL);
+    assert(str != NULL);
+
+    str = position_print_fen(pos, str, turn);
     str += sprintf(str, " %u %u", half_move, full_move);
     return str;
 }
@@ -184,8 +197,15 @@ read_ep_pos(int *ep_pos, const char *str, player turn, jmp_buf jb)
         ++str;
     }
     else {
-        if (!is_file(str[0]) || (str[1] != '6')) longjmp(jb, 1);
         *ep_pos = coor_str_to_index(str, turn, jb) + 8;
+        if (!((str[1] == '6' && turn == white)
+              || (str[1] == '3' && turn == black)))
+        {
+            longjmp(jb, 1);
+        }
+        if (turn == black) {
+            *ep_pos = flip_i(*ep_pos);
+        }
         str += 2;
     }
     if (*str != '\0' && !isspace(*str)) longjmp(jb, 1);
@@ -215,48 +235,111 @@ read_move_counter(unsigned *n, const char *str, jmp_buf jb)
     return endptr;
 }
 
-int position_read_fen(struct position *pos,
-                      const char * volatile str,
-                      unsigned *full_move,
-                      unsigned *half_move,
-                      player *turn)
+const char *
+read_fen_table(struct position *pos,
+               const char * volatile str,
+               player *turn,
+               jmp_buf jb)
 {
-    jmp_buf jb;
-
-    if (str == NULL || pos == NULL) return -1;
-    if (setjmp(jb) != 0) return -1;
-    setup_empty_position(pos);
     str = read_position_squares(pos, skip_space(str), jb);
     str = read_fen_turn(turn, skip_space(str), jb);
     str = read_castle_rights_fen(pos, skip_space(str), jb);
     str = read_ep_pos(&pos->ep_ind, skip_space(str), *turn, jb);
-    str = skip_space(str);
+    return str;
+}
+
+const char *
+read_fen_move_counters(const char * volatile str,
+                       unsigned *full_move,
+                       unsigned *half_move,
+                       jmp_buf jb)
+{
     if (*str != '\0') {
         str = read_move_counter(half_move, str, jb);
-        str = skip_space(read_move_counter(full_move, skip_space(str), jb));
-        if (*full_move == 0 || ((*full_move*2) < *half_move)) return -1;
-        str = skip_space(str);
-        if (*str != '\0') return -1;
+        str = read_move_counter(full_move, skip_space(str), jb);
+        if (*full_move == 0 || ((*full_move*2) < *half_move)) longjmp(jb, 1);
+        if (!isspace(*str) && *str != '\0') longjmp(jb, 1);
     }
     else {
         *half_move = 0;
         *full_move = 1;
     }
-    if (*turn == black) {
+    return str;
+}
+
+void read_fen_verify_two_kings(const struct position *pos, jmp_buf jb)
+{
+    uint64_t k0 = king_map0(pos);
+    uint64_t k1 = king_map1(pos);
+
+    if (popcnt(k0) != 1) longjmp(jb, 1);
+    if (popcnt(k1) != 1) longjmp(jb, 1);
+    if ((king_moves_table[bsf(k1)] & k0) != UINT64_C(0)) longjmp(jb, 1);
+}
+
+void read_fen_king_attacks(struct position *pos, player turn, jmp_buf jb)
+{
+    if (turn == black) {
         gen_king_attack_map(pos);
-        if (nonempty(pos->king_attack_map)) return -2;
+        if (nonempty(pos->king_attack_map)) longjmp(jb, -2);
         position_flip_ip(pos);
         gen_king_attack_map(pos);
     }
     else {
         position_flip_ip(pos);
         gen_king_attack_map(pos);
-        if (nonempty(pos->king_attack_map)) return -2;
+        if (nonempty(pos->king_attack_map)) longjmp(jb, -2);
         position_flip_ip(pos);
         gen_king_attack_map(pos);
     }
+}
+
+static const char *read_fen(struct position *pos,
+                            const char * volatile str,
+                            player *turn,
+                            jmp_buf jb)
+{
+    player t;
+
+    if (str == NULL) longjmp(jb, 1);
+    if (turn == NULL) {
+        turn = &t;
+    }
+    if (pos == NULL) {
+        struct position p;
+        setup_empty_position(&p);
+        return read_fen_table(&p, str, turn, jb);
+    }
+    setup_empty_position(pos);
+    str = read_fen_table(pos, str, turn, jb);
+    read_fen_verify_two_kings(pos, jb);
+    read_fen_king_attacks(pos, *turn, jb);
     setup_zhash(pos);
-    return 0;
+    return str;
+}
+
+const char *position_read_fen(struct position *pos,
+                              const char * volatile str,
+                              player *turn)
+{
+    jmp_buf jb;
+
+    if (setjmp(jb) != 0) return NULL;
+    return read_fen(pos, str, turn, jb);
+}
+
+const char *position_read_fen_full(struct position *pos,
+                                   const char * volatile str,
+                                   unsigned *full_move,
+                                   unsigned *half_move,
+                                   player *turn)
+{
+    jmp_buf jb;
+
+    if (setjmp(jb) != 0) return NULL;
+    str = skip_space(read_fen(pos, str, turn, jb));
+    str = read_fen_move_counters(str, full_move, half_move, jb);
+    return str;
 }
 
 void board_print(char str[static BOARD_BUFFER_LENGTH],
@@ -586,7 +669,7 @@ int make_plegal_move(struct position *pos, move m)
     assert(pos != NULL);
 
     uint64_t move_mask = m64(m);
-    if (ind_rank(pos->ep_ind) == RANK_5) {
+    if (ind_rank(pos->ep_ind) == rank_5) {
         pos->hash[1] = z_toggle_ep_file(pos->hash[1], ind_file(pos->ep_ind));
     }
     if (is_promotion(m)) {
@@ -634,7 +717,9 @@ int make_plegal_move(struct position *pos, move m)
     return 0;
 }
 
-void make_capture(const uint64_t bb[static 5], uint64_t child[static 5], move m)
+void make_capture(const uint64_t bb[static 5],
+                  uint64_t child[static 5],
+                  move m)
 {
     assert(bb != NULL);
     assert(child != NULL);

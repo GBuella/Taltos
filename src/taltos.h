@@ -7,6 +7,7 @@
 
 #include "chess.h"
 #include "game.h"
+#include "book.h"
 
 struct taltos_conf {
     enum move_notation_type move_not;
@@ -16,8 +17,14 @@ struct taltos_conf {
     unsigned aux_hash_size;
     unsigned analyze_hash_size;
     unsigned analyze_aux_hash_size;
+    char *book_path;
+    book_type book_type;
+    bool use_unicode;
 };
 
-void loop_cli(struct taltos_conf*);
+#if __STDC_VERSION__ >= 201112L
+_Noreturn
+#endif
+void loop_cli(struct taltos_conf *, struct book *);
 
 #endif

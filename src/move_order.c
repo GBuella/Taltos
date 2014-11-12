@@ -4,6 +4,7 @@
 
 #include "search.h"
 #include "eval.h"
+#include "timers.h"
 
 
 #define USED_MOVE 0xffff
@@ -69,7 +70,8 @@ is_checking(const struct position *pos, struct move_fsm *fsm, move m, piece p)
         if (is_bishop(p) || mtype(m) == pbishop) {
             if (empty(fsm->king_b_reach)) {
                 fsm->king_b_reach =
-                    sliding_map(occupied(pos), bishop_magics + bsf(king_map0(pos)));
+                    sliding_map(occupied(pos),
+                                bishop_magics + bsf(king_map0(pos)));
             }
             if (nonempty(mto64(m) & fsm->king_b_reach)) {
                 return true;
@@ -78,7 +80,8 @@ is_checking(const struct position *pos, struct move_fsm *fsm, move m, piece p)
         else if (is_rook(p) || mtype(m) == prook) {
             if (empty(fsm->king_b_reach)) {
                 fsm->king_b_reach =
-                    sliding_map(occupied(pos), bishop_magics + bsf(king_map0(pos)));
+                    sliding_map(occupied(pos),
+                                bishop_magics + bsf(king_map0(pos)));
             }
             if (empty(mto64(m) & fsm->king_b_reach)) {
                 return true;
@@ -240,7 +243,8 @@ static int pick_hash_move(struct node *node, struct move_fsm *fsm)
     return -1;
 }
 
-static int pick_next_move(struct node *node, struct move_fsm *fsm, int min_value)
+static int
+pick_next_move(struct node *node, struct move_fsm *fsm, int min_value)
 {
     while (fsm->plegal_remaining > 0) {
         int best_value = min_value - 1;
@@ -263,42 +267,51 @@ static int pick_next_move(struct node *node, struct move_fsm *fsm, int min_value
     return -1;
 }
 
+static int next_move_fsm(struct node *node, struct move_fsm *fsm)
+{
+    switch (fsm->latest_phase) {
+    case initial: /* try pick first move */
+        fsm->latest_phase = hash_move;
+        return (pick_hash_move(node, fsm) == 0);
+    case hash_move:
+        assign_move_values(node, fsm);
+        fsm->latest_phase = tactical_moves;
+        /* fallthrough */
+    case tactical_moves:
+        if (pick_next_move(node, fsm, PAWN_VALUE) == 0) return 1;
+        if (pick_killer_move(node, fsm) == 0) return 1;
+        /* fallthrough */
+    case killer:
+        fsm->latest_phase = general;
+        /* fallthrough */
+    case general:
+        if (pick_next_move(node, fsm, -PAWN_VALUE + 1) == 0) return 1;
+        fsm->latest_phase = losing_moves;
+        /* fallthrough */
+    case losing_moves:
+        if (pick_next_move(node, fsm, INT_MIN + 1) == 0) return 1;
+        fsm->latest_phase = done;
+        /* fallthrough */
+    case done:
+        return 1;
+    default:
+        assert(false);
+    }
+    return 0;
+}
+
 void select_next_move(struct node *node, struct move_fsm *fsm)
 {
+    timer_start(TIMER_MOVE_SELECT_NEXT);
     while (true) {
         if (fsm->plegal_remaining == 0) {
             fsm->latest_phase = done;
-            return;
-        }
-        switch (fsm->latest_phase) {
-        case initial: /* try pick first move */
-            fsm->latest_phase = hash_move;
-            if (pick_hash_move(node, fsm) == 0) return;
             break;
-        case hash_move:
-            assign_move_values(node, fsm);
-            fsm->latest_phase = tactical_moves;
-            /* fallthrough */
-        case tactical_moves:
-            if (pick_next_move(node, fsm, PAWN_VALUE) == 0) return;
-            if (pick_killer_move(node, fsm) == 0) return;
-            /* fallthrough */
-        case killer:
-            fsm->latest_phase = general;
-            /* fallthrough */
-        case general:
-            if (pick_next_move(node, fsm, -PAWN_VALUE + 1) == 0) return;
-            fsm->latest_phase = losing_moves;
-            /* fallthrough */
-        case losing_moves:
-            if (pick_next_move(node, fsm, INT_MIN + 1) == 0) return;
-            fsm->latest_phase = done;
-            /* fallthrough */
-        case done:
-            return;
-        default:
-            assert(false);
+        }
+        else if (next_move_fsm(node, fsm) != 0) {
+            break;
         }
     }
+    timer_stop(TIMER_MOVE_SELECT_NEXT);
 }
 

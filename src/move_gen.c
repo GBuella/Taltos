@@ -8,6 +8,7 @@
 #include "bitmanipulate.h"
 #include "chess.h"
 #include "position.h"
+#include "timers.h"
 
 #include "move_gen_const.inc"
 
@@ -200,7 +201,7 @@ gen_plegal_moves_in_check(const struct position *pos,
                           move moves[static MOVE_ARRAY_LENGTH])
 {
     if (popcnt(pos->king_attack_map & pside0(pos)) == 1) {
-        if (ind_rank(pos->ep_ind) == RANK_5) {
+        if (ind_rank(pos->ep_ind) == rank_5) {
             uint64_t ep_mask = bit64(pos->ep_ind);
             ep_mask |= ep_mask >> 8;
             if (nonempty(pos->king_attack_map & ep_mask)) {
@@ -212,7 +213,8 @@ gen_plegal_moves_in_check(const struct position *pos,
         moves = gen_knight_moves(pos->bb, moves, pos->king_attack_map);
         moves = gen_rook_bishop_moves(pos->bb, moves, pos->king_attack_map);
     }
-    moves = gen_king_moves(pos->bb, moves, ~pos->king_attack_map | pside0(pos));
+    moves = gen_king_moves(pos->bb, moves,
+                           ~pos->king_attack_map | pside0(pos));
     return moves;
 }
 
@@ -241,6 +243,7 @@ move *gen_plegal_moves(const struct position *pos,
     assert(pos != NULL);
     assert(moves != NULL);
 
+    timer_start(TIMER_MOVE_GEN);
     if (nonempty(pos->king_attack_map)) {
         moves = gen_plegal_moves_in_check(pos, moves);
     }
@@ -248,6 +251,7 @@ move *gen_plegal_moves(const struct position *pos,
         moves = gen_plegal_moves_non_check(pos, moves);
     }
     *moves = 0;
+    timer_stop(TIMER_MOVE_GEN);
     return moves;
 }
 

@@ -3,6 +3,7 @@
 #include "position.h"
 #include "search.h"
 #include "eval.h"
+#include "timers.h"
 
 const int piece_value[8] = {
     0, PAWN_VALUE, MATE_VALUE, ROOK_VALUE,
@@ -28,7 +29,7 @@ const int piece_value[8] = {
 
 static int add_material(uint64_t map, const uint64_t bb[static 5], int value)
 {
-    return ((spopcnt(map & side1(bb)) - spopcnt(map & side0(bb))) * value);
+    return ((popcnt(map & side1(bb)) - popcnt(map & side0(bb))) * value);
 }
 
 int eval_material(const uint64_t bb[static 5])
@@ -62,7 +63,7 @@ count_range_att(uint64_t occ, uint64_t src_map, const struct magical *magics)
         map |= sliding_map(occ, magics + bsf(src_map));
         src_map = reset_lsb(src_map);
     }
-    return spopcnt(map);
+    return popcnt(map);
 }
 
 #define END_MAX 2
@@ -86,20 +87,22 @@ static int pawn_structure(uint64_t pawns0, uint64_t pawns1,
     *outposts0 = pawn_attacks0(pawns0) & ~reach1;
     uint64_t files1 = kogge_stone_south(reach1);
     uint64_t files0 = kogge_stone_north(reach0);
-    value += (spopcnt(pawns0) - spopcnt(files0 & 0xff)) * DOUBLE_PANW_PENALTY;
-    value -= (spopcnt(pawns1) - spopcnt(files1 & 0xff)) * DOUBLE_PANW_PENALTY;
-    isolated1 = files1 & ~(((files1 << 1) & ~FILE_H) | ((files1 >> 1) & FILE_A));
+    value += (popcnt(pawns0) - popcnt(files0 & 0xff)) * DOUBLE_PANW_PENALTY;
+    value -= (popcnt(pawns1) - popcnt(files1 & 0xff)) * DOUBLE_PANW_PENALTY;
+    isolated1 = files1;
+    isolated1 &= ~(((files1 << 1) & ~FILE_H) | ((files1 >> 1) & FILE_A));
     isolated1 &= pawns1;
-    isolated0 = files0 & ~(((files0 << 1) & ~FILE_H) | ((files0 >> 1) & FILE_A));
+    isolated0 = files0;
+    isolated0 &= ~(((files0 << 1) & ~FILE_H) | ((files0 >> 1) & FILE_A));
     isolated0 &= pawns0;
-    value += (spopcnt(isolated0) - spopcnt(isolated1)) * ISOLATED_PAWN_PENALTY;
+    value += (popcnt(isolated0) - popcnt(isolated1)) * ISOLATED_PAWN_PENALTY;
     return value;
 }
 
 static int
 passed_pawn_score_side1(uint64_t pawns1, uint64_t pawns0, uint64_t s0)
 {
-    int value = spopcnt(pawns1 & RANK_7) * PAWN_RANK_7_VALUE;
+    int value = popcnt(pawns1 & RANK_7) * PAWN_RANK_7_VALUE;
     uint64_t opponent_block, passed;
 
     opponent_block = pawns0
@@ -107,9 +110,9 @@ passed_pawn_score_side1(uint64_t pawns1, uint64_t pawns0, uint64_t s0)
                      | ((pawns0 >> 1) & ~FILE_A);
     opponent_block = kogge_stone_south(opponent_block);
     passed = pawns1 & ~opponent_block;
-    value += spopcnt(passed) * PASSED_PAWN_VALUE;
+    value += popcnt(passed) * PASSED_PAWN_VALUE;
     passed = kogge_stone_north(passed);
-    value -= spopcnt(kogge_stone_north(passed) & s0)
+    value -= popcnt(kogge_stone_north(passed) & s0)
                 * PASSED_PAWN_PATH_BLOCKED_PENALTY;
     return value;
 }
@@ -141,7 +144,7 @@ static int king_fortress(uint64_t pawns, uint64_t rooks, uint64_t king)
         return -KING_RANK_12_VALUE;
     }
     guard = (king >> 8) | ((king >> 9) & ~FILE_A) | ((king >> 7) & ~FILE_H);
-    value = spopcnt((guard | (guard >> 8)) & pawns) * KINGS_PAWN_GUARD_VALUE;
+    value = popcnt((guard | (guard >> 8)) & pawns) * KINGS_PAWN_GUARD_VALUE;
     if (king == SQ_C1 && empty(SQ_A1 & rooks)) {
         value += CASTLE_BONUS_VALUE;
     }
@@ -156,7 +159,7 @@ static int king_fortress1(const struct position *pos)
     return king_fortress(pawns_map1(pos),
                            rooks_only_map1(pos),
                            king_map1(pos))
-        - spopcnt(pos->king_reach_map_1 & ~RANK_1 & ~pside1(pos));
+        - popcnt(pos->king_reach_map_1 & ~RANK_1 & ~pside1(pos));
 }
 
 static int king_fortress0(const struct position *pos)
@@ -164,7 +167,7 @@ static int king_fortress0(const struct position *pos)
     return king_fortress(bswap(pawns_map0(pos)),
                            bswap(rooks_only_map0(pos)),
                            bswap(king_map0(pos)))
-        - spopcnt(pos->king_reach_map_0 & ~RANK_8 & ~pside0(pos));
+        - popcnt(pos->king_reach_map_0 & ~RANK_8 & ~pside0(pos));
 }
 
 static int piece_placement(const struct position *pos,
@@ -174,21 +177,21 @@ static int piece_placement(const struct position *pos,
     uint64_t pawns1 = pawns_map1(pos);
     uint64_t pawns0 = pawns_map0(pos);
 
-    value += spopcnt(CENTER_SQ & outposts1 & knights_map1(pos))
+    value += popcnt(CENTER_SQ & outposts1 & knights_map1(pos))
                 * KNIGHT_OUTPOST_VALUE;
-    value -= spopcnt(CENTER_SQ & outposts0 & knights_map0(pos))
+    value -= popcnt(CENTER_SQ & outposts0 & knights_map0(pos))
                 * KNIGHT_OUTPOST_VALUE;
-    value += spopcnt(CENTER_SQ & knights_map1(pos))
+    value += popcnt(CENTER_SQ & knights_map1(pos))
                 * KNIGHT_CENTER_VALUE;
-    value -= spopcnt(CENTER_SQ & knights_map0(pos))
+    value -= popcnt(CENTER_SQ & knights_map0(pos))
                 * KNIGHT_CENTER_VALUE;
-    value += spopcnt(pawn_attacks1(pawns1) & CENTER_SQ)
+    value += popcnt(pawn_attacks1(pawns1) & CENTER_SQ)
                 * CENTER_PAWN_ATTAK_VALUE;
-    value -= spopcnt(pawn_attacks0(pawns0) & CENTER_SQ)
+    value -= popcnt(pawn_attacks0(pawns0) & CENTER_SQ)
                 * CENTER_PAWN_ATTAK_VALUE;
-    value += spopcnt(pawn_attacks1(pawns1) & CENTER_SQ & (RANK_5|RANK_6))
+    value += popcnt(pawn_attacks1(pawns1) & CENTER_SQ & (RANK_5|RANK_6))
                 * CENTER_PAWN_ATTAK_VALUE;
-    value -= spopcnt(pawn_attacks0(pawns0) & CENTER_SQ & (RANK_3|RANK_4))
+    value -= popcnt(pawn_attacks0(pawns0) & CENTER_SQ & (RANK_3|RANK_4))
                 * CENTER_PAWN_ATTAK_VALUE;
     return value;
 }
@@ -210,10 +213,10 @@ static int basic_mobility(const struct position *pos)
 
     value = count_range_att(occ, rooks_only_map1(pos), rook_magics);
     value += count_range_att(occ, bishops_only_map1(pos), bishop_magics);
-    value += spopcnt(knights_attacks(knights_map1(pos)));
+    value += popcnt(knights_attacks(knights_map1(pos)));
     value -= count_range_att(occ, rooks_only_map0(pos), rook_magics);
     value -= count_range_att(occ, bishops_only_map0(pos), bishop_magics);
-    value -= spopcnt(knights_attacks(knights_map0(pos)));
+    value -= popcnt(knights_attacks(knights_map0(pos)));
     return value / 2;
 }
 
@@ -221,6 +224,7 @@ int eval(const struct position *pos)
 {
     assert(pos != NULL);
 
+    timer_start(TIMER_EVAL);
     int value;
     int end = compute_endgame_factor(pos->bb);
 
@@ -240,6 +244,7 @@ int eval(const struct position *pos)
                         eval_middlegame(pos, outposts1, outposts0);
     }
     
+    timer_stop(TIMER_EVAL);
     return value;
 }
 

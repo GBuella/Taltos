@@ -51,7 +51,8 @@ print_san_move_capture(const struct position *pos, int to, char *str)
     return str;
 }
 
-static char *print_san_promotion(move m, char *str)
+static char *
+print_san_promotion(move m, char *str)
 {
     if (is_promotion(m)) {
         *(str++) = '=';
@@ -60,7 +61,8 @@ static char *print_san_promotion(move m, char *str)
     return str;
 }
 
-static char *print_san_check(const struct position *pos UNUSED, move m UNUSED, char *str)
+static char *
+print_san_check(const struct position *pos UNUSED, move m UNUSED, char *str)
 {
     return str;
 }
@@ -127,6 +129,7 @@ static bool move_str_eq(const char *user_move, const char *move)
 {
     const char *c0 = user_move;
     const char *c1 = move;
+
     while (isspace(*c0)) ++c0;
     do {
         if (*c1 == '\0') {
@@ -138,7 +141,25 @@ static bool move_str_eq(const char *user_move, const char *move)
     return false;
 }
 
-int read_move(const struct position *pos, const char *str, move *m, player turn)
+int fen_read_move(const char *fen, const char *str, move *m)
+{
+    move t;
+    player turn;
+    struct position position[1];
+
+    if (m == NULL) {
+        m = &t;
+    }
+    if (position_read_fen(position, fen, &turn) == NULL) {
+        return -1;
+    }
+    return read_move(position, str, m, turn);
+}
+
+int read_move(const struct position *pos,
+              const char *str,
+              move *m,
+              player turn)
 {
     assert(pos != NULL);
     assert(str != NULL);

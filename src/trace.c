@@ -52,7 +52,7 @@ void trace_node(const struct node *node, const struct move_fsm *ml)
     fwrite(str, strlen(str), 1, logfile);
     fprintf(logfile, "Depth: %d alpha: %d beta: %d\n",
             node->depth, node->alpha, node->beta);
-    position_print_fen(node->pos, str, 1, 1, white);
+    position_print_fen(node->pos, str, white);
     fprintf(logfile, "%s\n", str);
     print_move(node->pos, node->current_move, str, mn_san, white);
     fprintf(logfile, "At move: %s #%u\n", str, ml->legal_counter);

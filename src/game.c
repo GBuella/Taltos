@@ -46,14 +46,14 @@ struct game *game_create(void)
         return NULL;
     }
 #ifndef NDEBUG
-    int t =
+    const char *t =
 #endif
-    position_read_fen(g->head.position,
-                      start_position_fen,
-                      &g->head.full_move,
-                      &g->head.half_move,
-                      &g->head.turn);
-    assert(t == 0);
+    position_read_fen_full(g->head.position,
+                           start_position_fen,
+                           &g->head.full_move,
+                           &g->head.half_move,
+                           &g->head.turn);
+    assert(t != NULL);
     g->head.next = NULL;
     g->head.prev = NULL;
     g->item_count = 1;
@@ -79,12 +79,12 @@ struct game *game_create_fen(const char *str)
     struct game *g = game_create();
 
     if (g == NULL) return NULL;
-    int err = position_read_fen(g->head.position,
-                      str,
-                      &g->head.full_move,
-                      &g->head.half_move,
-                      &g->head.turn);
-    if (err != 0) {
+    if (NULL == position_read_fen_full(g->head.position,
+                                       str,
+                                       &g->head.full_move,
+                                       &g->head.half_move,
+                                       &g->head.turn))
+    {
         free(g);
         return NULL;
     }
@@ -210,9 +210,10 @@ char *game_print_fen(const struct game *g, char str[static FEN_BUFFER_LENGTH])
     assert(g != NULL);
     assert(str != NULL);
 
-    (void)position_print_fen(g->current->position, str,
-                   g->current->full_move, g->current->half_move,
-                   g->current->turn);
+    (void)position_print_fen_full(g->current->position, str,
+                                  g->current->full_move,
+                                  g->current->half_move,
+                                  g->current->turn);
     return str;
 }
 

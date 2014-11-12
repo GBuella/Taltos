@@ -18,5 +18,13 @@ bool is_coordinate(const char *);
 file_t char_to_file(char);
 rank_t char_to_rank(char, player turn);
 int str_to_index(const char[static 2], player turn);
+bool empty_line(const char *);
+const char *next_token(const char *);
+int print_nice_number(uintmax_t,
+                      const char **postfixes,
+                      const uintmax_t *dividers);
+int print_nice_count(uintmax_t);
+int print_nice_ns(uintmax_t, bool use_unicode);
 
 #endif
+

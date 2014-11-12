@@ -7,6 +7,11 @@ case $1 in
         $UTIL_DIR/check_flag.sh -DNDEBUG
         $UTIL_DIR/check_flag.sh -O3
         ;;
+    with_mach_timer)
+        $UTIL_DIR/check_flag.sh -DNDEBUG
+        $UTIL_DIR/check_flag.sh -O3
+        printf " -DWITH_MACH_TIMER "
+        ;;
     gprof)
         $UTIL_DIR/check_flag.sh -DNDEBUG
         $UTIL_DIR/check_flag.sh -O3
@@ -34,6 +39,7 @@ $UTIL_DIR/check_flag.sh -Werror
 $UTIL_DIR/check_flag.sh -march=native
 echo "#include <x86intrin.h>" > tmp.c
 echo "int main() {return __builtin_ctzll(42323ULL);}" > tmp.c
+echo "" > tmp.c
 $UTIL_DIR/check_flag.sh -mpopcnt
 echo '-DSLIDING_BYTE_LOOKUP -DUSE_KNIGHT_LOOKUP_TABLE'
 rm -f tmp.c
