@@ -77,11 +77,12 @@ error:
     return NULL;
 }
 
-struct fen_book *fen_book_parse(const char * const *data)
+struct fen_book *fen_book_parse(const char * const * const pdata)
 {
-    if (data == NULL) return NULL;
+    if (pdata == NULL) return NULL;
 
     struct fen_book *book = malloc(sizeof *book);
+    const char * const volatile * data = pdata;
     jmp_buf jb;
 
     if (book == NULL) return NULL;
@@ -90,6 +91,7 @@ struct fen_book *fen_book_parse(const char * const *data)
         return NULL;
     }
     book->entries[0] = NULL;
+    book->size = 0;
     while (*data != NULL) {
         if (!empty_line(*data)) {
             fen_book_add_line(book, *data, jb);

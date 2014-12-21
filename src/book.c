@@ -77,20 +77,29 @@ struct book *book_open(book_type type, const char *path)
 
 static int pick_half_bell_curve(int size)
 {
+    assert(size > 0 && size < 1024);
+
     if (size < 2) {
         return 0;
     }
     int n = rand();
+    int cut;
+    int original_size = size;
+    int result_range_size;
 
-    n = 1 + (n % size) + ((n >> 8) % size) + 
-        ((n >> 16) % size) + ((n >> 24) % size);
-    --size;
-    if (n > size*2) {
-        n -= size*2 + 1;
+    if ((size % 2) == 1) {
+      ++size;
+    }
+    n = (n % size) + ((n >> 10) % size) + ((n >> 20) % size);
+    cut = ((size-1) * 3) / 2;
+    result_range_size = ((size-1) * 3) + 1;
+    if (n > cut) {
+        n -= cut + 1;
     }
     else {
-        n = size*2 - n;
+        n = cut - n;
     }
+    n = (n * original_size) / (result_range_size / 2);
     return n;
 }
 

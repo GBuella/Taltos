@@ -47,7 +47,13 @@ static void timer_unlock(void)
 
 thread_pointer thread_allocate(void)
 {
-    return malloc(sizeof(pthread_t));
+    pthread_t *p = malloc(sizeof(pthread_t));
+
+    if (p == NULL) {
+        return NULL;
+    }
+    *p = (pthread_t)0;
+    return p;
 }
 
 void search_thread_cancel_point(void)

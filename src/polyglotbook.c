@@ -169,7 +169,7 @@ static int pmto(uint16_t pm)
     return ind((pm >> 3) & 7, pm & 7);
 }
 
-static int pmpromotion(uint16_t pm)
+static unsigned pmpromotion(uint16_t pm)
 {
     switch (pm >> 12) {
     case 1:
@@ -236,7 +236,7 @@ static int cmp(const void *a, const void *b)
 void polyglotbook_get_move(const struct polyglotbook *book,
                            const struct position *position,
                            size_t msize,
-                           move moves[msize])
+                           move * const moves)
 {
     struct result_set results[1];
     jmp_buf jb;
