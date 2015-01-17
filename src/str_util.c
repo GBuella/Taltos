@@ -50,12 +50,12 @@ char square_to_char(piece p, player pl)
 {
     char pc = piece_to_char(p);
 
-    return (pl == black) ? pc : (char)toupper(pc);
+    return (pl == black) ? pc : (char)toupper((unsigned char)pc);
 }
 
 piece char_to_piece(char p)
 {
-    switch (tolower(p)) {
+    switch (tolower((unsigned char)p)) {
         case 'p': return pawn;
         case 'r': return rook;
         case 'b': return bishop;
@@ -86,7 +86,7 @@ bool is_coordinate(const char *str)
 file_t char_to_file(char ch)
 {
     assert(is_file(ch));
-    return 7 - (toupper(ch) - 'A');
+    return 7 - (toupper((unsigned char)ch) - 'A');
 }
 
 rank_t char_to_rank(char ch, player turn)

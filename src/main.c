@@ -151,7 +151,12 @@ static void usage(int status)
 {
     fprintf((status == EXIT_SUCCESS) ? stdout : stderr,
         "taltos chess engine\n"
-        "usage: %s blabla\n",
+        "usage: %s [options]\n"
+        "OPTIONS:"
+        "  -t                  print time after quitting\n"
+        "  --book path         load polyglot book at path\n"
+        "  --nobook            don't use any opening book\n"
+        "  --unicode           use some unicode characters in the output\n",
         progname);
     exit(status);
 }

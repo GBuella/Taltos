@@ -9,3 +9,8 @@ gen_constants
 move_gen_const.inc
 .out
 .time
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+*.exe
+Makefile

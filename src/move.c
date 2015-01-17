@@ -56,7 +56,7 @@ print_san_promotion(move m, char *str)
 {
     if (is_promotion(m)) {
         *(str++) = '=';
-        *(str++) = (char)toupper(piece_to_char(mpromotion(m)));
+        *(str++) = (char)toupper((unsigned char)piece_to_char(mpromotion(m)));
     } 
     return str;
 }
@@ -79,7 +79,7 @@ print_san_move(const struct position *pos, move m, char *str, player turn)
         return str + sprintf(str, "O-O-O");
     }
     if (piece != pawn) {
-        *str++ = (char)toupper(piece_to_char(piece));
+        *str++ = (char)toupper((unsigned char)piece_to_char(piece));
     }
     str = print_san_move_from(pos, m, str, turn);
     str = print_san_move_capture(pos, mto(m), str);
@@ -96,7 +96,7 @@ print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH], player turn)
     str = index_to_str(str, mfrom(m), turn);
     str = index_to_str(str, mto(m), turn);
     if (is_promotion(m)) {
-        *str++ = (char)toupper(piece_to_char(mpromotion(m)));
+        *str++ = (char)toupper((unsigned char)piece_to_char(mpromotion(m)));
     }
     *str = '\0';
     return str;
@@ -130,14 +130,14 @@ static bool move_str_eq(const char *user_move, const char *move)
     const char *c0 = user_move;
     const char *c1 = move;
 
-    while (isspace(*c0)) ++c0;
+    while (isspace((unsigned char)*c0)) ++c0;
     do {
         if (*c1 == '\0') {
             return (*c0 == '\0' || strchr(" \t\r\n+*-?!", *c0) != NULL);
         }
-        while (!isalnum(*c0)) ++c0;
-        while (!isalnum(*c1)) ++c1;
-    } while (toupper(*c0++) == toupper(*c1++));
+        while (!isalnum((unsigned char)*c0)) ++c0;
+        while (!isalnum((unsigned char)*c1)) ++c1;
+    } while (toupper((unsigned char)*c0++) == toupper((unsigned char)*c1++));
     return false;
 }
 

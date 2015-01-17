@@ -171,7 +171,7 @@ static long get_long_arg(void)
 static char *str_to_lower(char *str)
 {
     for (char *c = str; *c != '\0'; ++c) {
-        *c = (char)tolower(*c);
+        *c = (char)tolower((unsigned char)*c);
     }
     return str;
 }

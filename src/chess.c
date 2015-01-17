@@ -127,7 +127,12 @@ read_pos_rank(struct position *pos, rank_t rank, const char *str, jmp_buf jb)
             piece p = char_to_piece(*str);
 
             if (!is_valid_piece(p)) longjmp(jb, 1);
-            set_sq_at(pos, ind(rank, file), isupper(*str) ? white : black, p);
+            if (isupper((unsigned char)*str)) {
+                set_sq_at(pos, ind(rank, file), white, p);
+            }
+            else {
+                set_sq_at(pos, ind(rank, file), black, p);
+            }
             file += FEAST;
             ++i;
         }
@@ -146,15 +151,17 @@ read_position_squares(struct position *pos, const char *str, jmp_buf jb)
         str = read_pos_rank(pos, rank, str+1, jb);
         rank += RSOUTH;
     }
-    if (!isspace(*str)) longjmp(jb, 1);
+    if (!isspace((unsigned char)*str)) longjmp(jb, 1);
     return str;
 }
 
 static const char *
 read_fen_turn(player *turn, const char *str, jmp_buf jb)
 {
-    if (strspn(str, "wWbB") != 1 || !isspace(str[1])) longjmp(jb, 1);
-    *turn = (tolower(*str) == 'w') ? white : black;
+    if (strspn(str, "wWbB") != 1 || !isspace((unsigned char)str[1])) {
+        longjmp(jb, 1);
+    }
+    *turn = (tolower((unsigned char)*str) == 'w') ? white : black;
     return ++str;
 }
 
@@ -162,10 +169,10 @@ static const char *
 read_castle_rights_fen(struct position *pos, const char *str, jmp_buf jb)
 {
     if (str[0] == '-') {
-        if (!isspace(*++str)) longjmp(jb, 1);
+        if (!isspace((unsigned char)*++str)) longjmp(jb, 1);
         return str;
     }
-    for (; !isspace(*str); ++str) {
+    for (; !isspace((unsigned char)*str); ++str) {
         switch (*str) {
             case 'K':
                 if (pos->castle_right_1) longjmp(jb, 1);
@@ -208,7 +215,7 @@ read_ep_pos(int *ep_pos, const char *str, player turn, jmp_buf jb)
         }
         str += 2;
     }
-    if (*str != '\0' && !isspace(*str)) longjmp(jb, 1);
+    if (*str != '\0' && !isspace((unsigned char)*str)) longjmp(jb, 1);
     return str;
 }
 
@@ -219,7 +226,7 @@ void setup_empty_position(struct position *pos)
 
 static const char *skip_space(const char *str)
 {
-    while (isspace(*str)) ++str;
+    while (isspace((unsigned char)*str)) ++str;
     return str;
 }
 
@@ -258,7 +265,7 @@ read_fen_move_counters(const char * volatile str,
         str = read_move_counter(half_move, str, jb);
         str = read_move_counter(full_move, skip_space(str), jb);
         if (*full_move == 0 || ((*full_move*2) < *half_move)) longjmp(jb, 1);
-        if (!isspace(*str) && *str != '\0') longjmp(jb, 1);
+        if (!isspace((unsigned char)*str) && *str != '\0') longjmp(jb, 1);
     }
     else {
         *half_move = 0;
