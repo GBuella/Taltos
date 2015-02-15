@@ -223,3 +223,4 @@ static inline uint64_t interval(uint64_t bit_a, uint64_t bit_b)
 
 #endif
 
+/* vim: set filetype=c : */

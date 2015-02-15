@@ -60,3 +60,4 @@ static inline void timers_print(bool use_unicode)
 
 #endif
 
+/* vim: set filetype=c : */
