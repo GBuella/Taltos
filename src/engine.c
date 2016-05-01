@@ -99,9 +99,9 @@ int engine_get_best_move(move *m)
     }
 }
 
-static void search_time_end(void *arg UNUSED)
+static void search_time_end(void *arg)
 {
-    (void)arg;
+    (void) arg;
     trace("search_time_end called\n");
     (*thinking_cb)();
 }

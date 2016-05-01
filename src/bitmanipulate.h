@@ -54,7 +54,10 @@ static inline uint64_t lsb(uint64_t value)
 
 static inline uint64_t msb(uint64_t value)
 {
-    return value & bit64(63 - __builtin_clzll(value));
+    if (value == EMPTY)
+        return EMPTY;
+    else
+        return bit64(63 - __builtin_clzll(value));
 }
 
 #elif defined(_MSC_VER) && defined(BUILD_64)

@@ -4,6 +4,9 @@ project(taltos C)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSLIDING_BYTE_LOOKUP")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_KNIGHT_LOOKUP_TABLE")
 
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ftrapv")
+
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)
 if (HAS_WALL)
@@ -35,17 +38,17 @@ if (HAS_MARCHNATIVE)
 endif()
 FIND_PACKAGE(Threads)
 
-include_directories(src)
+include_directories(src "${PROJECT_BINARY_DIR}")
 
 add_executable(gen_constants util/gen_constants.c)
 
 add_custom_command(
-    OUTPUT  src/move_gen_const.inc
-    COMMAND gen_constants > src/move_gen_const.inc
+    OUTPUT  move_gen_const.inc
+    COMMAND gen_constants > move_gen_const.inc
     DEPENDS gen_constants)
 
 add_executable(taltos
-    src/move_gen_const.inc
+    move_gen_const.inc
     src/book.c
     src/chess.c
     src/engine.c

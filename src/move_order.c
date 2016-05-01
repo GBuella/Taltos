@@ -164,13 +164,13 @@ static int move_value_basic(const uint64_t board[static 5],
 }
 
 static int
-pawn_protection_value(move m, uint64_t pattack UNUSED, uint64_t opp_pattack)
+pawn_protection_value(move m, uint64_t pattack, uint64_t opp_pattack)
 {
     int value = 0;
     uint64_t to64 = mto64(m);
     uint64_t from64 = mfrom64(m);
 
-    (void)pattack;
+    (void) pattack;
     if (empty(opp_pattack & to64) && nonempty(opp_pattack & from64)) {
         ++value;
     }

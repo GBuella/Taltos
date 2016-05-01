@@ -13,8 +13,6 @@
 
 #ifdef __GNUC__
 
-#   define UNUSED __attribute__ (( unused ))
-#   define PACKED __attribute__ (( packed ))
 #   define PREFETCH(x) __builtin_prefetch(x)
 #   ifdef NDEBUG
 #       if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 4)
@@ -37,8 +35,6 @@
 
 #elif defined(_MSC_VER)
 
-#   define UNUSED
-#   define PACKED
 #   ifdef NDEBUG
 #       define unreachable() __assume(0)
 #   else
@@ -54,8 +50,6 @@
 
 #else /* GNUC || MSC_VER */
 
-#   define UNUSED
-#   define PACKED
 #   ifdef NDEBUG
 #       define unreachable() { return; }
 #   else

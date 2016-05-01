@@ -62,8 +62,10 @@ print_san_promotion(move m, char *str)
 }
 
 static char *
-print_san_check(const struct position *pos UNUSED, move m UNUSED, char *str)
+print_san_check(const struct position *pos, move m, char *str)
 {
+    (void) pos;
+    (void) m;
     return str;
 }
 
