@@ -4,9 +4,6 @@ project(taltos C)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSLIDING_BYTE_LOOKUP")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_KNIGHT_LOOKUP_TABLE")
 
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ftrapv")
-
 include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wall HAS_WALL)
 if (HAS_WALL)
@@ -24,10 +21,10 @@ check_c_compiler_flag(-Werror HAS_WERROR)
 if (HAS_WERROR)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
 endif()
-check_c_compiler_flag(-std=c99 HAS_STDC99)
-if (HAS_STDC99)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-endif()
+# check_c_compiler_flag(-std=c11 HAS_STDC11)
+# if (HAS_STDC11)
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+# endif()
 check_c_compiler_flag(-mpopcnt HAS_MPOPCNT)
 if (HAS_MPOPCNT)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mpopcnt")
@@ -62,13 +59,22 @@ add_executable(taltos
     src/move_order.c
     src/perft.c
     src/platform.c
-    src/polyglotbook.c
+    src/polyglot_book.c
     src/protocol.c
     src/search.c
     src/str_util.c
     src/tests.c
     src/timers.c
+    src/util.c
     src/trace.c)
+
+set_property(TARGET taltos PROPERTY C_STANDARD 11)
+set_property(TARGET taltos PROPERTY C_STANDARD_REQUIRED ON)
+
+
+include(feature_tests.cmake)
+
+configure_file(cmake_config.h.in taltos_config.h)
 
 TARGET_LINK_LIBRARIES(taltos ${CMAKE_THREAD_LIBS_INIT})
 

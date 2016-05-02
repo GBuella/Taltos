@@ -12,6 +12,7 @@
 #include "position.h"
 #include "str_util.h"
 #include "hash.h"
+#include "util.h"
 
 const char *start_position_fen = 
    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -301,6 +302,12 @@ void read_fen_king_attacks(struct position *pos, player turn, jmp_buf jb)
     }
 }
 
+static const char *read_fen(struct position*,
+                            const char *volatile,
+                            player*,
+                            jmp_buf)
+    attribute_args_nonnull(2);
+
 static const char *read_fen(struct position *pos,
                             const char * volatile str,
                             player *turn,
@@ -397,7 +404,7 @@ bool is_move_irreversible(const struct position *pos, move m)
 
 struct position *position_create(void)
 {
-    return calloc(1, sizeof(struct position));
+    return xcalloc(sizeof(struct position));
 }
 
 void position_destroy(struct position *p)

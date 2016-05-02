@@ -4,6 +4,8 @@
 
 #include "chess.h"
 
+#include "macros.h"
+
 struct book;
 
 enum book_type {
@@ -13,10 +15,12 @@ enum book_type {
     bt_empty = 4,
 };
 
-typedef enum book_type book_type;
+struct book *book_open(enum book_type, const char *path)
+    attribute_warn_unused_result attribute_nonnull;
 
-struct book *book_open(book_type, const char *path);
-move book_get_move(const struct book *, const struct position *);
-void book_close(struct book *);
+move book_get_move(const struct book*, const struct position*)
+    attribute_nonnull;
+
+void book_close(struct book*);
 
 #endif

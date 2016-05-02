@@ -41,17 +41,9 @@ int main(int argc, char **argv)
     if (atexit(onexit) != 0) {
         return EXIT_FAILURE;
     }
-#   if !defined(WIN32) && !defined(WIN64)
     (void)setvbuf(stdout, NULL, _IOLBF, 0x1000);
-#   endif /* !WIN */
 
     loop_cli(&horse, book);
-
-#if __STDC_VERSION__ < 201112L
-    /* no "noreturn" before C11 */
-    return EXIT_SUCCESS;
-#endif
-
 }
 
 static void setup_defaults(void)
@@ -97,15 +89,6 @@ static void onexit(void)
     log_close();
 }
 
-static char *argdup(char *arg)
-{
-    char *p = malloc(strlen(arg) + 1);
-
-    if (p == NULL) abort();
-    strcpy(p, arg);
-    return p;
-}
-
 static void process_args(char **arg)
 {
     progname = *arg;
@@ -130,7 +113,7 @@ static void process_args(char **arg)
                 horse.book_type = bt_fen;
             }
             ++arg;
-            horse.book_path = argdup(*arg);
+            horse.book_path = *arg;
         }
         else if (strcmp(*arg, "--nobook") == 0) {
             if (horse.book_type != bt_builtin) {

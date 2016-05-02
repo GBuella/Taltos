@@ -362,7 +362,7 @@ static void handle_node_types(struct node *node, const struct move_fsm *ml)
             }
             break;
         default:
-            unreachable();
+            unreachable;
     }
 }
 

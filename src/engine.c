@@ -292,9 +292,6 @@ void init_engine(const struct taltos_conf *h)
 {
     horse = h;
     root = position_create();
-    if (root == NULL) {
-        exit(EXIT_FAILURE);
-    }
     if ((thinking_thread = thread_allocate()) == NULL) {
         exit(EXIT_FAILURE);
     }

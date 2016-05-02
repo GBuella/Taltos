@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "macros.h"
+
 enum move_notation_type
 {
 	mn_coordinate,
@@ -204,12 +206,8 @@ static inline bool move_match(move a, move b)
     return (a & 0xfff) == (b & 0xfff);
 }
 
-#if __STDC_VERSION__ >= 201112L
-
-_Static_assert(((rook|knight|bishop|queen)<<12) == 0x7000,
+static_assert(((rook|knight|bishop|queen)<<12) == 0x7000,
                "piece vs move types assertion failed");
-
-#endif
 
 static inline move set_mt(move m, move_type mt)
 {
@@ -329,50 +327,104 @@ extern const char *start_position_fen;
 
 
 
-int fen_read_move(const char *fen, const char*, move*);
-int read_move(const struct position*, const char*, move*, player);
-char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], player);
+int fen_read_move(const char *fen, const char*, move*)
+    attribute_args_nonnull(1, 2);
+
+int read_move(const struct position*, const char*, move*, player)
+    attribute_nonnull;
+
+char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], player)
+    attribute_nonnull
+    attribute_returns_nonnull;
+
 char *print_move(const struct position*,
                 move,
                 char[static MOVE_STR_BUFFER_LENGTH],
                 move_notation_type,
-                player turn);
-void setup_empty_position(struct position *);
-char *position_print_fen(const struct position *,
+                player turn)
+    attribute_nonnull
+    attribute_returns_nonnull;
+
+void setup_empty_position(struct position*)
+    attribute_nonnull;
+
+char *position_print_fen(const struct position*,
                          char[static FEN_BUFFER_LENGTH],
-                         player turn);
-char *position_print_fen_full(const struct position *,
+                         player turn)
+    attribute_nonnull
+    attribute_returns_nonnull;
+
+char *position_print_fen_full(const struct position*,
                               char[static FEN_BUFFER_LENGTH],
                               unsigned full_move,
                               unsigned half_move,
-                              player turn);
+                              player turn)
+    attribute_nonnull
+    attribute_returns_nonnull;
 
-const char *position_read_fen(struct position *, const char *buffer, player *);
-const char *position_read_fen_full(struct position *,
+const char *position_read_fen(struct position*, const char *buffer, player*)
+    attribute_args_nonnull(2);
+
+const char *position_read_fen_full(struct position*,
                                    const char *buffer,
                                    unsigned *full_move,
                                    unsigned *half_move,
-                                   player *turn);
+                                   player *turn)
+    attribute_nonnull;
+
 void board_print(char[static BOARD_BUFFER_LENGTH],
                  const struct position *,
-                 player turn);
+                 player turn)
+    attribute_nonnull;
+
 move *gen_plegal_moves(const struct position *,
-                       move[static MOVE_ARRAY_LENGTH]);
+                       move[static MOVE_ARRAY_LENGTH])
+    attribute_nonnull
+    attribute_returns_nonnull;
+
 move *gen_moves(const struct position *,
-                move[static MOVE_ARRAY_LENGTH]);
-bool is_move_irreversible(const struct position *, move);
-bool is_legal_move(const struct position *, move);
-void position_copy(struct position *dst, const struct position *src);
-void position_flip_ip(struct position *);
-void position_flip(struct position *dst, const struct position *src);
-void make_move(struct position *, move);
-int make_plegal_move(struct position *, move);
-struct position *position_create(void);
-void position_destroy(struct position *);
+                move[static MOVE_ARRAY_LENGTH])
+    attribute_nonnull
+    attribute_returns_nonnull;
+
+bool is_move_irreversible(const struct position *, move)
+    attribute_nonnull;
+
+bool is_legal_move(const struct position *, move)
+    attribute_nonnull;
+
+void position_copy(struct position * restrict dst,
+                   const struct position * restrict src)
+    attribute_nonnull;
+
+void position_flip_ip(struct position *)
+    attribute_nonnull;
+
+void position_flip(struct position *dst,
+                   const struct position *src)
+    attribute_nonnull;
+
+void make_move(struct position *, move)
+    attribute_nonnull;
+
+int make_plegal_move(struct position*, move)
+    attribute_nonnull;
+
+struct position *position_create(void)
+    attribute_returns_nonnull;
+
+void position_destroy(struct position*);
+
 void init_move_gen(void);
-bool has_any_legal_move(const struct position *);
-bool is_mate(const struct position *);
-bool is_stalemate(const struct position *);
+
+bool has_any_legal_move(const struct position*)
+    attribute_nonnull;
+
+bool is_mate(const struct position*)
+    attribute_nonnull;
+
+bool is_stalemate(const struct position*)
+    attribute_nonnull;
 
 #endif /* CHESS_H */
 

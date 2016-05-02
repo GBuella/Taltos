@@ -6,6 +6,7 @@
 
 #include "chess.h"
 #include "game.h"
+#include "util.h"
 
 struct history_item {
     struct position *position;
@@ -38,13 +39,9 @@ struct game {
 
 struct game *game_create(void)
 {
-    struct game *g = malloc(sizeof *g);
+    struct game *g = xmalloc(sizeof *g);
 
-    if (g == NULL) return NULL;
-    if ((g->head.position = position_create()) == NULL) {
-        free(g);
-        return NULL;
-    }
+    g->head.position = position_create();
 #ifndef NDEBUG
     const char *t =
 #endif
@@ -67,18 +64,14 @@ struct game *game_create_position(const struct position *p)
 {
     struct game *g = game_create();
 
-    if (g == NULL) return NULL;
     position_copy(g->head.position, p);
     return g;
 }
 
 struct game *game_create_fen(const char *str)
 {
-    if (str == NULL) return NULL;
-
     struct game *g = game_create();
 
-    if (g == NULL) return NULL;
     if (NULL == position_read_fen_full(g->head.position,
                                        str,
                                        &g->head.full_move,
@@ -166,16 +159,12 @@ int game_append(struct game *g, move m)
     assert(g != NULL);
     assert(is_move_valid(m));
 
-    struct history_item *next = malloc(sizeof(*next));
+    struct history_item *next = xmalloc(sizeof(*next));
 
-    if (next == NULL) return -1;
     if (!is_legal_move(g->current->position, m)) {
         return -1;
     }
-    if ((next->position = position_create()) == NULL) {
-        free(next);
-        return -1;
-    }
+    next->position = position_create();
     game_truncate(g);
     position_copy(next->position, g->current->position);
     make_move(next->position, m);
@@ -221,28 +210,22 @@ static struct history_item *hitem_copy(const struct history_item *src)
 {
     struct history_item *dst;
 
-    dst = malloc(sizeof *dst);
-    if (dst == NULL) return NULL;
+    dst = xmalloc(sizeof *dst);
     memcpy(dst, src, sizeof *dst);
     dst->position = position_create();
-    if (dst->position == NULL) {
-        free(dst);
-        return NULL;
-    }
     position_copy(dst->position, src->position);
     return dst;
 }
 
 struct game *game_copy(const struct game *src)
 {
-    if (src == NULL) return NULL;
+    assert(src != NULL);
 
     struct game *dst;
     const struct history_item *item;
     struct history_item *dst_item;
 
-    dst = malloc(sizeof *dst);
-    if (dst == NULL) return NULL;
+    dst = xmalloc(sizeof *dst);
     memcpy(dst, src, sizeof *dst);
     dst->head.position = position_create();
     position_copy(dst->head.position, src->head.position);

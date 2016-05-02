@@ -10,6 +10,7 @@
 #include "position.h"
 #include "engine.h"
 #include "search.h"
+#include "util.h"
 
 struct divide_info {
     struct position pos;
@@ -115,8 +116,7 @@ divide_init(const struct position *pos,
 
     struct divide_info *dinfo;
 
-    dinfo = malloc(sizeof *dinfo);
-    if (dinfo == NULL) return NULL;
+    dinfo = xmalloc(sizeof *dinfo);
     dinfo->depth = depth;
     dinfo->turn = turn;
     dinfo->is_ordered = ordered;

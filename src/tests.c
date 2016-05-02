@@ -86,7 +86,6 @@ static void position_move_test(void)
     player turn;
 
     position = position_create();
-    if (position == NULL) abort();
     assert(position_print_fen_full(position, str, 1, 0, white)
             == str + strlen(empty_fen));
     assert(strcmp(empty_fen, str) == 0);

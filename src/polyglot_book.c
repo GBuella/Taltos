@@ -10,9 +10,10 @@
 #include <stdio.h>
 
 #include "macros.h"
-#include "polyglotbook.h"
+#include "book_types.h"
 #include "hash.h"
 #include "platform.h"
+#include "util.h"
 
 struct entry {
     uint64_t key;
@@ -21,55 +22,42 @@ struct entry {
     uint32_t learn;
 };
 
-typedef struct entry entry;
-
-bool has_key(entry entry, uint64_t key)
+static bool
+has_key(struct entry entry, uint64_t key)
 {
     return entry.key == key;
 }
 
-struct polyglotbook {
-    FILE *f;
-    long size;
-};
-
-struct polyglotbook *polyglotbook_open(const char *path)
+struct book*
+polyglot_book_open(const char *path)
 {
-    struct polyglotbook *book;
-    long filesize;
+    struct book *book;
 
     if (path == NULL) return NULL;
-    book = malloc(sizeof *book);
-    if (book == NULL) return NULL;
-    book->f = fopen(path, "rb");
-    if (book->f == 0 || fseek(book->f, 0, SEEK_END) != 0) {
-        polyglotbook_close(book);
+    book = xmalloc(sizeof *book);
+    if ((book->file = fopen(path, "rb")) == NULL) {
+        book_close(book);
         return NULL;
     }
-    filesize = ftell(book->f);
-    if (filesize < 16 || filesize % 16 != 0) {
-        polyglotbook_close(book);
+    if (bin_file_size(book->file, &book->polyglot_book.size) != 0) {
+        book_close(book);
         return NULL;
     }
-    book->size = filesize / 16;
+    if (book->polyglot_book.size < 16 || book->polyglot_book.size % 16 != 0) {
+        book_close(book);
+        return NULL;
+    }
+    book->polyglot_book.size /= 16;
     return book;
 }
 
-void polyglotbook_close(struct polyglotbook *book)
+static struct entry
+get_entry(FILE *f, size_t offset, jmp_buf jb)
 {
-    if (book == NULL) return;
-    if (book->f != NULL) {
-        fclose(book->f);
-    }
-    free(book);
-}
-
-static entry get_entry(FILE *f, long offset, jmp_buf jb)
-{
-    entry entry;
+    struct entry entry;
     unsigned char buffer[16];
 
-    if (fseek(f, offset*16, SEEK_SET) != 0) longjmp(jb, 1);
+    if (fseek(f, (long)offset*16, SEEK_SET) != 0) longjmp(jb, 1);
     if (fread(buffer, 1, 16, f) != 16) longjmp(jb, 1);
     entry.key = (uint64_t)get_big_endian_num(8, buffer);
     entry.move = (uint16_t)get_big_endian_num(2, buffer + 8);
@@ -79,24 +67,26 @@ static entry get_entry(FILE *f, long offset, jmp_buf jb)
 }
 
 struct result_set {
-    entry *entries;
+    struct entry *entries;
     size_t count;
     size_t max_count;
 };
 
-bool is_full(const struct result_set *r)
+static bool
+is_full(const struct result_set *r)
 {
     return r->count >= r->max_count;
 }
 
-void add_entry(struct result_set *r, entry entry)
+static void
+add_entry(struct result_set *r, struct entry entry)
 {
     r->entries[r->count] = entry;
     r->count++;
 }
 
 static long
-find_first_entry(FILE *f, uint64_t key, long offset, jmp_buf jb)
+find_first_entry(FILE *f, uint64_t key, size_t offset, jmp_buf jb)
 {
     while (offset > 0 && has_key(get_entry(f, offset-1, jb), key)) {
         --offset;
@@ -105,15 +95,16 @@ find_first_entry(FILE *f, uint64_t key, long offset, jmp_buf jb)
 }
 
 static void
-load_entries(const struct polyglotbook *book,
+load_entries(FILE *file,
+             size_t size,
              uint64_t key,
              struct result_set *results,
-             long offset,
+             size_t offset,
              jmp_buf jb)
 {
-    offset = find_first_entry(book->f, key, offset, jb);
-    while (!is_full(results) && offset < book->size) {
-        entry entry = get_entry(book->f, offset, jb);
+    offset = find_first_entry(file, key, offset, jb);
+    while (!is_full(results) && offset < size) {
+        struct entry entry = get_entry(file, offset, jb);
 
         if (entry.key != key) break;
         if (entry.weight != 0 && entry.move != 0) {
@@ -124,23 +115,24 @@ load_entries(const struct polyglotbook *book,
 }
 
 static void
-get_entries(const struct polyglotbook *book,
+get_entries(FILE *file,
+            size_t size,
             uint64_t key,
             struct result_set *results,
             jmp_buf jb)
 {
-    long low = 0;
-    long high = book->size;
+    size_t low = 0;
+    size_t high = size;
 
     if (key == UINT64_C(0) || is_full(results)) {
         return;
     }
     while (low < high) {
         long middle = (high + low) / 2;
-        entry entry = get_entry(book->f, middle, jb);
+        struct entry entry = get_entry(file, middle, jb);
 
         if (entry.key == key) {
-            load_entries(book, key, results, middle, jb);
+            load_entries(file, size, key, results, middle, jb);
             break;
         }
         else if (entry.key > key) {
@@ -150,26 +142,29 @@ get_entries(const struct polyglotbook *book,
             low = middle;
         }
         else {
-            entry = get_entry(book->f, high, jb);
+            entry = get_entry(file, high, jb);
             if (entry.key == key) {
-                load_entries(book, key, results, high, jb);
+                load_entries(file, size, key, results, high, jb);
             }
             break;
         }
     }
 }
 
-static int pmfrom(uint16_t pm)
+static int
+pmfrom(uint16_t pm)
 {
     return ind((pm >> 9) & 7, (pm >> 6) & 7);
 }
 
-static int pmto(uint16_t pm)
+static int
+pmto(uint16_t pm)
 {
     return ind((pm >> 3) & 7, pm & 7);
 }
 
-static unsigned pmpromotion(uint16_t pm)
+static unsigned
+pmpromotion(uint16_t pm)
 {
     switch (pm >> 12) {
     case 1:
@@ -185,7 +180,8 @@ static unsigned pmpromotion(uint16_t pm)
     }
 }
 
-static bool pmove_match(uint16_t polyglot_move, move m, bool flip)
+static bool
+pmove_match(uint16_t polyglot_move, move m, bool flip)
 {
     if (flip) {
         m = flip_m(m);
@@ -196,7 +192,8 @@ static bool pmove_match(uint16_t polyglot_move, move m, bool flip)
                == (is_promotion(m) ? mpromotion(m) : 0));
 }
 
-static void pick_legal_moves(struct result_set *results,
+static void
+pick_legal_moves(struct result_set *results,
                              const struct position *position,
                              player side,
                              move moves[])
@@ -217,10 +214,11 @@ static void pick_legal_moves(struct result_set *results,
     *moves++ = 0;
 }
 
-static int cmp(const void *a, const void *b)
+static int
+cmp(const void *a, const void *b)
 {
-    uint16_t aw = ((const entry *)a)->weight;
-    uint16_t bw = ((const entry *)b)->weight;
+    uint16_t aw = ((const struct entry *)a)->weight;
+    uint16_t bw = ((const struct entry *)b)->weight;
     
     if (aw > bw) {
         return 1;
@@ -233,10 +231,11 @@ static int cmp(const void *a, const void *b)
     }
 }
 
-void polyglotbook_get_move(const struct polyglotbook *book,
-                           const struct position *position,
-                           size_t msize,
-                           move * const moves)
+void
+polyglot_book_get_move(const struct book *book,
+                       const struct position *position,
+                       size_t msize,
+                       move moves[volatile msize])
 {
     struct result_set results[1];
     jmp_buf jb;
@@ -247,20 +246,23 @@ void polyglotbook_get_move(const struct polyglotbook *book,
         return;
     }
 
-    entry entries[msize-1];
+    struct entry entries[msize-1];
 
     results->entries = entries;
     results->count = 0;
     results->max_count = msize - 1;
     if (setjmp(jb) != 0) {
+        moves[0] = 0;
         return;
     }
-    get_entries(book, position_polyglot_key(position, white), results, jb);
+    get_entries(book->file, book->polyglot_book.size,
+            position_polyglot_key(position, white), results, jb);
     if (results->count > 0) {
         side = white;
     }
     else {
-        get_entries(book, position_polyglot_key(position, black), results, jb);
+        get_entries(book->file, book->polyglot_book.size,
+                position_polyglot_key(position, black), results, jb);
         if (results->count > 0) {
             side = black;
         }

@@ -1,78 +1,34 @@
 
 #include <stdlib.h>
 
-#include "polyglotbook.h"
-#include "fen_book.h"
+#include "book_types.h"
 #include "book.h"
 #include "position.h"
 
 #include "builtin_book.inc"
 
-typedef void (*t_fn_get_move)(const void *,
-                              const struct position *,
-                              size_t size,
-                              move[size]);
+#include "macros.h"
 
-struct book {
-    book_type type;
-    void *internal_book;
-    t_fn_get_move fn_get_move;
-    void (*fn_close)(const void *);
-};
+static struct book empty_book = { .type = bt_empty };
 
-static void nop() {}
-
-static void
-constant_NONE_MOVE(const void *ignored,
-                   const struct position *ignoredpos,
-                   size_t ignored_size,
-                   move moves[ignored_size])
+struct book *book_open(enum book_type type, const char *path)
 {
-    (void)ignored;
-    (void)ignoredpos;
-    moves[0] = 0;
-}
-
-struct book *book_open(book_type type, const char *path)
-{
-    struct book *book= malloc(sizeof *book);
-
-    if (book == NULL) return NULL;
     switch (type) {
-    case bt_polyglot:
-        book->internal_book = polyglotbook_open(path);
-        if (book->internal_book == NULL) {
-            free(book);
+        case bt_polyglot:
+            return polyglot_book_open(path);
+        case bt_fen:
+        case bt_builtin:
+            if (type == bt_builtin) {
+                return fen_book_parse(builtin_book);
+            }
+            else {
+                return fen_book_open(path);
+            }
+        case bt_empty:
+            return &empty_book;
+        default:
             return NULL;
-        }
-        book->fn_get_move = (t_fn_get_move)polyglotbook_get_move;
-        book->fn_close = (void (*)(const void *))polyglotbook_close;
-        break;
-    case bt_fen:
-    case bt_builtin:
-        if (type == bt_builtin) {
-            book->internal_book = fen_book_parse(builtin_book);
-        }
-        else {
-            book->internal_book = fen_book_open(path);
-        }
-        if (book->internal_book == NULL) {
-            free(book);
-            return NULL;
-        }
-        book->fn_get_move = (t_fn_get_move)fen_book_get_move;
-        book->fn_close = (void (*)(const void *))fen_book_close;
-        break;
-    case bt_empty:
-        book->internal_book = NULL;
-        book->fn_get_move = constant_NONE_MOVE;
-        book->fn_close = nop;
-        break;
-    default:
-        free(book);
-        return NULL;
     }
-    return book;
 }
 
 static int pick_half_bell_curve(int size)
@@ -116,15 +72,21 @@ static int mlength(const move *m)
 move
 book_get_move(const struct book *book, const struct position *position)
 {
-    if (book == NULL || position == NULL) {
+    if (book == NULL || position == NULL || book->type == bt_empty) {
         return NONE_MOVE;
     }
     move moves[16];
 
-    book->fn_get_move(book->internal_book,
-                      position,
-                      ARRAY_LENGTH(moves),
-                      moves);
+    switch (book->type) {
+    case bt_polyglot:
+        polyglot_book_get_move(book, position, ARRAY_LENGTH(moves), moves);
+        break;
+    case bt_fen:
+        fen_book_get_move(book, position, ARRAY_LENGTH(moves), moves);
+        break;
+    default:
+        unreachable;
+    }
     if (moves[0] != 0) {
         return moves[pick_half_bell_curve(mlength(moves))];
     }
@@ -133,12 +95,13 @@ book_get_move(const struct book *book, const struct position *position)
     }
 }
 
-void book_close(struct book *book)
+void
+book_close(struct book *book)
 {
-    if (book == NULL) {
-        return;
+    if (book != NULL || book != &empty_book) {
+        if (book->file != NULL)
+            fclose(book->file);
+        free(book);
     }
-    book->fn_close(book->internal_book);
-    free(book);
 }
 

@@ -3,6 +3,7 @@
 #define TALTOS_H
 
 #include <stdbool.h>
+#include <stdnoreturn.h>
 #include <time.h>
 
 #include "chess.h"
@@ -18,13 +19,10 @@ struct taltos_conf {
     unsigned analyze_hash_size;
     unsigned analyze_aux_hash_size;
     char *book_path;
-    book_type book_type;
+    enum book_type book_type;
     bool use_unicode;
 };
 
-#if __STDC_VERSION__ >= 201112L
-_Noreturn
-#endif
-void loop_cli(struct taltos_conf *, struct book *);
+noreturn void loop_cli(struct taltos_conf *, struct book *);
 
 #endif

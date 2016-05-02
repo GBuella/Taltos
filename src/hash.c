@@ -11,6 +11,7 @@
 #include "z_random.inc"
 #include "search.h"
 #include "trace.h"
+#include "util.h"
 
 #ifndef MAX_SLOT_COUNT
 #define MAX_SLOT_COUNT 8
@@ -55,8 +56,7 @@ ht_create(unsigned log2_size, bool is_dual, unsigned slot_count)
     if (slot_count < 1 || slot_count > MAX_SLOT_COUNT) {
         return NULL;
     }
-    ht = malloc(sizeof *ht);
-    if (ht == NULL) return NULL;
+    ht = xmalloc(sizeof *ht);
     ht->slot_count = slot_count;
     ht->is_dual = is_dual;
     ht->entry_count = (1 << log2_size) + MAX_SLOT_COUNT;
@@ -73,6 +73,11 @@ ht_create(unsigned log2_size, bool is_dual, unsigned slot_count)
     }
 #   ifdef VERIFY_HASH_TABLE
     ht->boards = malloc(ht->entry_count * (is_dual ? 2 : 1) * 5 * 8);
+    if (ht->boards == NULL) {
+        free(ht->table);
+        free(ht);
+        return NULL;
+    }
 #   endif
     ht->usage = 0;
     ht_clear(ht);
@@ -108,6 +113,9 @@ void ht_clear(const struct hash_table *ht)
 void ht_destroy(struct hash_table *ht)
 {
     if (ht != NULL) {
+#       ifdef VERIFY_HASH_TABLE
+        free(ht->boards);
+#       endif
         free((void*)ht->table);
         free(ht);
     }
@@ -146,7 +154,7 @@ void ht_prefetch(const struct hash_table *ht, zobrist_hash hash)
     if (ht->is_dual) {
         index <<= 1;
     }
-    PREFETCH(ht->table + index);
+    prefetch(ht->table + index);
 }
 
 ht_entry ht_lookup(const struct hash_table *ht, zobrist_hash hash)
