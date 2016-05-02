@@ -72,7 +72,7 @@ static int mlength(const move *m)
 move
 book_get_move(const struct book *book, const struct position *position)
 {
-    if (book == NULL || position == NULL || book->type == bt_empty) {
+    if (book->type == bt_empty) {
         return NONE_MOVE;
     }
     move moves[16];

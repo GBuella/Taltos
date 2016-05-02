@@ -244,10 +244,6 @@ struct game *game_copy(const struct game *src)
             break;
         }
         dst_item->next = hitem_copy(item->next);
-        if (dst_item->next == NULL) {
-            game_destroy(dst);
-            return NULL;
-        }
         dst_item = dst_item->next;
         item = item->next;
     } while (item != NULL);

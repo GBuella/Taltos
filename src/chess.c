@@ -315,7 +315,6 @@ static const char *read_fen(struct position *pos,
 {
     player t;
 
-    if (str == NULL) longjmp(jb, 1);
     if (turn == NULL) {
         turn = &t;
     }
