@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 #include "macros.h"
-#include "bitmanipulate.h"
+#include "bitboard.h"
 #include "constants.h"
 #include "chess.h"
 
@@ -85,7 +85,7 @@ print_table(size_t size, const uint64_t table[size], const char *name)
     for (size_t i = 1; i < size; ++i) {
         printf(",%s0x%016" PRIX64, (i % 4 == 0) ? "\n" : "", table[i]);
     }
-    printf("\n};\n");
+    puts("\n};\n");
 }
 
 static void print_table_2d(size_t s0, size_t s1,
@@ -101,7 +101,7 @@ static void print_table_2d(size_t s0, size_t s1,
         }
         printf("\n}%s\n", (i + 1 < s0) ? "," : "");
     }
-    printf("\n};\n");
+    puts("\n};\n");
 }
 
 #ifdef SLIDING_BYTE_LOOKUP
@@ -114,7 +114,7 @@ print_table_byte(size_t size, const uint8_t table[size], const char *name)
     for (size_t i = 1; i < size; ++i) {
         printf(",%s0x%02" PRIX8, (i % 8 == 0) ? "\n" : "", table[i]);
     }
-    printf("\n};\n");
+    puts("\n};\n");
 }
 
 #endif
@@ -122,11 +122,11 @@ print_table_byte(size_t size, const uint8_t table[size], const char *name)
 static void gen_pre_mask_ray(int dir, uint64_t edge)
 {
     for (int i = 0; i < 64; ++i) {
-        if (nonempty(bit64(i) & edge)) continue;
+        if (is_nonempty(bit64(i) & edge)) continue;
 
         int ti = i+dir;
         uint64_t bit = bit64(ti);
-        while (empty(bit & edge)) {
+        while (is_empty(bit & edge)) {
             masks[i] |= bit;
             ti += dir;
             bit = bit64(ti);
@@ -148,9 +148,9 @@ static uint64_t gen_ray(int src_i, uint64_t occ, int dir, uint64_t edge)
     int i = src_i + dir;
     if (!ivalid(i)) return EMPTY;
     uint64_t bit = bit64(i);
-    while (empty(bit & edge)) {
+    while (is_empty(bit & edge)) {
         result |= bit;
-        if (nonempty(occ & bit)) return result;
+        if (is_nonempty(occ & bit)) return result;
         i += dir;
         if (!ivalid(i)) return result;
         bit = bit64(i);
@@ -211,7 +211,7 @@ static void fill_attack_boards(int sq_i,
 {
     *occs++ = bit64(sq_i);
     *attacks++ = gen_move_pattern(sq_i, bit64(sq_i), dirs, edges);
-    for (uint64_t occ = mask; nonempty(occ); occ = (occ-1) & mask) {
+    for (uint64_t occ = mask; is_nonempty(occ); occ = (occ-1) & mask) {
         *occs = occ | bit64(sq_i);
         *attacks = gen_move_pattern(sq_i, occ|bit64(sq_i), dirs, edges);
         occs++;
@@ -241,10 +241,10 @@ static void search_magic(uint64_t *pmagic,
         const uint64_t *attack = attacks;
         unsigned max = 0;
 
-        while (nonempty(*occ)) {
+        while (is_nonempty(*occ)) {
             unsigned index = (((*occ & mask) * magic) >> (64-width));
 
-            if (empty(results[index])) {
+            if (is_empty(results[index])) {
                 results[index] = *attack|src;
                 if (max < index) {
                     max = index;
@@ -256,7 +256,7 @@ static void search_magic(uint64_t *pmagic,
             ++occ;
             ++attack;
         }
-        if (empty(*occ)) {
+        if (is_empty(*occ)) {
             pmagic[0] = mask;
             pmagic[1] = magic;
             pmagic[2] = (64-width) | (attack_result_i << 8);
@@ -323,7 +323,7 @@ static void transform_sliding_magics(void)
         }
         for (unsigned j = 0; j < attack_count; ++j) {
             uint64_t attack = attack_results[attack_offset_old+j];
-            if (empty(attack)) continue;
+            if (is_empty(attack)) continue;
             unsigned k;
             for (k = 0; k < attack_array_l; ++k) {
                 if (attack_array[k] == attack) {

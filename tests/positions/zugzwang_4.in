@@ -1,0 +1,7 @@
+force
+nopost
+setboard 8/6B1/p5p1/Pp4kp/1P5r/5P1Q/4q1PK/8 w - -
+nps 100000
+st 200
+search_sync
+hash_value_min 300

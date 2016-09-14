@@ -1,38 +1,43 @@
 
-#ifndef EVAL_H
-#define EVAL_H
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=(4: */
+
+#ifndef TALTOS_EVAL_H
+#define TALTOS_EVAL_H
 
 #include <stdint.h>
 
-#define MAX_VALUE 0x7ff
-#define MATE_VALUE (MAX_VALUE - 128)
-#define PAWN_VALUE 0x10
-#define KNIGHT_VALUE 0x30
-#define BISHOP_VALUE 0x31
-#define ROOK_VALUE 0x50
-#define QUEEN_VALUE 0x90
-#define XQUEEN_VALUE (QUEEN_VALUE - BISHOP_VALUE - ROOK_VALUE)
+enum {
+	max_value = 30000,
+	mate_value = (max_value - MAX_PLY),
+	pawn_value = 100,
+	knight_value = 300,
+	bishop_value = 301,
+	rook_value = 500,
+	queen_value = 900
+};
 
-extern const int piece_value[8];
+extern const int piece_value[14];
 
 struct position;
 
-int eval(const struct position *);
-int eval_material(const uint64_t[static 5]);
+int eval(const struct position*) attribute(nonnull);
 
 struct eval_factors {
-    int material;
-    int middle_game;
-    int end_game;
-    int basic_mobility;
-    int pawn_structure;
-    int passed_pawn_score;
-    int king_fortress;
-    int piece_placement;
+	int material;
+	int middle_game;
+	int end_game;
+	int basic_mobility;
+	int pawn_structure;
+	int rook_placement;
+	int bishop_placement;
+	int knight_placement;
+	int passed_pawns;
+	int center_control;
+	int king_fortress;
 };
 
-typedef struct eval_factors eval_factors;
-
-eval_factors compute_eval_factors(const struct position *);
+struct eval_factors compute_eval_factors(const struct position*)
+	attribute(nonnull);
 
 #endif

@@ -1,0 +1,6 @@
+force
+nopost
+setboard rnb2r1k/pp2p2p/2pp2p1/q2P1p2/8/1Pb2NP1/PB2PPBP/R2Q1RK1 w - -
+nps 100000
+st 18
+search_sync

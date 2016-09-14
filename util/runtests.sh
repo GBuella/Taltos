@@ -4,7 +4,8 @@ while [ "$1" != "" ]
 do
     test=${1%.in}
     printf "%s " $test
-    $prog -t < $test.in > .out 2> .time
+# -t  to print time, --notest to skip the usuall assertions tests
+    $prog -t --notest < $test.in > .out 2> .time
     if [ $? -ne 0 ]
     then
         echo Failed

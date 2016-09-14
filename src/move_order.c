@@ -1,317 +1,200 @@
 
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
+
 #include <assert.h>
 #include <string.h>
 
 #include "search.h"
 #include "eval.h"
-#include "timers.h"
+#include "move_order.h"
 
 
 #define USED_MOVE 0xffff
 
-void move_fsm_setup(const struct node *node, struct move_fsm *fsm)
+void
+move_fsm_setup(struct move_fsm *fsm, const struct position *pos,
+		bool is_qsearch)
 {
-    if (is_qsearch(node)) {
-        fsm->plegal_count =
-            (unsigned)(gen_pcaptures(node->pos, fsm->moves) - fsm->moves);
-    }
-    else {
-        fsm->plegal_count =
-        (unsigned)(gen_plegal_moves(node->pos, fsm->moves) - fsm->moves);
-    }
-    fsm->legal_counter = 0;
-    fsm->plegal_remaining = fsm->plegal_count;
-    fsm->latest_phase = initial;
-    fsm->king_b_reach = EMPTY;
-    fsm->king_kn_reach = EMPTY;
-    fsm->killer_i = -1;
+	if (is_qsearch)
+		fsm->count = gen_captures(pos, fsm->moves);
+	else
+		fsm->count = gen_moves(pos, fsm->moves);
+	fsm->index = 0;
+	fsm->is_in_late_move_phase = false;
+	fsm->very_late_moves_begin = fsm->count;
+	fsm->hash_moves[0] = 0;
+	fsm->hash_moves[1] = 0;
+	fsm->hash_move_count = 0;
+	fsm->has_hashmove = false;
 }
 
-static int pick_move(struct node *node, struct move_fsm *fsm, unsigned index)
+static void
+swap_moves(struct move_fsm *fsm, unsigned a, unsigned b)
 {
-    if (fsm->moves[index] == USED_MOVE) return -1;
-    assert(fsm->plegal_remaining > 0);
-    node->current_move = fsm->moves[index];
-    fsm->moves[index] = USED_MOVE;
-    fsm->value[index] = INT_MIN;
-    fsm->plegal_remaining--;
-    memcpy(node[1].pos, node->pos, sizeof node[1].pos);
-    if (make_plegal_move(node[1].pos, node->current_move) != 0) {
-        return 1;
-    }
-    node[1].is_GHI_barrier =
-                 is_move_irreversible(node->pos, node->current_move);
-    fsm->legal_counter++;
-    fsm->index = index;
-    return 0;
-}
-
-static uint64_t gen_opponent_defense(const uint64_t bb[static 5])
-{
-    uint64_t result;
-
-    result = king_moves_table[bsf(bb_king_map0(bb))];
-    for (uint64_t kn = bb_knights_map0(bb); nonempty(kn); kn = reset_lsb(kn)) {
-        result |= knight_pattern(bsf(kn));
-    }
-    for (uint64_t r = bb_rooks_map0(bb); nonempty(r); r = reset_lsb(r)) {
-        result |= sliding_map(bb_occ(bb), rook_magics + bsf(r));
-    }
-    for (uint64_t b = bb_bishops_map0(bb); nonempty(b); b = reset_lsb(b)) {
-        result |= sliding_map(bb_occ(bb), bishop_magics + bsf(b));
-    }
-    return result;
+	move m = fsm->moves[a];
+	fsm->moves[a] = fsm->moves[b];
+	fsm->moves[b] = m;
 }
 
 static bool
-is_checking(const struct position *pos, struct move_fsm *fsm, move m, piece p)
+is_killer(const struct move_fsm *fsm, unsigned i)
 {
-    if (nonempty(pos->king_reach_map_0 & mto64(m))) {
-        if (is_bishop(p) || mtype(m) == pbishop) {
-            if (empty(fsm->king_b_reach)) {
-                fsm->king_b_reach =
-                    sliding_map(occupied(pos),
-                                bishop_magics + bsf(king_map0(pos)));
-            }
-            if (nonempty(mto64(m) & fsm->king_b_reach)) {
-                return true;
-            }
-        }
-        else if (is_rook(p) || mtype(m) == prook) {
-            if (empty(fsm->king_b_reach)) {
-                fsm->king_b_reach =
-                    sliding_map(occupied(pos),
-                                bishop_magics + bsf(king_map0(pos)));
-            }
-            if (empty(mto64(m) & fsm->king_b_reach)) {
-                return true;
-            }
-        }
-        else if (p == pawn) {
-            if (nonempty(king_map0(pos) & (mto64(m) >> 9) & ~FILE_A)) {
-                return true;
-            }
-            if (nonempty(king_map0(pos) & (mto64(m) >> 7) & ~FILE_H)) {
-                return true;
-            }
-        }
-    }
-    else if ((mtype(m) == pknight) || mfrom64(m) & knights_map(pos)) {
-        if (empty(fsm->king_kn_reach)) {
-            fsm->king_kn_reach = knight_pattern(bsf(king_map0(pos)));
-        }
-        if (nonempty(mto64(m) & fsm->king_kn_reach)) {
-            return true;
-        }
-    }
-    return false;
+	for (unsigned ki = 0; ki < ARRAY_LENGTH(fsm->killers); ++ki) {
+		if (fsm->moves[i] == fsm->killers[ki])
+			return true;
+	}
+	return false;
 }
 
-#define PAWN_FORK_VALUE (2*PAWN_VALUE)
-#define KNIGHT_FORK_VALUE (2*PAWN_VALUE)
-#define CHECKING_VALUE (PAWN_VALUE + 1)
-
-static int move_value_basic(const uint64_t board[static 5],
-                            move m, piece p,
-                            uint64_t opp_attack,
-                            uint64_t pattack,
-                            uint64_t opp_pattack)
+static bool
+is_vlate_move(const struct position *pos, move m,
+		uint64_t krook, uint64_t kbishop,
+		uint64_t defensless)
 {
-    int value;
-    uint64_t to64 = mto64(m);
+	uint64_t from = mfrom64(m);
+	uint64_t to = mto64(m);
 
-    if (mtype(m) == en_passant) {
-        value = PAWN_VALUE;
-    }
-    else {
-        value = piece_value[bb_piece_at(board, mto(m))];
-    }
-    if (nonempty((opp_attack | opp_pattack) & to64)) {
-        int attacker_value = piece_value[p];
-        if (attacker_value > value) {
-            value -= attacker_value >> 1;
-        }
-        else {
-            value -= attacker_value >> 3;
-        }
-        if (empty(opp_pattack & to64) && p == knight) {
-            if (nonempty(pattack && to64)) {
-                if (popcnt(knight_pattern(mto(m)) & bb_rbqk0(board)) > 1) {
-                    value += KNIGHT_FORK_VALUE;
-                }
-            }
-        }
-    }
-    else if (mtype(m) == pqueen) {
-        value += (QUEEN_VALUE - PAWN_VALUE);
-    }
-    else {
-        switch (p) {
-            case pawn:
-                if (popcnt(pawn_attacks1(to64) & side0(board)) == 2) {
-                    value += PAWN_FORK_VALUE;
-                }
-                break;
-            case knight:
-                if (popcnt(knight_pattern(mto(m)) & bb_rbqk0(board)) > 1) {
-                    value += KNIGHT_FORK_VALUE;
-                }
-                break;
-            default: break;
-        }
-    }
-    return value;
+	if (is_nonempty(pos->attack[opponent_pawn] & from)
+	    && is_empty(pos->attack[opponent_pawn] & to))
+		return false; // attacked by pawn, fleeing
+	if (is_nonempty(pos->attack[1] & from)
+	    && is_empty(pos->attack[0] & from))
+		return false; // attacked by any piece, not defended
+	if (is_nonempty(pos->attack[opponent_pawn] & to)) {
+		if (mresultp(m) != pawn)	// a nonpawn piece moving to a
+			return true;	// square attacked by opponent's pawn
+	}
+	if (mresultp(m) == knight) {
+		if (is_empty(pos->attack[1] & to)) {
+			if (is_nonempty(knight_pattern(mto(m)) &
+			    (pos->map[opponent_king]
+			    | pos->map[opponent_rook]
+			    | pos->map[opponent_queen]
+			    | pos->map[opponent_bishop]
+			    | defensless)))
+			return false;
+		}
+		if (is_nonempty(from & pos->sliding_attacks[0] & ~EDGES))
+			// possibly was blocking and intersting sliding attack
+			return false;
+	}
+	else if (mresultp(m) == pawn) {
+		uint64_t pieces = pos->map[opponent_king]
+		    | pos->map[opponent_rook]
+		    | pos->map[opponent_knight];
+		if (is_empty(pieces & pawn_attacks_player(to))) { //
+			// a pawn moving to attack a piece which can't capture
+			// it in return, or putting king in check
+			return false;
+		}
+		if (is_nonempty(pawn_attacks_player(to) & pos->map[1])
+		    && is_nonempty(pos->attack[pawn] & to))
+			return false;
+	}
+	else if (mresultp(m) == king) {
+		if (is_nonempty(king_moves_table[mto(m)] & defensless)) {
+			// king threatening a defenless piece, might
+			// be useful during the end-game
+			return false;
+		}
+	}
+	else if (is_empty(to & pos->attack[1])) {
+		// sliding piece attacking opponent's king
+		if (mresultp(m) == rook || mresultp(m) == queen) {
+			if (is_nonempty(krook & to))
+				return false;
+		}
+		if (mresultp(m) == bishop || mresultp(m) == queen) {
+			if (is_nonempty(kbishop & to))
+				return false;
+		}
+	}
+
+	// nothing interesting found, move is eligible for aggressive pruning
+	return true;
+}
+
+
+static void
+prepare_killers_and_vlates(const struct position *pos, struct move_fsm *fsm)
+{
+	uint64_t krook = rook_pattern_table[bsf(pos->map[opponent_king])];
+	uint64_t kbishop = bishop_pattern_table[bsf(pos->map[opponent_king])];
+	uint64_t defensless = pos->map[1] & ~pos->attack[1];
+	fsm->killerm_end = fsm->index;
+	if (!move_fsm_has_any_killer(fsm))
+		return;
+	for (unsigned i = fsm->index; i < fsm->very_late_moves_begin; ++i) {
+		if (is_killer(fsm, i))
+			swap_moves(fsm, i, fsm->killerm_end++);
+		else if (is_vlate_move(pos, fsm->moves[i], krook,
+		    kbishop, defensless))
+			swap_moves(fsm, i, --fsm->very_late_moves_begin);
+	}
 }
 
 static int
-pawn_protection_value(move m, uint64_t pattack, uint64_t opp_pattack)
+eval_capture(const struct position *pos, move m)
 {
-    int value = 0;
-    uint64_t to64 = mto64(m);
-    uint64_t from64 = mfrom64(m);
+	// lots of todos in this function
 
-    (void) pattack;
-    if (empty(opp_pattack & to64) && nonempty(opp_pattack & from64)) {
-        ++value;
-    }
-    if (empty(opp_pattack & from64) && nonempty(opp_pattack & to64)) {
-        --value;
-    }
-    return value;
+	int value = piece_value[mcapturedp(m)];
+
+	if (mresultp(m) == pawn) {
+		if (is_nonempty(mto64(m)
+		    & pos->sliding_attacks[0]
+		    & pos->sliding_attacks[1]))
+			value += 2 * pawn_value;
+	}
+	else {
+		if ((mtype(m) == mt_promotion)
+		    || is_nonempty(mto64(m) & pos->attack[1]))
+			value += piece_value[mresultp(m)];
+	}
+
+	return value;
 }
 
-static int
-move_value(const struct node *node, struct move_fsm *fsm, move m,
-           uint64_t opp_attack, uint64_t pattack, uint64_t opp_pattack)
+static void
+capture_bubble_down(struct move_fsm *fsm, move m, unsigned i, int value)
 {
-    int value;
-    piece p = get_piece_at(node->pos, mfrom(m));
-
-    value = move_value_basic(node->pos->bb, m, p,
-                             opp_attack, pattack, opp_pattack);
-    if (value < -CHECKING_VALUE) {
-        return value;
-    }
-    value += pawn_protection_value(m, pattack, opp_pattack);
-    if (is_checking(node->pos, fsm, m, p)) {
-        value += CHECKING_VALUE;
-    }
-    return value;
+	while ((i > fsm->index) && (fsm->values[i - 1] > value)) {
+		fsm->moves[i] = fsm->moves[i - 1];
+		fsm->values[i] = fsm->moves[i - 1];
+		--i;
+	}
+	fsm->moves[i] = m;
+	fsm->values[i] = value;
 }
 
-static void assign_move_values(const struct node *node, struct move_fsm *fsm)
+static void
+prepare_tacticals(const struct position *pos, struct move_fsm *fsm)
 {
-    uint64_t opp_attack = gen_opponent_defense(node->pos->bb);
-    uint64_t pattack = bb_pawn_attacks1(node->pos->bb);
-    uint64_t opp_pattack = bb_pawn_attacks0(node->pos->bb);
-
-    for (int i = 0; fsm->moves[i] != 0; ++i) {
-        move m = fsm->moves[i];
-
-        if (m == USED_MOVE) {
-            continue;
-        }
-        if (m == node->killer) {
-            fsm->killer_i = i;
-            fsm->value[i] = INT_MIN;
-        }
-        else {
-            fsm->value[i] = move_value(node, fsm, m,
-                                   opp_attack, pattack, opp_pattack);
-        }
-    }
+	fsm->tacticals_end = fsm->index;
+	for (unsigned i = fsm->index; i < fsm->count; ++i) {
+		move m = fsm->moves[i];
+		// todo: add forks by knight,
+		// and maybe other very tactical moves
+		if (mcapturedp(m) != 0
+		    || (mtype(m) == mt_promotion && mresultp(m) == queen)) {
+			fsm->moves[i] = fsm->moves[fsm->tacticals_end];
+			capture_bubble_down(fsm, m,
+			    fsm->tacticals_end++,
+			    eval_capture(pos, fsm->moves[i]));
+		}
+	}
 }
 
-static int pick_killer_move(struct node *node, struct move_fsm *fsm)
+move
+select_next_move(const struct position *pos, struct move_fsm *fsm)
 {
-    if (fsm->killer_i == -1) return -1;
-    if (pick_move(node, fsm, fsm->killer_i) == 0) {
-        return 0;
-    }
-    return -1;
-}
+	if (fsm->index == (fsm->has_hashmove ? 1 : 0))
+		prepare_tacticals(pos, fsm);
+	if (fsm->index == fsm->tacticals_end)
+		prepare_killers_and_vlates(pos, fsm);
+	if (fsm->index == fsm->killerm_end)
+		fsm->is_in_late_move_phase = true;
 
-static int pick_hash_move(struct node *node, struct move_fsm *fsm)
-{
-    if (node->hash_move_i >= 0) {
-        assert(node->hash_move_i < (int)fsm->plegal_count);
-        if (pick_move(node, fsm, node->hash_move_i) == 0) {
-            fsm->latest_phase = hash_move;
-            return 0;
-        }
-    }
-    return -1;
+	return fsm->moves[fsm->index++];
 }
-
-static int
-pick_next_move(struct node *node, struct move_fsm *fsm, int min_value)
-{
-    while (fsm->plegal_remaining > 0) {
-        int best_value = min_value - 1;
-        int best_index = -1;
-        for (int i = 0; fsm->moves[i] != 0; ++i) {
-            if (fsm->moves[i] != USED_MOVE && fsm->value[i] > best_value) {
-                best_index = i;
-                best_value = fsm->value[i];
-            }
-        }
-        if (best_index != -1) {        
-            if (pick_move(node, fsm, best_index) == 0) {
-                return 0;
-            }
-        }
-        else {
-            return -1;
-        }
-    }
-    return -1;
-}
-
-static int next_move_fsm(struct node *node, struct move_fsm *fsm)
-{
-    switch (fsm->latest_phase) {
-    case initial: /* try pick first move */
-        fsm->latest_phase = hash_move;
-        return (pick_hash_move(node, fsm) == 0);
-    case hash_move:
-        assign_move_values(node, fsm);
-        fsm->latest_phase = tactical_moves;
-        /* fallthrough */
-    case tactical_moves:
-        if (pick_next_move(node, fsm, PAWN_VALUE) == 0) return 1;
-        if (pick_killer_move(node, fsm) == 0) return 1;
-        /* fallthrough */
-    case killer:
-        fsm->latest_phase = general;
-        /* fallthrough */
-    case general:
-        if (pick_next_move(node, fsm, -PAWN_VALUE + 1) == 0) return 1;
-        fsm->latest_phase = losing_moves;
-        /* fallthrough */
-    case losing_moves:
-        if (pick_next_move(node, fsm, INT_MIN + 1) == 0) return 1;
-        fsm->latest_phase = done;
-        /* fallthrough */
-    case done:
-        return 1;
-    default:
-        assert(false);
-    }
-    return 0;
-}
-
-void select_next_move(struct node *node, struct move_fsm *fsm)
-{
-    timer_start(TIMER_MOVE_SELECT_NEXT);
-    while (true) {
-        if (fsm->plegal_remaining == 0) {
-            fsm->latest_phase = done;
-            break;
-        }
-        else if (next_move_fsm(node, fsm) != 0) {
-            break;
-        }
-    }
-    timer_stop(TIMER_MOVE_SELECT_NEXT);
-}
-

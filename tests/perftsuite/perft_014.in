@@ -1,8 +1,8 @@
 setboard r3k2r/8/8/8/8/8/8/2R1K2R w Kkq - 0 1
 echo r3k2r/8/8/8/8/8/8/2R1K2R w Kkq - 0 1
-perft 1
-perft 2
-perft 3
-perft 4
-perft 5
-perft 6
+qperft 1
+qperft 2
+qperft 3
+qperft 4
+qperft 5
+qperft 6

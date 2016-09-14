@@ -1,101 +1,58 @@
 
-#ifndef SEARCH_H
-#define SEARCH_H
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
 
+#ifndef TALTOS_SEARCH_H
+#define TALTOS_SEARCH_H
+
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
 #include "chess.h"
-#include "engine.h"
 #include "position.h"
 #include "hash.h"
-#include "time.h"
+#include "util.h"
 
+#ifndef MAX_THREAD_COUNT
+// single thread for now...
+#define MAX_THREAD_COUNT 1
+#endif
 
-enum move_order_phase {
-    initial,
-    hash_move,
-    tactical_moves,
-    killer,
-    general,
-    losing_moves,
-    done
-};
-
-struct move_fsm {
-    move moves[MOVE_ARRAY_LENGTH];
-    int value[MOVE_ARRAY_LENGTH];
-    unsigned plegal_count;
-    unsigned plegal_remaining;
-    unsigned legal_counter;
-    enum move_order_phase latest_phase;
-    int killer_i;
-    unsigned index;
-    uint64_t king_b_reach;
-    uint64_t king_kn_reach;
-};
-
-enum node_type {
-    unknown = 0,
-    PV_node,
-    all_node,
-    cut_node
-};
+static_assert(MAX_THREAD_COUNT > 0, "invalid MAX_THREAD_COUNT");
 
 struct search_description {
-    struct hash_table *ht_main;
-    struct hash_table *ht_aux;
-    bool strict_repetitions;
-    int depth;
-    bool uses_timer;
-    int depth_limit;
-    clock_t thinking_started;
-    int lmr_factor; /* Late move reduction */
-    bool twp; /* Tempo waster prune */
-    int nmr_factor; /* null-move heuristic reduction */
-    bool threat_extension;
+	int depth;
+	int depth_limit;
+
+	struct hash_table *tt;
+
+	// todo: const struct hash_table *tt_paralell[MAX_THREAD_COUNT];
+
+	struct position repeated_positions[26];
+
+	uintmax_t time_limit;
+	taltos_systime thinking_started;
+
+	uintmax_t node_count_limit;
 };
 
-struct timer;
-
-struct node {
-    struct position pos[1];
-    unsigned root_distance;
-    enum node_type expected_type;
-    int alpha;
-    int beta;
-    int depth;
-    bool is_search_root;
-    ht_entry hte;
-    int best_move_index;
-    int hash_move_i;
-    move best_move;
-    move killer;
-    bool is_GHI_barrier;
-    struct search_description sd;
-    move current_move;
-    unsigned char history[8][64];
-    bool need_to_reset_history;
-    int value;
-    bool search_reached;
-    bool any_search_reached;
-    struct timer *timer;
-#   ifdef SEARCH_TRACE_PATH
-    uintmax_t node_count_pivot;
-#   endif
+struct search_result {
+	bool is_terminated;
+	int value;
+	move best_move;
+	unsigned selective_depth;
+	unsigned qdepth;
+	uintmax_t node_count;
+	uintmax_t cutoff_count;
+	uintmax_t first_move_cutoff_count;
 };
 
-int search(const struct position *,
-           move *best_move,
-           struct search_description sd,
-           int *selective_depth,
-           int *qdepth);
-void move_fsm_setup(const struct node *, struct move_fsm *);
-void select_next_move(struct node *, struct move_fsm *);
 
-static inline bool is_qsearch(const struct node *node)
-{
-    return node->depth <= 0;
-}
+struct search_result search(const struct position*,
+				struct search_description,
+				volatile atomic_flag *run_flag)
+	attribute(nonnull);
 
 #endif

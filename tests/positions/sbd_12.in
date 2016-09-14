@@ -1,0 +1,6 @@
+force
+nopost
+setboard 3b4/3k1pp1/p1pP2q1/1p2B2p/1P2P1P1/P2Q3P/4K3/8 w - -
+nps 100000
+st 50
+search_sync

@@ -1,429 +1,598 @@
 
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "macros.h"
-#include "bitmanipulate.h"
+#include "bitboard.h"
 #include "chess.h"
 #include "position.h"
-#include "timers.h"
 
 #include "move_gen_const.inc"
 
-struct magical rook_magics[64];
-struct magical bishop_magics[64];
+struct magical bitboard_magics[128];
 
-static move *add_moves(move *moves, int src_i, uint64_t dst_map)
+static move*
+add_moves_g(move *moves, int src_i, const struct position *pos,
+		int piece, uint64_t dst_map)
 {
-    for (; nonempty(dst_map); dst_map = reset_lsb(dst_map)) {
-        *moves++ = create_move(src_i, bsf(dst_map));
-    }
-    return moves;
+	if (is_empty(dst_map))
+		return moves;
+	move m = create_move_g(src_i, 0, piece, 0);
+	do {
+		int to = bsf(dst_map);
+		*moves++ = set_capturedp(set_mto(m, to), pos_piece_at(pos, to));
+	} while (is_nonempty(dst_map = reset_lsb(dst_map)));
+	return moves;
 }
 
-static move *
-gen_king_moves(const uint64_t bb[static 5], move *moves, uint64_t mask)
+static move*
+gen_king_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    int src_i = bsf(bb_king_map1(bb));
-    int opp_ki = bsf(bb_king_map0(bb));
-
-    uint64_t pattern = king_moves_table[src_i] & ~bb_pawn_attacks0(bb);
-    pattern &= mask & ~side1(bb) & ~king_moves_table[opp_ki];
-    return add_moves(moves, src_i, pattern);
+	return add_moves_g(moves, pos->king_index, pos, king,
+	    pos->attack[king] & dst_mask & ~pos->attack[1]);
 }
 
-static move *gen_castle_left(const struct position *pos, move *moves)
+static move*
+gen_castle_queen_side(const struct position *pos, move *moves)
 {
-    if (pos->castle_left_1
-      && empty((SQ_B1|SQ_C1|SQ_D1) & occupied(pos))
-      && empty(CLEFT_PKB_THREAT_SQ & pkb_map0(pos))
-      && empty(CLEFT_KNIGHT_THREAT_SQ & knights_map0(pos)))
-    {
-        *moves++ = mcastle_left;
-    }
-    return moves;
+	if (pos->cr_queen_side
+	    && is_empty((SQ_B1|SQ_C1|SQ_D1) & pos->occupied)
+	    && is_empty((SQ_C1|SQ_D1) & pos->attack[1]))
+		*moves++ = mcastle_queen_side;
+	return moves;
 }
 
-static move *gen_castle_right(const struct position *pos, move *moves)
+static move*
+gen_castle_king_side(const struct position *pos, move *moves)
 {
-    if (pos->castle_right_1
-      && empty((SQ_F1|SQ_G1) & occupied(pos))
-      && empty(CRIGHT_PKB_THREAT_SQ & pkb_map0(pos))
-      && empty(CRIGHT_KNIGHT_THREAT_SQ & knights_map0(pos)))
-    {
-        *moves++ = mcastle_right;
-    }
-    return moves;
+	if (pos->cr_king_side
+	    && is_empty((SQ_F1|SQ_G1) & pos->occupied)
+	    && is_empty((SQ_F1|SQ_G1) & pos->attack[1]))
+		*moves++ = mcastle_king_side;
+	return moves;
 }
 
-static move *gen_ep(const struct position *pos, move *moves)
+static bool
+can_en_passant_from(const struct position *pos, int delta)
 {
-    int i = pos->ep_ind;
-
-    if (i == 0) return moves;
-    if (nonempty(bit64(i + EAST) & pawns_map1(pos) & ~FILE_A)) {
-        *moves++ = create_move_t(i + EAST, i + NORTH, en_passant);
-    }
-    if (nonempty(bit64(i + WEST) & pawns_map1(pos) & ~FILE_H)) {
-        *moves++ = create_move_t(i + WEST, i + NORTH, en_passant);
-    }
-    return moves;
+	int pawni = pos->ep_index + delta;
+	return (rank_5 == ind_rank(pawni))
+	    && is_nonempty(bit64(pawni) & pos->map[pawn])
+	    && is_empty(bit64(pawni) & pos->rpin_map);
 }
 
-static move *add_pawn_moves(move *moves, int from, int to, move_type t)
+static bool
+can_en_passant_from_nopin(const struct position *pos, int delta)
 {
-    if (ind_rank(to) == rank_8) {
-        *moves++ = create_move_t(from, to, pqueen);
-        *moves++ = create_move_t(from, to, pknight);
-        *moves++ = create_move_t(from, to, prook);
-        *moves++ = create_move_t(from, to, pbishop);
-    }
-    else {
-        *moves++ = create_move_t(from, to, t);
-    }
-    return moves;
+	int pawni = pos->ep_index + delta;
+	return (rank_5 == ind_rank(pawni))
+	    && is_nonempty(bit64(pawni) & pos->map[pawn]);
 }
 
-static move *gen_pawn_pushes(const struct position *pos, move *moves)
+static move*
+gen_en_passant(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    uint64_t pushes = (pawns_map1(pos) >> 8) & ~occupied(pos);
+	if (!pos_has_ep_target(pos))
+		return moves;
 
-    for (uint64_t t = pushes; nonempty(t); t = reset_lsb(t)) {
-        moves = add_pawn_moves(moves, bsf(t) + SOUTH, bsf(t), pawn_push);
-    }
-    pushes = (pushes >> 8) & RANK_4 & ~occupied(pos);
-    for (; nonempty(pushes); pushes = reset_lsb(pushes)) {
-        int i = bsf(pushes);
-        *moves++ = create_move_t(i + 2*SOUTH, i, pawn_double_push);
-    }
-    return moves;
+	uint64_t sq_dst = bit64(pos->ep_index);
+
+	if (is_empty(dst_mask & (sq_dst | north_of(sq_dst))))
+		return moves;
+	if (is_empty(dst_mask & sq_dst) || is_nonempty(pos->bpin_map & sq_dst))
+		return moves;
+
+	if (can_en_passant_from(pos, EAST)) {
+		uint64_t sq_pawn = east_of(sq_dst);
+		uint64_t move_mask = north_of(sq_dst) | sq_pawn;
+		uint64_t masked = pos->bpin_map & move_mask;
+		if (is_empty(masked) || (masked == move_mask))
+			*moves++ = create_move_t(pos->ep_index + EAST,
+			    pos->ep_index + NORTH,
+			    mt_en_passant, pawn, pawn);
+	}
+	if (can_en_passant_from(pos, WEST)) {
+		uint64_t sq_pawn = west_of(sq_dst);
+		uint64_t move_mask = north_of(sq_dst) | sq_pawn;
+		uint64_t masked = pos->bpin_map & move_mask;
+		if (is_empty(masked) || (masked == move_mask))
+			*moves++ = create_move_t(pos->ep_index + WEST,
+			    pos->ep_index + NORTH,
+			    mt_en_passant, pawn, pawn);
+	}
+	return moves;
 }
 
-static move *
-gen_pawn_captures_dir(const uint64_t bb[static 5], move *moves,
-                      int dir, uint64_t mask, move_type t)
+static move*
+gen_en_passant_nopin(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    uint64_t attacks = (bb_pawns_map1(bb) >> dir) & mask;
+	if (!pos_has_ep_target(pos))
+		return moves;
 
-    while (nonempty(attacks)) {
-        int i = bsf(attacks);
+	uint64_t sq_dst = bit64(pos->ep_index);
 
-        if (t == pqueen) {
-            if (ind_rank(i) == RANK_8) {
-                *moves++ = create_move_t(i + dir, i, pqueen);
-            }
-            else {
-                *moves++ = create_move_t(i + dir, i, pawn_capture);
-            }
-        }
-        else {
-            moves = add_pawn_moves(moves, i + dir, i, pawn_capture);
-        }
-        attacks = reset_lsb(attacks);
-    }
-    return moves;
+	if (is_empty(dst_mask & (sq_dst | north_of(sq_dst))))
+		return moves;
+
+	if (can_en_passant_from_nopin(pos, EAST))
+		*moves++ = create_move_t(pos->ep_index + EAST,
+		    pos->ep_index + NORTH,
+		    mt_en_passant, pawn, pawn);
+	if (can_en_passant_from_nopin(pos, WEST))
+		*moves++ = create_move_t(pos->ep_index + WEST,
+		    pos->ep_index + NORTH,
+		    mt_en_passant, pawn, pawn);
+	return moves;
 }
 
-static move *
-gen_pawn_captures(const uint64_t bb[static 5], move *moves, move_type t)
+static move*
+add_promotions(move *moves, int from, int to, int captured)
 {
-    moves = gen_pawn_captures_dir(bb, moves, 7, side0(bb) & ~FILE_H, t);
-    moves = gen_pawn_captures_dir(bb, moves, 9, side0(bb) & ~FILE_A, t);
-    return moves;
+	move m = create_move_t(from, to, mt_promotion, 0, captured);
+	*moves++ = set_resultp(m, queen);
+	*moves++ = set_resultp(m, knight);
+	*moves++ = set_resultp(m, rook);
+	*moves++ = set_resultp(m, bishop);
+	return moves;
 }
 
-static move *
-gen_pawn_pushes_in_check(const struct position *pos, move *moves)
+static bool
+pawn_pinned(uint64_t pins, int from, int to)
 {
-    uint64_t pushes = (pawns_map1(pos) >> 8)
-                      & ~pside0(pos) & pos->king_attack_map;
-
-    for (; nonempty(pushes); pushes = reset_lsb(pushes)) {
-        int i = bsf(pushes);
-        moves = add_pawn_moves(moves, i + SOUTH, i, pawn_push);
-    }
-    pushes = (pawns_map1(pos) >> 8) & ~occupied(pos);
-    pushes = (pushes >> 8) & RANK_4 & ~pside0(pos) & pos->king_attack_map;
-    for (; nonempty(pushes); pushes = reset_lsb(pushes)) {
-        int i = bsf(pushes);
-        *moves++ = create_move_t(i + 2*SOUTH, i, pawn_double_push);
-    }
-    return moves;
+	uint64_t move_map = bit64(from) | bit64(to);
+	return is_nonempty(bit64(from) & pins)
+	    && ((pins & move_map) != move_map);
 }
 
-static move *
-gen_pawn_captures_in_check(const struct position *pos, move *moves)
+static move*
+gen_promotions(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    moves = gen_pawn_captures_dir(pos->bb, moves, 7,
-                              pside0(pos) & pos->king_attack_map & ~FILE_H, 0);
-    moves = gen_pawn_captures_dir(pos->bb, moves, 9,
-                              pside0(pos) & pos->king_attack_map & ~FILE_A, 0);
-    return moves;
+	uint64_t pawns = pos->map[pawn] & ~pos->rpin_map
+	    & ~pos->bpin_map & RANK_7;
+	uint64_t attacks = north_of(pawns) & ~pos->occupied & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		moves = add_promotions(moves, dst + SOUTH, dst, 0);
+	}
+
+	pawns = pos->map[pawn] & ~pos->rpin_map & RANK_7;
+	attacks = north_of(west_of(pawns & ~FILE_A));
+	attacks &= pos->map[1] & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + EAST;
+		if (!pawn_pinned(pos->bpin_map, src, dst))
+			moves = add_promotions(moves, src, dst,
+			    pos_piece_at(pos, dst));
+	}
+
+	attacks = north_of(east_of(pawns & ~FILE_H));
+	attacks &= pos->map[1] & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + WEST;
+		if (!pawn_pinned(pos->bpin_map, src, dst))
+			moves = add_promotions(moves, src, dst,
+			    pos_piece_at(pos, dst));
+	}
+
+	return moves;
 }
 
-static move *
-gen_knight_moves(const uint64_t bb[static 5], move *moves, uint64_t mask)
+static move*
+gen_promotions_nopin(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    for (uint64_t kn = bb_knights_map1(bb); nonempty(kn); kn = reset_lsb(kn)) {
-        moves = add_moves(moves, bsf(kn), knight_pattern(bsf(kn)) & mask);
-    }
-    return moves;
+	uint64_t pawns = pos->map[pawn] & RANK_7;
+	if (is_empty(pawns))
+		return moves;
+	uint64_t attacks = north_of(pawns) & ~pos->occupied & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		moves = add_promotions(moves, dst + SOUTH, dst, 0);
+	}
+
+	attacks = north_of(west_of(pawns & ~FILE_A));
+	attacks &= pos->map[1] & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + EAST;
+		moves = add_promotions(moves, src, dst, pos_piece_at(pos, dst));
+	}
+
+	attacks = north_of(east_of(pawns & ~FILE_H));
+	attacks &= pos->map[1] & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + WEST;
+		moves = add_promotions(moves, src, dst, pos_piece_at(pos, dst));
+	}
+
+	return moves;
 }
 
-static move *gen_sliding(const uint64_t bb[static 5],
-                         move *moves,
-                         uint64_t src_map,
-                         const struct magical *magics,
-                         uint64_t mask)
+static move*
+gen_pawn_pushes(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    uint64_t occ = bb_occ(bb);
+	uint64_t pawns = pos->map[pawn] & ~pos->bpin_map & ~RANK_7;
+	uint64_t pushes = north_of(pawns) & ~pos->occupied;
 
-    for (; nonempty(src_map); src_map = reset_lsb(src_map)) {
-        uint64_t dst_map = sliding_map(occ, magics + bsf(src_map)) & mask;
-
-        moves = add_moves(moves, bsf(src_map), dst_map);
-    }
-    return moves;
+	for (uint64_t t = pushes & dst_mask; is_nonempty(t); t = reset_lsb(t)) {
+		int dst = bsf(t);
+		int src = dst + SOUTH;
+		if (!pawn_pinned(pos->rpin_map, src, dst))
+			*moves++ = create_move_g(src, dst, pawn, 0);
+	}
+	pushes = north_of(pawns) & ~pos->occupied;
+	pushes = north_of(pushes) & RANK_4 & dst_mask & ~pos->occupied;
+	for (; is_nonempty(pushes); pushes = reset_lsb(pushes)) {
+		int dst = bsf(pushes);
+		int src = dst + SOUTH + SOUTH;
+		if (!pawn_pinned(pos->rpin_map, src, dst))
+			*moves++ = create_move_t(src, dst,
+			    mt_pawn_double_push, pawn, 0);
+	}
+	return moves;
 }
 
-static move *
-gen_rook_bishop_moves(const uint64_t bb[static 5], move *moves, uint64_t mask)
+static move*
+gen_pawn_pushes_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    moves = gen_sliding(bb, moves, bb_bishops_map1(bb), bishop_magics, mask);
-    moves = gen_sliding(bb, moves, bb_rooks_map1(bb), rook_magics, mask);
-    return moves;
+	uint64_t pushes = north_of(pos->map[pawn] & ~RANK_7)
+	    & ~pos->occupied & dst_mask;
+
+	for (; is_nonempty(pushes); pushes = reset_lsb(pushes)) {
+		int dst = bsf(pushes);
+		int src = dst + SOUTH;
+		*moves++ = create_move_g(src, dst, pawn, 0);
+	}
+	pushes = north_of(north_of(pos->map[pawn]) & ~pos->occupied)
+	    & RANK_4 & dst_mask & ~pos->occupied;
+	for (; is_nonempty(pushes); pushes = reset_lsb(pushes)) {
+		int dst = bsf(pushes);
+		int src = dst + SOUTH + SOUTH;
+		*moves++ = create_move_t(src, dst,
+		    mt_pawn_double_push, pawn, 0);
+	}
+	return moves;
 }
 
-static move *
-gen_plegal_moves_in_check(const struct position *pos,
-                          move moves[static MOVE_ARRAY_LENGTH])
+static move*
+gen_pawn_captures(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    if (popcnt(pos->king_attack_map & pside0(pos)) == 1) {
-        if (ind_rank(pos->ep_ind) == rank_5) {
-            uint64_t ep_mask = bit64(pos->ep_ind);
-            ep_mask |= ep_mask >> 8;
-            if (nonempty(pos->king_attack_map & ep_mask)) {
-                moves = gen_ep(pos, moves);
-            }
-        }
-        moves = gen_pawn_pushes_in_check(pos, moves);
-        moves = gen_pawn_captures_in_check(pos, moves);
-        moves = gen_knight_moves(pos->bb, moves, pos->king_attack_map);
-        moves = gen_rook_bishop_moves(pos->bb, moves, pos->king_attack_map);
-    }
-    moves = gen_king_moves(pos->bb, moves,
-                           ~pos->king_attack_map | pside0(pos));
-    return moves;
+	uint64_t pawns = pos->map[pawn] & ~FILE_A & ~pos->rpin_map & ~RANK_7;
+	uint64_t attacks = north_of(west_of(pawns)) & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + EAST;
+		if (!pawn_pinned(pos->bpin_map, src, dst))
+			*moves++ = create_move_g(src, dst, pawn,
+			    pos_piece_at(pos, dst));
+	}
+
+	pawns = pos->map[pawn] & ~FILE_H & ~pos->rpin_map & ~RANK_7;
+	attacks = north_of(east_of(pawns)) & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + WEST;
+		if (!pawn_pinned(pos->bpin_map, src, dst))
+			*moves++ = create_move_g(src, dst, pawn,
+			    pos_piece_at(pos, dst));
+	}
+
+	return moves;
 }
 
-static move *
-gen_plegal_moves_non_check(const struct position *pos,
-                           move moves[static MOVE_ARRAY_LENGTH])
+static move*
+gen_pawn_captures_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    moves = gen_ep(pos, moves);
-    moves = gen_castle_left(pos, moves);
-    moves = gen_castle_right(pos, moves);
-    moves = gen_knight_moves(pos->bb, moves, ~pside1(pos));
-    moves = gen_rook_bishop_moves(pos->bb, moves, ~pside1(pos));
-    moves = gen_pawn_pushes(pos, moves);
-    moves = gen_pawn_captures(pos->bb, moves, 0);
-    moves = gen_king_moves(pos->bb, moves, UNIVERSE);
-    return moves;
+	uint64_t pawns = pos->map[pawn] & ~FILE_A & ~RANK_7;
+	uint64_t attacks = north_of(west_of(pawns)) & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + EAST;
+		*moves++ = create_move_g(src, dst, pawn,
+		    pos_piece_at(pos, dst));
+	}
+
+	pawns = pos->map[pawn] & ~FILE_H & ~RANK_7;
+	attacks = north_of(east_of(pawns)) & dst_mask;
+
+	for (; is_nonempty(attacks); attacks = reset_lsb(attacks)) {
+		int dst = bsf(attacks);
+		int src = dst + SOUTH + WEST;
+		*moves++ = create_move_g(src, dst, pawn,
+		    pos_piece_at(pos, dst));
+	}
+
+	return moves;
 }
 
-move *gen_plegal_moves(const struct position *pos,
-                       move moves[static MOVE_ARRAY_LENGTH])
+static move*
+gen_knight_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-/* Generating pseudo-legal moves, potentially moving into / staying in check.
-   Also, the castleing moves might move the king via / to squares attacked by
-   opponents sliding pieces.
-*/
-    assert(pos != NULL);
-    assert(moves != NULL);
-
-    timer_start(TIMER_MOVE_GEN);
-    if (nonempty(pos->king_attack_map)) {
-        moves = gen_plegal_moves_in_check(pos, moves);
-    }
-    else {
-        moves = gen_plegal_moves_non_check(pos, moves);
-    }
-    *moves = 0;
-    timer_stop(TIMER_MOVE_GEN);
-    return moves;
+	uint64_t knights = pos->map[knight] & ~pos->rpin_map & ~pos->bpin_map;
+	for (; is_nonempty(knights); knights = reset_lsb(knights)) {
+		int src = bsf(knights);
+		moves = add_moves_g(moves, src, pos, knight,
+		    knight_pattern(src) & dst_mask);
+	}
+	return moves;
 }
 
-move * gen_moves(const struct position *pos,
-                 move moves[static MOVE_ARRAY_LENGTH])
+static move*
+gen_knight_moves_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    assert(pos != NULL);
-    assert(moves != NULL);
-
-    (void)gen_plegal_moves(pos, moves);
-    move *src = moves;
-    move *dst = moves;
-    struct position t;
-
-    while (*src != 0) {
-        memcpy(&t, pos, sizeof t);
-        if (make_plegal_move(&t, *src) == 0) {
-            *dst++ = *src;
-        }
-        src++;
-    }
-    *dst = 0;
-    return dst;
+	uint64_t knights = pos->map[knight];
+	for (; is_nonempty(knights); knights = reset_lsb(knights)) {
+		int src = bsf(knights);
+		moves = add_moves_g(moves, src, pos, knight,
+		    knight_pattern(src) & dst_mask);
+	}
+	return moves;
 }
 
-static void add_sliding_king_attacks(struct position *pos,
-                                     uint64_t bandits,
-                                     struct magical *magics,
-                                     int king_i)
+static move*
+gen_bishop_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-  /*
-   Add rooks/bishops attacking the king.
-   Possibly more than one rook/bishop, e.g. two rooks attack
-   after fxe8=Q+ in the following position:
-   rnb1qk2/pppp1Ppp/5Q2/2b5/8/3P3N/PPP2PPP/RNB1KB1R w KQ - 1 5
-   */
-    uint64_t pattern = sliding_map(occupied(pos), magics + king_i);
+	uint64_t bishops = pos->map[bishop] & ~pos->rpin_map;
 
-    pos->king_reach_map_1 |= pattern;
-    bandits &= pattern;
-    pos->king_attack_map |= bandits;
-    for (; nonempty(bandits); bandits = reset_lsb(bandits)) {
-        pos->king_attack_map |= ray_table[king_i][bsf(bandits)];
-    }
+	for (; is_nonempty(bishops); bishops = reset_lsb(bishops)) {
+		int src = bsf(bishops);
+		uint64_t dst_map = dst_mask
+		    & sliding_map(pos->occupied, bishop_magics + src);
+
+		if (is_nonempty(bit64(src) & pos->bpin_map))
+			dst_map &= pos->bpin_map;
+
+		moves = add_moves_g(moves, src, pos, bishop, dst_map);
+	}
+	return moves;
 }
 
-static void add_pawn_king_attacks(struct position *pos, uint64_t king)
+static move*
+gen_rook_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    uint64_t pattern = ((king >> 7) & ~FILE_H);
-    pattern |= ((king >> 9) & ~FILE_A);
+	uint64_t rooks = pos->map[rook] & ~pos->bpin_map;
 
-    pos->king_attack_map |= pattern & pawns_map0(pos);
+	for (; is_nonempty(rooks); rooks = reset_lsb(rooks)) {
+		int src = bsf(rooks);
+		uint64_t dst_map = dst_mask
+		    & sliding_map(pos->occupied, rook_magics + src);
+
+		if (is_nonempty(bit64(src) & pos->rpin_map))
+			dst_map &= pos->rpin_map;
+
+		moves = add_moves_g(moves, src, pos, rook, dst_map);
+	}
+	return moves;
 }
 
-
-void gen_king_attack_map(struct position *pos)
+static move*
+gen_queen_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 {
-    assert(pos != NULL);
+	uint64_t queens = pos->map[queen];
 
-    uint64_t king = king_map1(pos);
+	if (is_singular(queens)
+	    && is_empty(queens & (pos->rpin_map | pos->bpin_map))) {
+		uint64_t dst_map = pos->attack[queen] & dst_mask;
+		moves = add_moves_g(moves, bsf(queens), pos, queen, dst_map);
+	}
+	else for (; is_nonempty(queens); queens = reset_lsb(queens)) {
+		int src = bsf(queens);
+		uint64_t dst_map = EMPTY;
+		if (is_empty(lsb(queens) & pos->bpin_map))
+			dst_map =
+			    sliding_map(pos->occupied, rook_magics + src);
+		if (is_empty(lsb(queens) & pos->rpin_map))
+			dst_map =
+			    sliding_map(pos->occupied, bishop_magics + src);
 
-    pos->king_reach_map_1 = king;
-    pos->king_attack_map = king_knight_attack(pos);
-    add_pawn_king_attacks(pos, king);
-    add_sliding_king_attacks(pos, rooks_map0(pos), rook_magics, bsf(king));
-    add_sliding_king_attacks(pos, bishops_map0(pos), bishop_magics, bsf(king));
+		dst_map &= dst_mask;
+		if (is_nonempty(bit64(src) & pos->rpin_map))
+			dst_map &= pos->rpin_map;
+		else if (is_nonempty(bit64(src) & pos->bpin_map))
+			dst_map &= pos->bpin_map;
+
+		moves = add_moves_g(moves, src, pos, queen, dst_map);
+	}
+	return moves;
 }
 
-static int verify_knight_reach(struct position *pos, int king_i)
+static move*
+gen_bishop_moves_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    uint64_t pattern = knight_pattern(king_i);
+	uint64_t bishops = pos->map[bishop];
 
-    if (nonempty(pattern & knights_map0(pos))) return -1;
-    return 0;
+	if (is_singular(bishops)) {
+		moves = add_moves_g(moves, bsf(bishops), pos, bishop,
+		    pos->attack[bishop] & dst_mask);
+	}
+	else for (; is_nonempty(bishops); bishops = reset_lsb(bishops)) {
+		int src = bsf(bishops);
+		uint64_t dst_map = dst_mask
+		    & sliding_map(pos->occupied, bishop_magics + src);
+
+		moves = add_moves_g(moves, src, pos, bishop, dst_map);
+	}
+	return moves;
 }
 
-static int
-verify_sliding_reach(struct position *pos,
-                     int king_i,
-                     struct magical *magics,
-                     uint64_t bandits)
+static move*
+gen_rook_moves_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    uint64_t pattern = sliding_map(occupied(pos), magics + king_i);
+	uint64_t rooks = pos->map[rook];
 
-    if (nonempty(pattern & bandits)) return -1;
-    pos->king_reach_map_1 |= pattern;
-    return 0;
+	if (is_singular(rooks)) {
+		moves = add_moves_g(moves, bsf(rooks), pos, rook,
+		    pos->attack[rook] & dst_mask);
+	}
+	else for (; is_nonempty(rooks); rooks = reset_lsb(rooks)) {
+		int src = bsf(rooks);
+		uint64_t dst_map = dst_mask
+		    & sliding_map(pos->occupied, rook_magics + src);
+
+		moves = add_moves_g(moves, src, pos, rook, dst_map);
+	}
+	return moves;
 }
 
-int process_king_zone(struct position *pos)
+static move*
+gen_queen_moves_nopin(const struct position *pos,
+			move *moves, uint64_t dst_mask)
 {
-    assert(pos != NULL);
+	uint64_t queens = pos->map[queen];
 
-    /* Only used during make_plegal_move, to regenerate
-       king_reach_map_1
-       Assume king did not move to square attacked by
-       opponent's pawn or king
-       return -1 if king is attacked by opponent on it's
-       newly occupied square */
+	if (is_singular(queens)) {
+		moves = add_moves_g(moves, bsf(queens), pos, queen,
+		    pos->attack[queen] & dst_mask);
+	}
+	else for (; is_nonempty(queens); queens = reset_lsb(queens)) {
+		int src = bsf(queens);
+		uint64_t dst_map = dst_mask &
+		    (sliding_map(pos->occupied, rook_magics + src)
+		    | sliding_map(pos->occupied, bishop_magics + src));
+		moves = add_moves_g(moves, src, pos, queen, dst_map);
+	}
+	return moves;
+}
 
-    pos->king_reach_map_1 = king_map1(pos);
+static move*
+gen_moves_general(const struct position *pos,
+			move moves[static MOVE_ARRAY_LENGTH],
+			uint64_t dest_mask)
+{
+	moves = gen_knight_moves(pos, moves, dest_mask);
+	moves = gen_rook_moves(pos, moves, dest_mask);
+	moves = gen_bishop_moves(pos, moves, dest_mask);
 
-    int k = bsf(pos->king_reach_map_1);
+	moves = gen_queen_moves(pos, moves, dest_mask);
 
-    if (verify_knight_reach(pos, k) != 0) return -1;
-    if (verify_sliding_reach(pos, k, bishop_magics, bishops_map0(pos)) != 0) {
-        return -1;
-    }
-    if (verify_sliding_reach(pos, k, rook_magics, rooks_map0(pos)) != 0) {
-        return -1;
-    }
-    pos->king_attack_map = EMPTY;
-    return 0;
+	moves = gen_pawn_captures(pos, moves, dest_mask & pos->map[1]);
+	moves = gen_promotions(pos, moves, dest_mask);
+	moves = gen_en_passant(pos, moves, dest_mask);
+	return moves;
+}
+
+static move*
+gen_moves_general_nopin(const struct position *pos,
+			move moves[static MOVE_ARRAY_LENGTH],
+			uint64_t dest_mask)
+{
+	moves = gen_knight_moves_nopin(pos, moves, dest_mask);
+	moves = gen_rook_moves_nopin(pos, moves, dest_mask);
+	moves = gen_bishop_moves_nopin(pos, moves, dest_mask);
+	moves = gen_queen_moves_nopin(pos, moves, dest_mask);
+	moves = gen_pawn_captures_nopin(pos, moves, dest_mask & pos->map[1]);
+	moves = gen_promotions_nopin(pos, moves, dest_mask);
+	moves = gen_pawn_pushes_nopin(pos, moves, dest_mask);
+	moves = gen_en_passant_nopin(pos, moves, dest_mask);
+	return moves;
+}
+
+unsigned
+gen_moves(const struct position *pos, move moves[static MOVE_ARRAY_LENGTH])
+{
+	move *first = moves;
+	if (popcnt(pos_king_attackers(pos)) <= 1) {
+		uint64_t dest_mask;
+
+		if (is_in_check(pos)) {
+			dest_mask = pos->king_attack_map;
+		}
+		else {
+			dest_mask = ~pos->map[0];
+			moves = gen_castle_king_side(pos, moves);
+			moves = gen_castle_queen_side(pos, moves);
+		}
+		if (is_empty(pos->bpin_map) && is_empty(pos->rpin_map)) {
+			moves = gen_moves_general_nopin(pos, moves, dest_mask);
+		}
+		else {
+			moves = gen_moves_general(pos, moves, dest_mask);
+			moves = gen_pawn_pushes(pos, moves, dest_mask);
+		}
+	}
+	moves = gen_king_moves(pos, moves, ~pos->map[0]);
+	*moves = 0;
+
+	return moves - first;
+}
+
+unsigned
+gen_captures(const struct position *pos,
+		move moves[static MOVE_ARRAY_LENGTH])
+{
+	move *first = moves;
+	uint64_t dest_mask = pos->map[1];
+	if (is_nonempty(pos->attack[0] & dest_mask)) {
+		moves = gen_moves_general(pos, moves, dest_mask);
+		moves = gen_king_moves(pos, moves, dest_mask);
+	}
+	else {
+		moves = gen_en_passant(pos, moves, dest_mask);
+	}
+	*moves = 0;
+
+	return moves - first;
 }
 
 static void
-init_sliding_move_magics(struct magical *dst,
-                         const uint64_t *raw_info,
-#                        ifdef SLIDING_BYTE_LOOKUP
-                         const uint8_t *byte_lookup_table,
-#                        endif
-                         const uint64_t *table)
+init_sliding_move_magics(struct magical *dst, const uint64_t *raw_info,
+#ifdef SLIDING_BYTE_LOOKUP
+	const uint8_t *byte_lookup_table,
+#endif
+	const uint64_t *table)
 {
-    dst->mask = raw_info[0];
-    dst->multiplier = raw_info[1];
-    dst->shift = (int)(raw_info[2] & 0xff);
-#   ifdef SLIDING_BYTE_LOOKUP
-    dst->attack_table = table + raw_info[3];
-    dst->attack_index_table = byte_lookup_table + (raw_info[2]>>8);
-#   else
-    dst->attack_table = table + (raw_info[2]>>8);
-#   endif
+	dst->mask = raw_info[0];
+	dst->multiplier = raw_info[1];
+	dst->shift = (int)(raw_info[2] & 0xff);
+#ifdef SLIDING_BYTE_LOOKUP
+	dst->attack_table = table + raw_info[3];
+	dst->attack_index_table = byte_lookup_table + (raw_info[2]>>8);
+#else
+	dst->attack_table = table + (raw_info[2]>>8);
+#endif
 }
 
-void init_move_gen(void)
+void
+init_move_gen(void)
 {
-#   ifdef SLIDING_BYTE_LOOKUP
-    static const int magic_block = 4;
-#   else
-    static const int magic_block = 3;
-#   endif
-    for (int i = 0; i < 64; ++i) {
-        init_sliding_move_magics(rook_magics + i,
-                                 rook_magics_raw + magic_block * i,
-#                                ifdef SLIDING_BYTE_LOOKUP
-                                 rook_attack_index8,
-#                                endif
-                                 rook_magic_attacks);
-        init_sliding_move_magics(bishop_magics + i,
-                                 bishop_magics_raw + magic_block * i,
-#                                ifdef SLIDING_BYTE_LOOKUP
-                                 bishop_attack_index8,
-#                                endif
-                                 bishop_magic_attacks);
-    }
+#ifdef SLIDING_BYTE_LOOKUP
+	static const int magic_block = 4;
+#else
+	static const int magic_block = 3;
+#endif
+	for (int i = 0; i < 64; ++i) {
+		init_sliding_move_magics(rook_magics + i,
+		    rook_magics_raw + magic_block * i,
+#ifdef SLIDING_BYTE_LOOKUP
+		    rook_attack_index8,
+#endif
+		    rook_magic_attacks);
+		init_sliding_move_magics(bishop_magics + i,
+		    bishop_magics_raw + magic_block * i,
+#ifdef SLIDING_BYTE_LOOKUP
+		    bishop_attack_index8,
+#endif
+		    bishop_magic_attacks);
+	}
 }
-
-move *gen_pcaptures(const struct position *pos,
-                    move moves[static MOVE_ARRAY_LENGTH])
-{
-    assert(pos != NULL);
-    assert(moves != NULL);
-
-    /* Pseudo-legal capturing move generator,
-       including missing en-passant,
-       pawns are promoted only to queens */
-    moves = gen_ep(pos, moves);
-    moves = gen_pawn_captures(pos->bb, moves, pqueen);
-    moves = gen_knight_moves(pos->bb, moves, pside0(pos));
-    moves = gen_rook_bishop_moves(pos->bb, moves, pside0(pos));
-    moves = gen_king_moves(pos->bb, moves, pside0(pos));
-    *moves = 0;
-    return moves;
-}
-

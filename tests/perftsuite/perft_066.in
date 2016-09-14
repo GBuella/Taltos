@@ -1,8 +1,8 @@
 setboard K7/p7/k7/8/8/8/8/8 w - - 0 1
 echo K7/p7/k7/8/8/8/8/8 w - - 0 1
-perft 1
-perft 2
-perft 3
-perft 4
-perft 5
-perft 6
+qperft 1
+qperft 2
+qperft 3
+qperft 4
+qperft 5
+qperft 6

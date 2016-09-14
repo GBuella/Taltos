@@ -1,6 +1,9 @@
 
-#ifndef CONSTANTS_H
-#define CONSTANTS_H
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=(4: */
+
+#ifndef TALTOS_CONSTANTS_H
+#define TALTOS_CONSTANTS_H
 
 #include <stdint.h>
 
@@ -22,11 +25,14 @@
 #define RANK_2		(RANK_3 << 8)
 #define RANK_1		(RANK_2 << 8)
 
-#define EDGES       (FILE_A | FILE__H | RANK_1 | RANK_8)
+#define EDGES		(FILE_A | FILE_H | RANK_1 | RANK_8)
 
-#define DIAG_A1H8   UINT64_C(0x8040201008040201)
-#define DIAG_A8H1   UINT64_C(0x0102040810204080)
+#define DIAG_A1H8	UINT64_C(0x8040201008040201)
+#define DIAG_A8H1	UINT64_C(0x0102040810204080)
 #define DIAG_C2H7	UINT64_C(0x0020100804020100)
+
+#define BLACK_SQUARES	UINT64_C(0xaa55aa55aa55aa55)
+#define WHITE_SQUARES	(~BLACK_SQUARES)
 
 #define SQ_A1		UINT64_C(0x8000000000000000)
 #define SQ_B1		(SQ_A1 >> 1)
@@ -101,12 +107,8 @@
 #define SQ_H8		(SQ_H7 >> 8)
 
 
-#define CENTER_SQ	UINT64_C(0x00003c3c3c3c0000)
-
-#define CLEFT_PKB_THREAT_SQ (SQ_B2|SQ_C2|SQ_D2|SQ_E2)
-#define CRIGHT_PKB_THREAT_SQ (SQ_E2|SQ_F2|SQ_G2|SQ_H2)
-#define CLEFT_KNIGHT_THREAT_SQ UINT64_C(0x00ee7c0000000000)
-#define CRIGHT_KNIGHT_THREAT_SQ UINT64_C(0x001b0f0000000000)
+#define CENTER_SQ	UINT64_C(0x0000001818000000)
+#define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
 #ifdef USE_KNIGHT_LOOKUP_TABLE
 extern const uint64_t knight_moves_table[64];
@@ -120,27 +122,30 @@ extern const uint64_t pawns_reach_table[64];
 #ifdef SLIDING_BYTE_LOOKUP
 extern const uint8_t bishop_attack_index8[];
 extern const uint8_t rook_attack_index8[];
-extern const uint64_t bishop_magics_raw[4*64];
-extern const uint64_t rook_magics_raw[4*64];
+extern const uint64_t bishop_magics_raw[4 * 64];
+extern const uint64_t rook_magics_raw[4 * 64];
 #else
-extern const uint64_t bishop_magics_raw[3*64];
-extern const uint64_t rook_magics_raw[3*64];
+extern const uint64_t bishop_magics_raw[3 * 64];
+extern const uint64_t rook_magics_raw[3 * 64];
 #endif
 extern const uint64_t bishop_magic_attacks[];
 extern const uint64_t rook_magic_attacks[];
 
 struct magical {
-    uint64_t mask;
-    uint64_t multiplier;
-    const uint64_t *attack_table;
+	uint64_t mask;
+	uint64_t multiplier;
+	const uint64_t *attack_table;
 #ifdef SLIDING_BYTE_LOOKUP
-    const uint8_t *attack_index_table;
+	const uint8_t *attack_index_table;
 #endif
-    int shift;
+	int shift;
 };
 
-extern struct magical rook_magics[64];
-extern struct magical bishop_magics[64];
+
+extern struct magical bitboard_magics[128];
+
+#define rook_magics bitboard_magics
+#define bishop_magics (bitboard_magics + 64)
 
 extern const uint64_t ray_table[64][64];
 

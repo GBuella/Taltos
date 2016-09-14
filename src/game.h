@@ -1,64 +1,67 @@
 
-#ifndef GAME_H
-#define GAME_H
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
+
+#ifndef TALTOS_GAME_H
+#define TALTOS_GAME_H
 
 #include "chess.h"
 #include "macros.h"
+#include <stddef.h>
 
 struct game;
 
 struct game *game_create(void)
-    attribute_returns_nonnull
-    attribute_warn_unused_result;
+	attribute(returns_nonnull, warn_unused_result, malloc);
 
 struct game *game_create_position(const struct position*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 struct game *game_create_fen(const char*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 struct game *game_copy(const struct game*)
-    attribute_nonnull
-    attribute_returns_nonnull;
+	attribute(nonnull, returns_nonnull, malloc);
 
 char *game_print_fen(const struct game*, char[static FEN_BUFFER_LENGTH])
-    attribute_nonnull
-    attribute_returns_nonnull;
+	attribute(nonnull, returns_nonnull);
 
 void game_destroy(struct game*);
 
 int game_append(struct game*, move)
-    attribute_nonnull;
+	attribute(nonnull);
 
 void game_truncate(struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 const struct position *game_current_position(const struct game*)
-    attribute_nonnull
-    attribute_returns_nonnull;
+	attribute(nonnull, returns_nonnull);
+
+const struct position *game_history_position(const struct game*, int delta)
+	attribute(nonnull);
 
 int game_history_revert(struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 int game_history_forward(struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
-player game_turn(const struct game*)
-    attribute_nonnull;
+enum player game_turn(const struct game*)
+	attribute(nonnull);
 
 unsigned game_full_move_count(const struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 unsigned game_half_move_count(const struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 bool game_is_ended(const struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 move game_get_single_response(const struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 bool game_has_single_response(const struct game*)
-    attribute_nonnull;
+	attribute(nonnull);
 
 #endif

@@ -1,388 +1,433 @@
 
+/* vim: set filetype=c : */
+/* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdalign.h>
 
 #include "macros.h"
 
 #include "hash.h"
-#include "position.h"
 #include "z_random.inc"
 #include "search.h"
-#include "trace.h"
 #include "util.h"
+#include "eval.h"
 
-#ifndef MAX_SLOT_COUNT
-#define MAX_SLOT_COUNT 8
-#endif
+#include "str_util.h"
 
 #ifndef HT_MIN_SIZE
-#define HT_MIN_SIZE 16
+#define HT_MIN_SIZE 6
 #endif
 
 #ifndef HT_MAX_SIZE
 #define HT_MAX_SIZE 29
 #endif
 
-struct hash_table {
-    ht_entry *table;
-    size_t size;
-    uint64_t zhash_mask;
-    bool is_dual;
-    unsigned long usage;
-    unsigned long entry_count;
-    unsigned slot_count;
-    unsigned log2_size;
-#   ifdef VERIFY_HASH_TABLE
-    uint64_t *boards;
-#   endif
+
+/*
+ * The bits in the lower 32 bits, not used for storing the move,
+ * or the value_type.
+ */
+#define COUNTER_MASK ((uint64_t)((uint32_t)~(MOVE_MASK | VALUE_TYPE_MASK)))
+
+static_assert(
+	COUNTER_MASK == UINT64_C(0xf080c000),
+	"COUNTER_MASK not as expected,"
+	" there might be some problem with some values here...");
+
+#define HASH_MASK (~COUNTER_MASK)
+
+struct slot {
+	alignas(16) uint64_t hash_key;
+	uint64_t entry;
 };
 
-int ht_usage(const struct hash_table *ht)
-{
-    if (ht == NULL) return -1;
-    return (int)((ht->usage * 1000) / ht->entry_count);
-}
-
-struct hash_table *
-ht_create(unsigned log2_size, bool is_dual, unsigned slot_count)
-{
-    struct hash_table *ht;
-
-    if (log2_size < HT_MIN_SIZE || log2_size > HT_MAX_SIZE) {
-        return NULL;
-    }
-    if (slot_count < 1 || slot_count > MAX_SLOT_COUNT) {
-        return NULL;
-    }
-    ht = xmalloc(sizeof *ht);
-    ht->slot_count = slot_count;
-    ht->is_dual = is_dual;
-    ht->entry_count = (1 << log2_size) + MAX_SLOT_COUNT;
-    ht->size = ht->entry_count * sizeof(ht_entry);
-    ht->log2_size = log2_size;
-    if (is_dual) {
-        ht->size <<= 1;
-    }
-    ht->zhash_mask = (1 << log2_size) - 1;
-    ht->table = malloc(ht->size);
-    if (ht->table == NULL) {
-        free(ht);
-        return NULL;
-    }
-#   ifdef VERIFY_HASH_TABLE
-    ht->boards = malloc(ht->entry_count * (is_dual ? 2 : 1) * 5 * 8);
-    if (ht->boards == NULL) {
-        free(ht->table);
-        free(ht);
-        return NULL;
-    }
-#   endif
-    ht->usage = 0;
-    ht_clear(ht);
-    return ht;
-}
-
-struct hash_table *
-ht_resize(struct hash_table *ht,
-          unsigned log2_size,
-          bool is_dual,
-          unsigned slot_count)
-{
-    if (ht == NULL) {
-        return ht_create(log2_size, is_dual, slot_count);
-    }
-    else if (ht->log2_size == log2_size && ht->is_dual == is_dual) {
-        ht->slot_count = slot_count;
-        return ht;
-    }
-    else {
-        ht_destroy(ht);
-        return ht_create(log2_size, is_dual, slot_count);
-    }
-}
-
-void ht_clear(const struct hash_table *ht)
-{
-    if (ht != NULL) {
-        memset((void*)(ht->table), 0, ht->size); 
-    }
-}
-
-void ht_destroy(struct hash_table *ht)
-{
-    if (ht != NULL) {
-#       ifdef VERIFY_HASH_TABLE
-        free(ht->boards);
-#       endif
-        free((void*)ht->table);
-        free(ht);
-    }
-}
-
-void setup_zhash(struct position *pos)
-{
-    pos->hash[1] = pos->hash[0] = UINT64_C(0);
-    for (int i = 0; i < 64; ++i) {
-        z2_toggle_sq(pos->hash, i,
-                     get_piece_at(pos, i),
-                     get_player_at(pos, i));
-    }
-    if (pos->castle_left_1) z2_toggle_castle_left_1(pos->hash);
-    if (pos->castle_left_0) z2_toggle_castle_left_0(pos->hash);
-    if (pos->castle_right_1) z2_toggle_castle_right_1(pos->hash);
-    if (pos->castle_right_0) z2_toggle_castle_right_0(pos->hash);
-    if (ind_rank(pos->ep_ind) == rank_5) {
-        pos->hash[1] = z_toggle_ep_file(pos->hash[1], ind_file(pos->ep_ind));
-    }
-}
-
-static bool hash_ok(uint64_t a, uint64_t b)
-{
-    /* Assuming both ht_entry and zobrist_hash types are
-       uint64_t
-     */
-    return (a >> 29) == (b >> 29);
-}
-
-void ht_prefetch(const struct hash_table *ht, zobrist_hash hash)
-{
-    if (ht == NULL) return;
-
-    unsigned index = (unsigned)(hash & ht->zhash_mask);
-    if (ht->is_dual) {
-        index <<= 1;
-    }
-    prefetch(ht->table + index);
-}
-
-ht_entry ht_lookup(const struct hash_table *ht, zobrist_hash hash)
-{
-    if (ht == NULL) return HT_NULL;
-
-    ht_entry entry;
-
-    unsigned index = (unsigned)(hash & ht->zhash_mask);
-
-    if (ht->is_dual) {
-        index <<= 1;
-    }
-    entry = ht->table[index];
-    if (hash_ok(entry, hash)) {
-        return entry;
-    }
-    if (ht->is_dual) {
-        entry = ht->table[index+1];
-        if (hash_ok(entry, hash)) {
-            return entry;
-        }
-    }
-    else {
-        return HT_NULL;
-    }
-    return hash_ok(entry, hash) ? entry : HT_NULL;
-}
-
-static bool move_ok(ht_entry e, unsigned move_count)
-{
-    if (!ht_has_move(e)) return true;
-
-    unsigned mi = ht_move_index(e);
-
-    if (move_count == 0) return true;
-    return mi < move_count;
-}
-
-ht_entry ht_pos_lookup(const struct hash_table *ht,
-                       const struct position *pos,
-                       unsigned m_count)
-{
-    if (ht == NULL) return HT_NULL;
-
-    int tries;
-    unsigned index = (unsigned)(pos->hash[1] & ht->zhash_mask);
-
-    if (ht->is_dual) {
-        index <<= 1;
-    }
-
-lookup_loop:
-    tries = ht->slot_count;
-    do {
-        ht_entry entry = ht->table[index];
-        if (!ht_is_set(entry)) {
-            break;
-        }
-        if (hash_ok(entry, pos->hash[1]) && move_ok(entry, m_count)) {
-#   ifdef VERIFY_HASH_TABLE
-            if (memcmp(pos->bb, ht->boards+index*5, 5*7) != 0) {
-                printf("Hash Collision!\n");
-            }
-#   endif
-            return entry;
-        }
-        index += ht->is_dual ? 2 : 1;
-        --tries;
-    } while (tries != 0);
-    if (ht->is_dual && (index & 1) == 0) {
-        index = ((unsigned)(pos->hash[1] & ht->zhash_mask) << 1) + 1;
-        goto lookup_loop;
-    }
-    return HT_NULL;
-}
-
-#ifdef VERIFY_HASH_TABLE
-void ht_insert(struct hash_table *ht, zobrist_hash hash, ht_entry entry,
-               const uint64_t bb[static 5])
-#else
-void ht_insert(struct hash_table *ht, zobrist_hash hash, ht_entry entry)
+#ifndef FRESH_SLOT_COUNT
+#define FRESH_SLOT_COUNT 2
 #endif
+
+#ifndef DEEP_SLOT_COUNT
+#define DEEP_SLOT_COUNT 6
+#endif
+
+static_assert((FRESH_SLOT_COUNT > 0),
+		"FRESH_SLOT_COUNT expected to be a positive integer");
+
+static_assert((DEEP_SLOT_COUNT > 0),
+		"DEEP_SLOT_COUNT expected to be a positive integer");
+
+static_assert((DEEP_SLOT_COUNT % 2) == 0,
+		"DEEP_SLOT_COUNT expected to be an even number");
+
+#define SLOT_COUNT (FRESH_SLOT_COUNT + DEEP_SLOT_COUNT)
+
+static_assert(((SLOT_COUNT & (SLOT_COUNT - 1)) == 0),
+		"FRESH_SLOT_COUNT + DEEP_SLOT_COUNT "
+		"expected to be a power of two");
+
+struct bucket {
+	alignas(SLOT_COUNT * sizeof(struct slot))
+		volatile struct slot slots[SLOT_COUNT];
+};
+
+struct hash_table {
+	unsigned long bucket_count;
+	struct bucket *table;
+	unsigned long usage;
+	unsigned log2_size;
+};
+
+size_t
+ht_slot_count(const struct hash_table *ht)
 {
-    if (ht == NULL) return;
-
-    int tries = ht->slot_count;
-    unsigned index = (unsigned)(hash & ht->zhash_mask);
-    entry |= hash & UINT64_C(0xffffffffe0000000);
-
-    if (ht->is_dual) {
-        index <<= 1;
-    }
-    else if (ht->slot_count == 1) {
-        ht->table[index] = entry;
-        ht->usage++;
-#       ifdef VERIFY_HASH_TABLE
-        memcpy(ht->boards + index*5, bb, 5*8);
-#       endif
-        return;
-    }
-    do {
-        ht_entry old = ht->table[index];
-        if (!ht_is_set(old)) {
-            ht->usage++;
-            ht->table[index] = entry;
-#           ifdef VERIFY_HASH_TABLE
-            memcpy(ht->boards + index*5, bb, 5*8);
-#           endif
-            return;
-        }
-        if (hash_ok(entry, old) && ht_depth(old) <= ht_depth(entry)) {
-            ht->table[index] = entry;
-#           ifdef VERIFY_HASH_TABLE
-            memcpy(ht->boards + index*5, bb, 5*8);
-#           endif
-            return;
-        }
-        index += ht->is_dual ? 2 : 1;
-        --tries;
-    } while (tries != 0);
+	return ht->bucket_count * ARRAY_LENGTH(ht->table[0].slots);
 }
 
-void ht_pos_insert(struct hash_table *ht,
-                   const struct position *pos,
-                   ht_entry entry)
+size_t
+ht_usage(const struct hash_table *ht)
 {
-    assert(pos != NULL);
-
-    if (ht_is_set(entry)) {
-#       ifdef VERIFY_HASH_TABLE
-        ht_insert(ht, pos->hash[1], entry, pos->bb);
-#       else
-        ht_insert(ht, pos->hash[1], entry);
-#       endif
-    }
+	return ht->usage;
 }
 
-void ht_extract_pv(const struct hash_table *ht,
-                   const struct position *pos,
-                   int depth,
-                   move pv[])
+size_t
+ht_size(const struct hash_table *ht)
 {
-    assert(pv != NULL);
-
-    if (ht == NULL) {
-        pv[0] = 0;
-        return;
-    }
-
-    move moves[MOVE_ARRAY_LENGTH];
-    unsigned move_count;
-    ht_entry e;
-    struct position child[1];
-
-    pv[0] = 0;
-    if (depth <= 0) return;
-    move_count = (unsigned)(gen_plegal_moves(pos, moves) - moves);
-    if (move_count == 0) return;
-    e = ht_pos_lookup(ht, pos, move_count);
-    if (!ht_is_set(e)) return;
-    if (!ht_has_move(e)) return;
-    if (ht_depth(e) < depth && depth > PLY) return;
-    pv[0] = moves[ht_move_index(e)];
-    memcpy(child, pos, sizeof child);
-    make_move(child, pv[0]);
-    ht_extract_pv(ht, child, depth - PLY, pv + 1);
+	return ht->bucket_count * sizeof(ht->table[0]);
 }
 
-void ht_swap(struct hash_table *ht)
+struct hash_table*
+ht_create(unsigned log2_size)
 {
-    if (ht == NULL || !ht->is_dual) {
-        return;
-    }
-    ht->usage = 0;
-    for (unsigned i = 0; i != ht->entry_count; ++i) {
-        ht->table[2*i+1] = ht->table[2*i];
-        ht->table[2*i] = HT_NULL;
-    }
+	struct hash_table *ht;
+
+	if (log2_size < HT_MIN_SIZE || log2_size > HT_MAX_SIZE) {
+		return NULL;
+	}
+	ht = xmalloc(sizeof *ht);
+	ht->bucket_count = (((size_t)1) << log2_size);
+	ht->log2_size = log2_size;
+	ht->table = aligned_alloc(64, ht_size(ht));
+	if (ht->table == NULL) {
+		free(ht);
+		return NULL;
+	}
+	ht_clear(ht);
+	return ht;
 }
 
-uint64_t position_polyglot_key(const struct position *position, player turn)
+struct hash_table*
+ht_resize(struct hash_table *ht, unsigned log2_size)
 {
-    uint64_t key = UINT64_C(0);
+	unsigned long bucket_count = (1lu << log2_size);
 
-    /* Taltos an polyglot have different table representations,
-       while Taltos uses the 64 bit constants also used by Polyglot.
-       Hence using here (7-row) and (7-file) for indexing the z_random array.
-    */
-    for (int row = 0; row < 8; ++row) {
-        for (int file = 0; file < 8; ++file) {
-            piece p = get_piece_at(position, ind(row, file));
-            player pl = get_player_at(position, ind(row, file));
-            const uint64_t *z_r;
+	if (ht == NULL)
+		return ht_create(log2_size);
 
-            if (p != nonpiece) {
-                z_r = z_random[p-1];
-                if (turn == white) {
-                    key ^= z_r[pl*64 + (7-row) * 8 + (7-file)];
-                }
-                else {
-                    key ^= z_r[opponent(pl)*64 + row * 8 + (7-file)];
-                }
-            }
-        }
-    }
-    if (turn == white) {
-        if (position->castle_left_1) key = z_toggle_castle_left_1(key);
-        if (position->castle_left_0) key = z_toggle_castle_left_0(key);
-        if (position->castle_right_1) key = z_toggle_castle_right_1(key);
-        if (position->castle_right_0) key = z_toggle_castle_right_0(key);
-    }
-    else {
-        if (position->castle_left_1) key = z_toggle_castle_left_0(key);
-        if (position->castle_left_0) key = z_toggle_castle_left_1(key);
-        if (position->castle_right_1) key = z_toggle_castle_right_0(key);
-        if (position->castle_right_0) key = z_toggle_castle_right_1(key);
-    }
-    if (ind_rank(position->ep_ind) == rank_5) {
-        if (nonempty(pawn_attacks1(pawns_map1(position))
-                     & bit64(position->ep_ind + NORTH)))
-        {
-            key = z_toggle_ep_file(key, 7 - ind_file(position->ep_ind));
-        }
-    }
-    if (turn == white) {
-        key ^= UINT64_C( 0xF8D626AAAF278509 );
-    }
-    return key;
+	if (ht->log2_size == log2_size)
+		return ht;
+
+	struct bucket *table;
+
+	table = aligned_alloc(64, bucket_count * sizeof(table[0]));
+	if (table == NULL)
+		return NULL;
+
+	xaligned_free(ht->table);
+	ht->table = table;
+	ht->bucket_count = bucket_count;
+	ht_clear(ht);
+	return ht;
 }
 
+void
+ht_clear(struct hash_table *ht)
+{
+	memset((void*)(ht->table), 0, ht_size(ht));
+	ht->usage = 0;
+}
+
+void
+ht_destroy(struct hash_table *ht)
+{
+	if (ht != NULL) {
+		xaligned_free((void*)ht->table);
+		free(ht);
+	}
+}
+
+void
+ht_prefetch(const struct hash_table *ht, uint64_t hash)
+{
+	prefetch(ht->table + (hash % ht->bucket_count));
+}
+
+static bool
+hash_match(const struct slot *slot, const uint64_t hash[static 2])
+{
+	return ((slot->hash_key ^ hash[1]) & HASH_MASK) == 0;
+}
+
+static bool
+thread_id_match(const struct slot *slot)
+{
+	(void) slot;
+	return true;
+	// todo: return ((slot->hash_key ^ slot->entry) & COUNTER_MASK) == 0;
+}
+
+static bool
+move_ok(ht_entry e, const struct position *pos)
+{
+	if (!ht_has_move(e))
+		return true;
+
+	move m = ht_move(e);
+	if (pos_piece_at(pos, mfrom(m)) == 0)
+		return false;
+	if (pos_player_at(pos, mfrom(m)) != 0)
+		return false;
+	return ((pos_piece_at(pos, mto(m)) == 0)
+	    || (pos_player_at(pos, mto(m)) == 1));
+}
+
+ht_entry
+ht_lookup_fresh(const struct hash_table *ht,
+		const struct position *pos)
+{
+	volatile struct bucket *bucket =
+	    ht->table + (pos->zhash[0] % ht->bucket_count);
+
+	unsigned index = DEEP_SLOT_COUNT;
+	index += ((pos->zhash[0] / ht->bucket_count) % FRESH_SLOT_COUNT);
+
+	struct slot slot = bucket->slots[index];
+
+	if (thread_id_match(&slot)
+	    && hash_match(&slot, pos->zhash)
+	    && move_ok(slot.entry, pos))
+		return slot.entry;
+	return 0;
+}
+
+ht_entry
+ht_lookup_deep(const struct hash_table *ht,
+		const struct position *pos,
+		int depth,
+		int beta)
+{
+	ht_entry best = 0;
+	volatile struct bucket *bucket =
+	    ht->table + (pos->zhash[0] % ht->bucket_count);
+
+	for (size_t i = 0; i < DEEP_SLOT_COUNT; ++i) {
+		struct slot slot = bucket->slots[i];
+		if (thread_id_match(&slot)
+		    && hash_match(&slot, pos->zhash)
+		    && move_ok(slot.entry, pos)) {
+			if (ht_depth(slot.entry) >= depth) {
+				if (ht_value_type(slot.entry) == vt_exact)
+					return slot.entry;
+				if (ht_value_type(slot.entry) == vt_lower_bound
+				    && ht_value(slot.entry) >= beta)
+					return slot.entry;
+			}
+			if (ht_depth(slot.entry) >= ht_depth(best)) {
+				best = slot.entry;
+			}
+		}
+	}
+	return best;
+}
+
+/*
+ * todo:
+ * static uint64_t
+ * increment_counter(uint64_t counter)
+ * {
+ * return (counter - COUNTER_MASK) & COUNTER_MASK;
+ * }
+ */
+
+static void
+overwrite_slot(volatile struct slot *dst,
+		const uint64_t hash[static 2],
+		ht_entry entry)
+{
+	// todo:
+	// uint64_t counter = increment_counter(dst->hash_key & COUNTER_MASK);
+	uint64_t counter = 0;
+	dst->hash_key = (hash[1] & HASH_MASK) | counter;
+	dst->entry = entry | counter;
+}
+
+static void
+write_fresh_slot(struct hash_table *ht,
+		volatile struct bucket *bucket,
+		const uint64_t hash[static 2],
+		ht_entry entry)
+{
+	unsigned index = DEEP_SLOT_COUNT;
+	index += ((hash[0] / ht->bucket_count) % FRESH_SLOT_COUNT);
+
+	overwrite_slot(bucket->slots + index, hash, entry);
+}
+
+void
+ht_pos_insert(struct hash_table *ht,
+		const struct position *pos,
+		ht_entry entry)
+{
+	volatile struct bucket *bucket;
+	const uint64_t *hash;
+	if (!ht_is_set(entry))
+		return;
+
+	hash = pos->zhash;
+	bucket = ht->table + (hash[0] % ht->bucket_count);
+
+	write_fresh_slot(ht, bucket, hash, entry);
+	if (ht_depth(entry) < PLY)
+		return;
+
+	unsigned depth_min_index = 0;
+	int depth_min = 0x10000;
+
+	for (unsigned i = 0; i < DEEP_SLOT_COUNT / 2; ++i) {
+		struct slot tslot = bucket->slots[i];
+		if (hash_match(&tslot, hash)
+		    && move_ok(tslot.entry, pos)
+		    && (ht_value_type(tslot.entry) == ht_value_type(entry))) {
+			if (ht_depth(tslot.entry) <= ht_depth(entry))
+				overwrite_slot(bucket->slots + i, hash, entry);
+			return;
+		}
+		if (ht_depth(tslot.entry) < depth_min) {
+			depth_min = ht_depth(tslot.entry);
+			depth_min_index = i;
+		}
+	}
+	if (depth_min < ht_depth(entry)) {
+		if (bucket->slots[depth_min_index].hash_key == 0)
+			ht->usage++;
+
+		overwrite_slot(bucket->slots + depth_min_index, hash, entry);
+	}
+}
+
+void
+ht_extract_pv(const struct hash_table *ht,
+		const struct position *pos,
+		int depth,
+		move pv[],
+		int value)
+{
+	move moves[MOVE_ARRAY_LENGTH];
+	ht_entry e;
+	struct position child[1];
+
+	pv[0] = 0;
+	if (depth <= 0)
+		return;
+	(void) gen_moves(pos, moves);
+	e = ht_lookup_deep(ht, pos, depth, max_value);
+	if (!ht_is_set(e))
+		return;
+	if (!ht_has_move(e))
+		return;
+	if (ht_depth(e) < depth && depth > PLY)
+		return;
+	if (ht_value_type(e) != vt_exact || ht_value(e) != value)
+		return;
+	for (move *m = moves; *m != ht_move(e); ++m)
+		if (*m == 0)
+			return;
+	pv[0] = ht_move(e);
+	position_make_move(child, pos, pv[0]);
+	ht_extract_pv(ht, child, depth - PLY, pv + 1, -value);
+}
+
+static void
+slot_swap(struct hash_table *ht, volatile struct slot *slot)
+{
+	if (slot->hash_key != 0) {
+		ht->usage--;
+		slot[DEEP_SLOT_COUNT / 2] = *slot;
+		slot->hash_key = 0;
+		slot->entry = 0;
+	}
+}
+
+void
+ht_swap(struct hash_table *ht)
+{
+	for (unsigned i = 0; i != ht->bucket_count; ++i) {
+		volatile struct bucket *bucket = ht->table + i;
+		for (unsigned si = 0; si < DEEP_SLOT_COUNT / 2; ++si)
+			slot_swap(ht, bucket->slots + si);
+	}
+}
+
+uint64_t
+position_polyglot_key(const struct position *pos, enum player turn)
+{
+	uint64_t key = UINT64_C(0);
+
+	/*
+	 * Taltos an polyglot have different table representations,
+	 * while Taltos uses the 64 bit constants also used by Polyglot.
+	 * Hence using here (7-row) and (7-file) for
+	 * indexing the z_random array.
+	 */
+	for (int row = 0; row < 8; ++row) {
+		for (int file = 0; file < 8; ++file) {
+			enum piece p = pos_piece_at(pos, ind(row, file));
+			enum player pl = pos_player_at(pos, ind(row, file));
+			int index;
+
+			if (p == nonpiece)
+				continue;
+
+			if (turn == white) {
+				pl = opponent_of(pl);
+				index = (7 - row) * 8 + (7 - file);
+			}
+			else {
+				index = row * 8 + (7 - file);
+			}
+			key ^= z_random[p + pl][index];
+		}
+	}
+	if (turn == white) {
+		if (position_cr_opponent_queen_side(pos))
+			key = z_toggle_castle_queen_side_opponent(key);
+		if (position_cr_queen_side(pos))
+			key = z_toggle_castle_queen_side(key);
+		if (position_cr_opponent_king_side(pos))
+			key = z_toggle_castle_king_side_opponent(key);
+		if (position_cr_king_side(pos))
+			key = z_toggle_castle_king_side(key);
+	}
+	else {
+		if (position_cr_opponent_queen_side(pos))
+			key = z_toggle_castle_queen_side(key);
+		if (position_cr_queen_side(pos))
+			key = z_toggle_castle_queen_side_opponent(key);
+		if (position_cr_opponent_king_side(pos))
+			key = z_toggle_castle_king_side(key);
+		if (position_cr_king_side(pos))
+			key = z_toggle_castle_king_side_opponent(key);
+	}
+	if (pos_has_ep_target(pos)) {
+		if (is_nonempty(pos_pawn_attacks_player(pos)
+		    & bit64(pos->ep_index + NORTH))) {
+			int file = 7 - pos_en_passant_file(pos);
+			key = z_toggle_ep_file(key, file);
+		}
+	}
+	if (turn == white)
+		key ^= UINT64_C(0xF8D626AAAF278509);
+	return key;
+}

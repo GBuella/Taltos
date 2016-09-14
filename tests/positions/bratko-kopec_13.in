@@ -1,0 +1,7 @@
+force
+nopost
+setboard r2q1rk1/4bppp/p2p4/2pP4/3pP3/3Q4/PP1B1PPP/R3R1K1 w - -
+nps 100000
+st 360
+search_sync
+hash_value_min 20
