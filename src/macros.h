@@ -13,7 +13,6 @@
 
 #if defined(NDEBUG) && defined(TALTOS_CAN_USE_BUILTIN_UNREACHABLE)
 
-// https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
 #define unreachable __builtin_unreachable()
 #define invariant(x) { if (!(x)) unreachable; }
 
@@ -37,7 +36,6 @@
 #define attribute(...)
 #endif
 
-// https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
 #ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 #define prefetch __builtin_prefetch
 #else
