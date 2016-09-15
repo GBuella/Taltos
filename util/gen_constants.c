@@ -221,6 +221,21 @@ static void fill_attack_boards(int sq_i,
     *attacks = EMPTY;
 }
 
+static uint64_t
+random_magic(void)
+{
+	if (RAND_MAX >= INT32_MAX)
+		return (rand() & rand() & rand())
+		    + (((uint64_t)(rand() & rand() &  rand())) << 32);
+	else if (RAND_MAX >= INT16_MAX)
+		return (rand() & rand() & rand())
+		    + (((uint64_t)(rand() & rand() &  rand())) << 16)
+		    + (((uint64_t)(rand() & rand() &  rand())) << 32)
+		    + (((uint64_t)(rand() & rand() &  rand())) << 48);
+	else
+		exit(EXIT_FAILURE);
+}
+
 static void search_magic(uint64_t *pmagic,
                          const uint64_t *occs,
                          const uint64_t *attacks,
@@ -232,8 +247,8 @@ static void search_magic(uint64_t *pmagic,
 
     memset(results, 0, (1<<width) * sizeof *results);
     for (int tries = 0; tries < 1000000000; ++tries) {
-        uint64_t magic = (rand() & rand() & rand())
-                         + (((uint64_t)(rand() & rand() &  rand())) << 32);
+        uint64_t magic = random_magic();
+
         if (popcnt((src|mask) * magic) < 9) {
             continue;
         }
