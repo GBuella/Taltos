@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "taltos_config.h"
+#include "macros.h"
 
 #ifdef TALTOS_CAN_USE_CLOCK_GETTIME
 #include <time.h>

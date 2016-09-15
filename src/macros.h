@@ -11,13 +11,9 @@
 #define QUOTE(x) #x
 #define STR(x) QUOTE(x)
 
-#if defined(unix) || defined(__unix) || defined(__unix__) || defined(UNIX) \
-	|| (defined(__APPLE__) && defined(__MACH__))
-#define POSIX_BUILD 1
-#endif
-
 #if defined(NDEBUG) && defined(TALTOS_CAN_USE_BUILTIN_UNREACHABLE)
 
+// https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
 #define unreachable __builtin_unreachable()
 #define invariant(x) { if (!(x)) unreachable; }
 
@@ -28,12 +24,20 @@
 
 #else
 
+#include <assert.h>
+
 #define unreachable assert(0)
 #define invariant assert
 
 #endif
 
+#ifdef TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX
+#define attribute(...) __attribute__((__VA_ARGS__))
+#else
+#define attribute(...)
+#endif
 
+// https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
 #ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 #define prefetch __builtin_prefetch
 #else
