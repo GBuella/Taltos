@@ -108,7 +108,7 @@ ht_create(unsigned log2_size)
 	ht = xmalloc(sizeof *ht);
 	ht->bucket_count = (((size_t)1) << log2_size);
 	ht->log2_size = log2_size;
-	ht->table = aligned_alloc(64, ht_size(ht));
+	ht->table = aligned_alloc(alignof(struct bucket), ht_size(ht));
 	if (ht->table == NULL) {
 		free(ht);
 		return NULL;
@@ -130,7 +130,8 @@ ht_resize(struct hash_table *ht, unsigned log2_size)
 
 	struct bucket *table;
 
-	table = aligned_alloc(64, bucket_count * sizeof(table[0]));
+	table = aligned_alloc(alignof(struct bucket),
+		bucket_count * sizeof(table[0]));
 	if (table == NULL)
 		return NULL;
 
