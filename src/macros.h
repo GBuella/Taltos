@@ -7,6 +7,20 @@
 
 #include "taltos_config.h"
 
+#include <assert.h>
+
+/*
+ * For the case of C11 compiler fronted without
+ * appropriate C11 headers assert.h and stdalign.h
+ * i.e.: Visual Studio 2015 with LLVM frontend.
+ */
+#ifndef static_assert
+#define static_assert _Static_assert
+#endif
+
+#define alignas _Alignas
+#define alignof _Alignof
+
 #define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
 #define QUOTE(x) #x
 #define STR(x) QUOTE(x)
@@ -22,8 +36,6 @@
 #define invariant __assume
 
 #else
-
-#include <assert.h>
 
 #define unreachable assert(0)
 #define invariant assert
