@@ -131,7 +131,7 @@ ht_resize(struct hash_table *ht, unsigned log2_size)
 	struct bucket *table;
 
 	table = aligned_alloc(alignof(struct bucket),
-		bucket_count * sizeof(table[0]));
+	    bucket_count * sizeof(table[0]));
 	if (table == NULL)
 		return NULL;
 

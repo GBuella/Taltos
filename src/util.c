@@ -164,7 +164,7 @@ xnow(void)
 #elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
 
 	static_assert(sizeof(LARGE_INTEGER) == sizeof(uint64_t),
-		"unexpectedly large integer");
+	    "unexpectedly large integer");
 
 	LARGE_INTEGER result;
 
