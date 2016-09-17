@@ -319,6 +319,8 @@ eval(const struct position *pos)
 		    king_fortress(pos, semi_open_files, semi_open_files_opp));
 	int eg_factor = end_game(pos);
 	value += (eg_factor + 1) * passed_pawns(pos);
+	invariant(value_bounds(value));
+
 	return value + tempo;
 }
 

@@ -797,6 +797,7 @@ clear_to_square(struct position *pos, int i)
 {
 	if (pos->board[i] != 0) {
 		pos->material_value -= piece_value[(unsigned)(pos->board[i])];
+		invariant(value_bounds(pos->material_value));
 		z2_toggle_sq(pos->zhash, i, pos->board[i], 0);
 		pos->map[(unsigned char)(pos->board[i])] &= ~bit64(i);
 		pos->map[0] &= ~bit64(i);
@@ -818,6 +819,8 @@ move_pawn(struct position *pos, move m)
 		pos->map[0] &= ~bit64(mto(m) + NORTH);
 		z2_toggle_sq(pos->zhash, mto(m) + NORTH, pawn, 0);
 		pos->material_value -= pawn_value;
+		invariant(value_bounds(pos->material_value));
+
 	}
 	else if (mtype(m) == mt_pawn_double_push) {
 		if (has_potential_ep_captor(pos, mto(m)))
@@ -861,6 +864,7 @@ move_piece(struct position *pos, move m)
 		if (mtype(m) == mt_promotion)
 			pos->material_value
 			    -= piece_value[mresultp(m)] - pawn_value;
+		invariant(value_bounds(pos->material_value));
 		enum piece porig = pos_piece_at(pos, mfrom(m));
 		z2_toggle_sq(pos->zhash, mfrom(m), porig, 1);
 		z2_toggle_sq(pos->zhash, mto(m), mresultp(m), 1);
@@ -958,6 +962,8 @@ make_move(struct position *restrict dst,
 		move m)
 {
 	m = flip_m(m);
+	dst->material_value = -src->material_value;
+	invariant(value_bounds(dst->material_value));
 	flip_board(dst, src);
 	flip_piece_maps(dst, src);
 	clear_extra_bitboards(dst);
@@ -975,7 +981,6 @@ make_move(struct position *restrict dst,
 		search_knight_king_attacks(dst);
 	}
 	dst->occupied = dst->map[0] | dst->map[1];
-	dst->opponent_material_value = -dst->material_value;
 	search_bishop_king_attacks(dst);
 	search_rook_king_attacks(dst);
 	generate_attacks_move(dst, src, m);

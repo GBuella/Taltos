@@ -17,6 +17,12 @@ enum {
 	queen_value = 900
 };
 
+static inline int
+value_bounds(int value)
+{
+	return value >= -max_value && value <= max_value;
+}
+
 extern const int piece_value[14];
 
 struct position;
