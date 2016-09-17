@@ -69,11 +69,13 @@ is_qsearch(const struct node *node)
 
 static void negamax(struct node*);
 
+#ifndef max
 static int
 max(int a, int b)
 {
 	return (a > b) ? a : b;
 }
+#endif
 
 static bool
 is_repetition(const struct node *node)

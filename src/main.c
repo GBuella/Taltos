@@ -18,7 +18,7 @@
 static const char *progname;
 static bool must_run_internal_tests = true;
 static struct taltos_conf conf;
-static void onexit(void);
+static void on_exit(void);
 static void usage(int status);
 static void process_args(char **arg);
 static void init_book(struct book **book);
@@ -37,9 +37,9 @@ main(int argc, char **argv)
 		run_internal_tests();
 	init_book(&book);
 	init_engine(&conf);
-	if (atexit(onexit) != 0)
+	if (atexit(on_exit) != 0)
 		return EXIT_FAILURE;
-	(void) setvbuf(stdout, NULL, _IOLBF, 0x1000);
+	(void) setvbuf(stdout, NULL, _IONBF, 0);
 
 	loop_cli(&conf, book);
 }
@@ -72,7 +72,7 @@ setup_defaults(void)
 }
 
 static void
-onexit(void)
+on_exit(void)
 {
 	if (conf.timing) {
 		uintmax_t t = xseconds_since(conf.start_time);
