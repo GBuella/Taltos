@@ -45,12 +45,13 @@ void xaligned_free(void*);
 int bin_file_size(FILE*, size_t*)
 	attribute(warn_unused_result, nonnull(2));
 
-#ifdef TALTOS_CAN_USE_MACH_ABS_TIME
-typedef uint64_t taltos_systime;
-#elif defined(TALTOS_CAN_USE_CLOCK_GETTIME)
+#if defined(TALTOS_CAN_USE_CLOCK_GETTIME)
 typedef struct timespec taltos_systime;
+#elif defined(TALTOS_CAN_USE_MACH_ABS_TIME) || \
+	defined(TALTOS_CAN_USE_W_PERFCOUNTER)
+typedef uint64_t taltos_systime;
 #else
-#error todo
+#error unable to use monotonic clock
 #endif
 
 taltos_systime xnow(void);

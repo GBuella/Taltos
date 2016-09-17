@@ -12,16 +12,18 @@
 #ifdef TALTOS_CAN_USE_POSIX_FSTAT
 #include <stdio.h>
 #include <sys/stat.h>
-#elif TALTOS_CAN_USE_W_GETFILESIZEEX
+#endif
+
+#if defined(TALTOS_CAN_USE_W_FILELENGTHI64) || \
+	defined(TALTOS_CAN_USE_W_PERFCOUNTER)
 #include <Windows.h>
-#else
-#error dont know how to get filesize
+#ifdef TALTOS_CAN_USE_W_PERFCOUNTER
+#include <io.h>
+#endif
 #endif
 
 #ifdef TALTOS_CAN_USE_GETRUSAGE
 #include <sys/resource.h>
-#else
-#error todo
 #endif
 
 #ifndef TALTOS_CAN_USE_ISO_ALIGNAD_ALLOC
@@ -35,8 +37,6 @@
 #include <mach/mach_time.h>
 #elif defined(TALTOS_CAN_USE_CLOCK_GETTIME)
 #include <time.h>
-#else
-#error todo
 #endif
 
 #include "util.h"
@@ -128,15 +128,20 @@ xaligned_calloc(size_t alignment, size_t count, size_t size)
 int
 bin_file_size(FILE *file, size_t *size)
 {
-#ifdef TALTOS_CAN_USE_POSIX_FSTAT
+#ifdef TALTOS_CAN_USE_W_FILELENGTHI64
+
+	*size = _filelengthi64(_fileno(file));
+	return 0;
+
+#elif defined(TALTOS_CAN_USE_POSIX_FSTAT)
 	struct stat stat;
 	if (fstat(fileno(file), &stat) != 0) {
 		return -1;
 	}
 	*size = stat.st_size;
 	return 0;
-#elif TALTOS_CAN_USE_W_GETFILESIZEEX
-#error todo
+#else
+#error
 #endif
 }
 
@@ -156,8 +161,21 @@ xnow(void)
 	}
 	return now;
 
+#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
+
+	static_assert(sizeof(LARGE_INTEGER) == sizeof(uint64_t),
+		"unexpectedly large integer");
+
+	LARGE_INTEGER result;
+
+	if (!QueryPerformanceCounter(&result)) {
+		fputs("Error calling QueryPerformanceCounter\n", stderr);
+		abort();
+	}
+
+	return result.QuadPart;
 #else
-#error todo
+#error unable to use monotonic clock
 #endif
 }
 
@@ -170,6 +188,18 @@ static attribute(constructor) void
 init_timebase(void)
 {
 	if (mach_timebase_info(&timebase_info) != KERN_SUCCESS)
+		abort();
+}
+
+#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER) \
+	&& defined(TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE)
+
+static LARGE_INTEGER pcounter_frequency;
+
+static attribute(constructor) void
+init_timebase(void)
+{
+	if (!QueryPerformanceFrequency(&pcounter_frequency))
 		abort();
 }
 
@@ -205,8 +235,21 @@ xseconds_since(taltos_systime some_time_ago)
 	}
 	now.tv_nsec -= some_time_ago.tv_nsec;
 	return now.tv_sec * 100 + now.tv_nsec / 10000000;
+
+#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
+
+
+#ifndef TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE
+	LARGE_INTEGER pcounter_frequency;
+
+	if (!QueryPerformanceFrequency(&pcounter_frequency))
+		abort();
+#endif
+
+	return (xnow() - some_time_ago) / pcounter_frequency.QuadPart;
+
 #else
-#error todo
+#error unable to use monotonic clock
 #endif
 }
 

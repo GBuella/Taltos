@@ -89,6 +89,11 @@ if(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM
   endif()
 endif()
 
+# hack: this gets rid of some declarations in Visual C++ headers
+if (MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC__")
+endif()
+
 configure_file(cmake/config.h.in taltos_config.h)
 
 TARGET_LINK_LIBRARIES(taltos ${CMAKE_THREAD_LIBS_INIT})
