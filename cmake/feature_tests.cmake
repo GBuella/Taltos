@@ -11,14 +11,46 @@ check_c_compiler_flag(-pedantic HAS_PEDANTIC)
 check_c_compiler_flag(-march=native HAS_MARCHNATIVE)
 check_c_compiler_flag(-Wunknown-attributes HAS_WUNKNOWN_ATTR_FLAG)
 check_c_compiler_flag(-Wattributes HAS_WATTR_FLAG)
+check_c_compiler_flag(-mavx HAS_MAVX_FLAG)
+check_c_compiler_flag(-mavx2 HAS_MAVX2_FLAG)
 
-
-if (HAS_MARCHNATIVE)
-#   This must be set before doing feature tests for intel intrinsics
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+if (NOT TALTOS_FORCE_NO_BUILTINS)
+    check_c_compiler_flag(/Oi HAS_OI_FLAG)
+    check_c_compiler_flag(/arch:AVX HAS_ARCH_AVX_FLAG)
+    check_c_compiler_flag(/arch:AVX2 HAS_ARCH_AVX2_FLAG)
 endif()
 
 
+# These must be set before doing feature tests for intrinsics
+if (HAS_MARCHNATIVE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+endif()
+
+if (HAS_OI_FLAG)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Oi")
+endif()
+
+if (TALTOS_FORCE_NO_AVX)
+    set(TALTOS_FORCE_NO_AVX2 ON)
+endif()
+
+if (TALTOS_FORCE_AVX2)
+    if (HAS_MAVX2_FLAG)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2")
+    endif()
+    if (HAS_ARCH_AVX2_FLAG)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2")
+    endif()
+else()
+    if (TALTOS_FORCE_AVX)
+        if (HAS_MAVX_FLAG)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
+        endif()
+        if (HAS_ARCH_AVX_FLAG)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX")
+        endif()
+    endif()
+endif()
 
 # fstat or GetFileSizeEx is used to find out the size of a file
 CHECK_INCLUDE_FILES(sys/stat.h TALTOS_CAN_USE_SYS_STAT_H)

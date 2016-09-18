@@ -1,4 +1,6 @@
 
+if (NOT TALTOS_FORCE_NO_BUILTINS)
+
 # Intel intrinsics
 # https://software.intel.com/sites/landingpage/IntrinsicsGuide
 
@@ -120,6 +122,10 @@ int main() {}
 "
  TALTOS_CAN_USE_INTEL_SHUFFLE_EPI32)
 
+if (TALTOS_FORCE_AVX)
+    set(TALTOS_CAN_USE_INTEL_AVX ON)
+else()
+if (NOT TALTOS_FORCE_NO_AVX)
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256d something(__m256d x) { return _mm256_permute_pd(x, 6); }
@@ -127,7 +133,13 @@ __m256d other(__m256d x) { return _mm256_permute2f128_pd(x, x, 1); }
 int main() {}
 "
  TALTOS_CAN_USE_INTEL_AVX)
+endif()
+endif()
 
+if (TALTOS_FORCE_AVX2)
+    set(TALTOS_CAN_USE_INTEL_AVX2 ON)
+else()
+if (NOT TALTOS_FORCE_NO_AVX2)
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256i something(__m256i x) { return _mm256_shuffle_epi8(x, x); }
@@ -135,14 +147,10 @@ __m256d other(__m256d x) { return _mm256_permute4x64_pd(x, 13); }
 int main() {}
 "
  TALTOS_CAN_USE_INTEL_AVX2)
-
-CHECK_C_SOURCE_COMPILES("
-#include <immintrin.h>
-__m512d something(__m512d x) { return _mm512_permutexvar_pd(x, 13); }
-int main() {}
-"
- TALTOS_CAN_USE_INTEL_AVX512)
+endif()
+endif()
 
 # endif TALTOS_CAN_USE_IMMINTRIN_H
 endif()
 
+endif()
