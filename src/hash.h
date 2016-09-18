@@ -262,8 +262,12 @@ ht_entry ht_lookup_deep(const struct hash_table*, const struct position*,
 			int depth, int beta)
 	attribute(nonnull);
 
+#ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 void ht_prefetch(const struct hash_table*, uint64_t hash_key)
 	attribute(nonnull);
+#else
+#define ht_prefetch(...)
+#endif
 
 size_t ht_slot_count(const struct hash_table*)
 	attribute(nonnull);

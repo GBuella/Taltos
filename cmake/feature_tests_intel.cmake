@@ -115,6 +115,13 @@ int main() {}
 
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
+__m128i something(__m128i x) { return _mm_shuffle_epi32(x, 1); }
+int main() {}
+"
+ TALTOS_CAN_USE_INTEL_SHUFFLE_EPI32)
+
+CHECK_C_SOURCE_COMPILES("
+#include <immintrin.h>
 __m256d something(__m256d x) { return _mm256_permute_pd(x, 6); }
 __m256d other(__m256d x) { return _mm256_permute2f128_pd(x, x, 1); }
 int main() {}

@@ -158,11 +158,13 @@ ht_destroy(struct hash_table *ht)
 	}
 }
 
+#ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 void
 ht_prefetch(const struct hash_table *ht, uint64_t hash)
 {
 	prefetch(ht->table + (hash % ht->bucket_count));
 }
+#endif
 
 static bool
 hash_match(const struct slot *slot, const uint64_t hash[static 2])

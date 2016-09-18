@@ -14,6 +14,9 @@ option(USE_KNIGHT_LOOKUP_TABLE "lookup table for knight moves" ON)
 option(USE_GLOBAL_REGISTERS "Store some values in some XMM / YMM registers" OFF)
 option(TALTOS_BUILD_WITHOUT_TESTS
        "exclude some tests that would otherwise be compiled into the executable" OFF)
+option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
+option(TALTOS_FORCE_NO_AVX "Do not use AVX builtin intrinsics" OFF)
+option(TALTOS_FORCE_NO_AVX2 "Do not use AVX2 builtin intrinsics" OFF)
 
 # with GCC, C_EXTENSIONS OFF does not actually disable
 # all C language extensions, but only a few that are not

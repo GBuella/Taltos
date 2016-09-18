@@ -17,44 +17,29 @@
 #include "chess.h"
 #include "hash.h"
 
+void setup_registers(void);
+
 #ifdef POSITION_ALIGN_64
 enum { pos_alignment = 64 };
 #else
 enum { pos_alignment = alignof(max_align_t) };
 #endif
 
+/*
+ * PIECE_ARRAY_SIZE - the length of an array that contains one item
+ * for each player, followed by one for piece type of each player.
+ * At index 0 is an item corresponding to the player next to move,
+ * while at index 1 is the similar item corresponding to the opponent.
+ * At indices 2, 4, 6, 8, 10, 12 are items corresponding to the players
+ * pieces, and at odd indices starting at three are the opponent's items.
+ * Such an array can be indexed by an index representing a player ( 0 or 1),
+ * or by a piece, e.g. postion.map[pawn] is the map of pawns,
+ * position.map[pawn + 1] == position.map[opponent_pawn] is the map of the
+ * opponent's pawns.
+ */
 #define PIECE_ARRAY_SIZE 14
 
-void setup_registers(void);
-
-struct position {
-#ifdef POSITION_ALIGN_64
-	alignas(64)
-#endif
-	char board[64];
-
-	uint64_t king_attack_map;
-	uint64_t rpin_map;
-	uint64_t bpin_map;
-	uint64_t ep_index;
-
-	uint64_t occupied;
-	uint64_t king_index;
-
-	uint64_t attack[PIECE_ARRAY_SIZE];
-	uint64_t sliding_attacks[2]; // get rid of this?
-	uint64_t map[PIECE_ARRAY_SIZE];
-	uint64_t zhash[2];
-	int8_t cr_king_side;
-	int8_t cr_queen_side;
-	int8_t cr_padding0[2];
-	int32_t material_value;
-	int8_t cr_opponent_king_side;
-	int8_t cr_opponent_queen_side;
-	int8_t cr_padding1[2];
-	int32_t opponent_material_value;
-};
-
+// make sure the piece emumeration values can be used for indexing such an array
 static_assert(pawn >= 2 && pawn < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(king >= 2 && king < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(knight >= 2 && knight < PIECE_ARRAY_SIZE, "invalid enum");
@@ -62,6 +47,106 @@ static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
 
+struct position {
+#ifdef POSITION_ALIGN_64
+	alignas(64)
+#endif
+	char board[64];
+
+	/*
+	 * In case the player to move is in check:
+	 * A bitboard of all pieces that attack the king, and the squares of any
+	 * sliding attack between the king and the attacking rook/queen/bishop.
+	 * These extra squares are valid move destinations for blocking the
+	 * attack, thus moving out of check. E.g. a rook attacking the king:
+	 *
+	 *    ........
+	 *    ..r..K..
+	 *    ........
+	 *
+	 *  The corresponding part of the king_attack_map:
+	 *
+	 *    ........
+	 *    ..XXX...
+	 *    ........
+	 */
+	uint64_t king_attack_map;
+
+	// Pins by opponents rooks or queens
+	uint64_t rpin_map;
+
+	// Pins by opponents bishops or queens
+	uint64_t bpin_map;
+
+	/*
+	 * Index of a pawn that can be captured en passant.
+	 * If there is no such pawn, ep_index is zero.
+	 */
+	uint64_t ep_index;
+
+	// A bitboard of all pieces
+	uint64_t occupied;
+
+	// The square of the king belonging to the player to move
+	uint64_t king_index;
+
+	/*
+	 * The bitboards attack[0] and attack[1] contain maps all squares
+	 * attack by each side. Attack maps of each piece type for each side
+	 * start from attack[2] --- to be indexed by piece type.
+	 */
+	uint64_t attack[PIECE_ARRAY_SIZE];
+
+	/*
+	 * All sliding attacks ( attacks by bishop, rook, or queen ) of
+	 * each player.
+	 */
+	uint64_t sliding_attacks[2];
+
+	/*
+	 * The map[0] and map[1] bitboards contain maps of each players
+	 * pieces, the rest contain maps of individual pieces.
+	 */
+	uint64_t map[PIECE_ARRAY_SIZE];
+
+	/*
+	 * The following four 64 bit contain two symmetric pairs, that can be
+	 * swapped in make_move, as in:
+	 *
+	 * new->zhash[0] = old->zhash[1]
+	 * new->zhash[1] = old->zhash[0]
+	 * new->cr_and_material[0] = old->cr_and_material[1]
+	 * new->cr_and_material[1] = old->cr_and_material[0]
+	 */
+
+	/*
+	 * The zobrist hash key of the position is in zhash[0], while
+	 * the key from the opponent's point of view is in zhash[1].
+	 * During make_move these two are exchanged with each, and both
+	 * are updated. This way, there is no need for information on the
+	 * current side to move in the hash - actually in the whole
+	 * position structure - and can recognize transpositions that
+	 * appear with opposite players.
+	 */
+	uint64_t zhash[2];
+
+	/*
+	 * Two booleans corresponding to castling rights, and the sum of piece
+	 * values - updated on each move - stored for one playes in 64 bits.
+	 * The next 64 bits answer the same questions about the opposing side.
+	 */
+	int8_t cr_king_side;
+	int8_t cr_queen_side;
+	int8_t cr_padding0[2];
+	int32_t material_value;
+
+	int8_t cr_opponent_king_side;
+	int8_t cr_opponent_queen_side;
+	int8_t cr_padding1[2];
+	int32_t opponent_material_value;
+};
+
+
 
 static inline void
 pos_add_piece(struct position *p, int i, int piece)

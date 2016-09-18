@@ -17,7 +17,7 @@ enum {
 	queen_value = 900
 };
 
-static inline int
+static inline bool
 value_bounds(int value)
 {
 	return value >= -max_value && value <= max_value;
