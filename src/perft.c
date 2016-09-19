@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,10 +29,10 @@ struct divide_info {
 	bool is_ordered;
 };
 
-static unsigned long
+static uintmax_t
 do_qperft(const struct position *pos, unsigned depth)
 {
-	unsigned long n = 0;
+	uintmax_t n = 0;
 	move moves[MOVE_ARRAY_LENGTH];
 	struct position child[1];
 
@@ -47,10 +48,10 @@ do_qperft(const struct position *pos, unsigned depth)
 	return n;
 }
 
-static unsigned long
+static uintmax_t
 do_perft(const struct position *pos, unsigned depth)
 {
-	unsigned long n;
+	uintmax_t n;
 	move moves[MOVE_ARRAY_LENGTH];
 	struct position child[1];
 
@@ -65,7 +66,7 @@ do_perft(const struct position *pos, unsigned depth)
 	return n;
 }
 
-unsigned long
+uintmax_t
 perft(const struct position *pos, unsigned depth)
 {
 	assert(depth <= MAX_PLY);
@@ -73,7 +74,7 @@ perft(const struct position *pos, unsigned depth)
 	return do_perft(pos, depth);
 }
 
-unsigned long
+uintmax_t
 qperft(const struct position *pos, unsigned depth)
 {
 	assert(depth <= MAX_PLY);
@@ -82,11 +83,11 @@ qperft(const struct position *pos, unsigned depth)
 }
 
 
-static unsigned long
+static uintmax_t
 do_perft_ordered(const struct position *pos, unsigned depth)
 {
 	struct move_fsm move_order[1];
-	unsigned long n;
+	uintmax_t n;
 	struct position child[1];
 
 	if (depth == 0)
@@ -112,7 +113,7 @@ do_perft_ordered(const struct position *pos, unsigned depth)
 	return n;
 }
 
-unsigned long
+uintmax_t
 perft_ordered(const struct position *pos, unsigned depth)
 {
 	setup_registers();
@@ -145,7 +146,7 @@ divide(struct divide_info *dinfo, enum move_notation_type mn)
 		return NULL;
 
 	struct position t;
-	unsigned long n;
+	uintmax_t n;
 
 	char *str;
 
@@ -158,7 +159,7 @@ divide(struct divide_info *dinfo, enum move_notation_type mn)
 	else {
 		n = qperft(&t, dinfo->depth - 1);
 	}
-	(void) sprintf(str, " %lu", n);
+	(void) sprintf(str, " %" PRIuMAX, n);
 	++dinfo->m;
 	return dinfo->str;
 }

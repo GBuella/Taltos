@@ -488,19 +488,20 @@ get_uint(unsigned min, unsigned max)
 static void
 cmd_perft(void)
 {
-	printf("%lu\n", perft(current_position(), get_uint(1, 1024)));
+	printf("%" PRIuMAX "\n", perft(current_position(), get_uint(1, 1024)));
 }
 
 static void
 cmd_perfto(void)
 {
-	printf("%lu\n", perft_ordered(current_position(), get_uint(1, 1024)));
+	printf("%" PRIuMAX "\n", perft_ordered(current_position(),
+	    get_uint(1, 1024)));
 }
 
 static void
 cmd_qperft(void)
 {
-	printf("%lu\n", qperft(current_position(), get_uint(1, 1024)));
+	printf("%" PRIuMAX "\n", qperft(current_position(), get_uint(1, 1024)));
 }
 
 static void
@@ -510,8 +511,8 @@ cmd_perfts(void)
 
 	depth = get_uint(1, 1024);
 	for (unsigned i = 1; i <= depth; ++i) {
-		unsigned long n = perft(current_position(), i);
-		printf("%s%u : %ld\n", (i < 10) ? " " : "", i, n);
+		uintmax_t n = perft(current_position(), i);
+		printf("%s%u : %" PRIuMAX "\n", (i < 10) ? " " : "", i, n);
 	}
 }
 

@@ -5,17 +5,19 @@
 #ifndef TALTOS_PERFT_H
 #define TALTOS_PERFT_H
 
+#include <stdint.h>
+
 #include "chess.h"
 
 struct divide_info;
 
-unsigned long perft(const struct position*, unsigned depth)
+uintmax_t perft(const struct position*, unsigned depth)
 	attribute(nonnull);
-unsigned long qperft(const struct position*, unsigned depth)
+uintmax_t qperft(const struct position*, unsigned depth)
 	attribute(nonnull);
-unsigned long perft_ordered(const struct position*, unsigned depth)
+uintmax_t perft_ordered(const struct position*, unsigned depth)
 	attribute(nonnull);
-unsigned long perft_distinct(const struct position*, unsigned depth)
+uintmax_t perft_distinct(const struct position*, unsigned depth)
 	attribute(nonnull);
 struct divide_info*
 divide_init(const struct position*, unsigned depth, enum player, bool ordered)
