@@ -18,7 +18,6 @@ const int piece_value[14] = {
 };
 
 enum {
-	mobility_value = 4,
 	rook_on_open_file = 16,
 	rook_on_half_open_file = 18,
 	rook_pair = 10,
@@ -43,22 +42,45 @@ enum {
 static int
 basic_mobility(const struct position *pos)
 {
-	int value =
-	    (popcnt(pos->attack[rook]) - popcnt(pos->attack[opponent_rook])
-	    + popcnt(pos->attack[bishop]) - popcnt(pos->attack[opponent_bishop])
-	    + popcnt(pos->attack[knight]) - popcnt(pos->attack[opponent_knight])
-	    + popcnt(pos->attack[queen]) - popcnt(pos->attack[opponent_queen]));
-	value += popcnt(pos->attack[queen] & ~pos->attack[1])
-	    - popcnt(pos->attack[opponent_queen] & ~pos->attack[0]);
-	value += mobility_value *
-	    (popcnt(pos->attack[rook] & ~pos->attack[opponent_pawn])
-	    - popcnt(pos->attack[opponent_rook] & ~pos->attack[pawn])
-	    + popcnt(pos->attack[bishop] & ~pos->attack[opponent_pawn])
-	    - popcnt(pos->attack[opponent_bishop] & ~pos->attack[pawn])
-	    + popcnt(pos->attack[knight] & ~pos->attack[opponent_pawn])
-	    - popcnt(pos->attack[opponent_knight] & ~pos->attack[pawn])
-	    + popcnt(pos->attack[queen] & ~pos->attack[opponent_pawn])
-	    - popcnt(pos->attack[opponent_queen] & ~pos->attack[pawn]));
+	int value = 0;
+
+	/*
+	 * One centipawn for each square reachable by any piece
+	 * other than pawns.
+	 */
+	value += popcnt(pos->attack[0]);
+	value -= popcnt(pos->attack[1]);
+
+	/*
+	 * One more centipawn for each empty square - not attacked by other
+	 * players pawn - reachable by any piece, other than by pawn.
+	 */
+	value += popcnt(pos->attack[0]
+	    & ~(pos->occupied | pos->attack[opponent_pawn]));
+
+	value -= popcnt(pos->attack[1]
+	    & ~(pos->occupied | pos->attack[pawn]));
+
+	/*
+	 * Two more centipawn for each empty square reachable by any piece
+	 * other than pawns, that are not attacked by the other player.
+	 * ( One point in case of king )
+	 */
+
+	uint64_t dst = ~(pos->occupied | pos->attack[1]);
+	value += 2 * popcnt(pos->attack[queen] & dst);
+	value += 2 * popcnt(pos->attack[rook] & dst);
+	value += 2 * popcnt(pos->attack[bishop] & dst);
+	value += 2 * popcnt(pos->attack[knight] & dst);
+	value += popcnt(pos->attack[king] & dst);
+
+	dst = ~(pos->occupied | pos->attack[0]);
+	value -= 2 * popcnt(pos->attack[opponent_queen] & dst);
+	value -= 2 * popcnt(pos->attack[opponent_rook] & dst);
+	value -= 2 * popcnt(pos->attack[opponent_bishop] & dst);
+	value -= 2 * popcnt(pos->attack[opponent_knight] & dst);
+	value -= popcnt(pos->attack[opponent_king] & dst);
+
 	return value;
 }
 
@@ -84,6 +106,10 @@ king_fortress(const struct position *pos)
 {
 	int value = 0;
 	if (is_nonempty(pos->map[king] & (RANK_1|RANK_2))) {
+		/*
+		 * Bonus for castled king to encourage castling,
+		 * or at least not losing castling rights.
+		 */
 		if (is_nonempty(pos->map[king] & (SQ_G1|SQ_H1))
 		    && pos->board[sq_h1] != rook)
 			value += castled_king;
@@ -93,22 +119,36 @@ king_fortress(const struct position *pos)
 		else
 			value += pos->cr_king_side + pos->cr_queen_side;
 
+		/* Count pawns around the king */
 		uint64_t pawns = pos->attack[king] & pos->map[pawn];
 		value += (kings_pawn / 2) * popcnt(pawns);
 		value += kings_pawn * popcnt(pawns & ~pos->attack[1]);
+
+		/*
+		 * Penalty for squares around the king being attacked by
+		 * other player
+		 */
 		value += king_ring_sliding_attacked *
 		    popcnt(pos->attack[king] & pos->sliding_attacks[1]);
 		value += king_ring_sliding_attacked *
 		    popcnt(pos->attack[king] & pos->attack[opponent_queen]);
 
+		/* shield - up to three squares in front of the king */
 		uint64_t shield = north_of(pos->map[king])
 		    | north_of(west_of(pos->map[king] & ~FILE_H))
 		    | north_of(east_of(pos->map[king] & ~FILE_A));
 
+		// Penalty for not having any pawn on a file around the king
 		value -= popcnt(shield & pos->half_open_files[0]);
+
+		/*
+		 * Even more bonus for having a pawn in front of the king,
+		 * vs. just left or right to the king.
+		 */
 		pawns = north_of(shield) & pos->map[pawn];
-		value += kings_pawn * popcnt(pawns & ~pos->attack[1]);
+		value += kings_pawn * popcnt(pawns);
 	}
+
 	if (is_nonempty(pos->map[opponent_king] & (RANK_8|RANK_7))) {
 		if (is_nonempty(pos->map[opponent_king] & (SQ_G8|SQ_H8))
 		    && pos->board[sq_h8] != rook)
@@ -135,7 +175,7 @@ king_fortress(const struct position *pos)
 
 		value += popcnt(shield & pos->half_open_files[1]);
 		pawns = south_of(shield) & pos->map[opponent_pawn];
-		value -= kings_pawn * popcnt(pawns & ~pos->attack[0]);
+		value -= kings_pawn * popcnt(pawns);
 	}
 
 	return value;
