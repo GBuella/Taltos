@@ -110,6 +110,55 @@ struct position {
 	uint64_t map[PIECE_ARRAY_SIZE];
 
 	/*
+	 * Each square of every file left half open by players pawns,
+	 * i.e. where player has no pawn, and another bitboard for
+	 * those files where the opponent has no pawns.
+	 */
+	uint64_t half_open_files[2];
+
+	/*
+	 * Each square that can be attacked by pawns, if they are pushed
+	 * forward, per player.
+	 */
+	uint64_t pawn_attack_reach[2];
+
+	/*
+	 * Thus given a bitboard of a players pawns:
+	 *
+	 * ........
+	 * ........
+	 * .......1
+	 * ........
+	 * ..11....
+	 * .....1..
+	 * 1.......
+	 * ........
+	 *
+	 * half_open_files:
+	 *
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 * .1....1.
+	 *
+	 * pawn_attack_reach:
+	 *
+	 * .1111.1.
+	 * .1111.1.
+	 * .1111.1.
+	 * .1111.1.
+	 * .1..1.1.
+	 * .1......
+	 * ........
+	 * ........
+	 */
+
+
+	/*
 	 * The following four 64 bit contain two symmetric pairs, that can be
 	 * swapped in make_move, as in:
 	 *
@@ -145,6 +194,16 @@ struct position {
 	int8_t cr_padding1[2];
 	int32_t opponent_material_value;
 };
+
+static_assert(offsetof(struct position, opponent_material_value) +
+	sizeof(((struct position*)NULL)->opponent_material_value) -
+	offsetof(struct position, cr_king_side) == 16,
+	"struct position layout error");
+
+static_assert(offsetof(struct position, opponent_material_value) +
+	sizeof(((struct position*)NULL)->opponent_material_value) -
+	offsetof(struct position, zhash) == 32,
+	"struct position layout error");
 
 
 

@@ -20,7 +20,7 @@ const int piece_value[14] = {
 enum {
 	mobility_value = 4,
 	rook_on_open_file = 16,
-	rook_on_semi_open_file = 18,
+	rook_on_half_open_file = 18,
 	rook_pair = 10,
 	pawn_on_center = 2,
 	pawn_attacks_center = 3,
@@ -80,12 +80,8 @@ middle_game(const struct position *pos)
 }
 
 static int
-king_fortress(const struct position *pos,
-		uint64_t semi_open_files,
-		uint64_t semi_open_files_opp)
+king_fortress(const struct position *pos)
 {
-	(void) semi_open_files;
-	(void) semi_open_files_opp;
 	int value = 0;
 	if (is_nonempty(pos->map[king] & (RANK_1|RANK_2))) {
 		if (is_nonempty(pos->map[king] & (SQ_G1|SQ_H1))
@@ -109,7 +105,7 @@ king_fortress(const struct position *pos,
 		    | north_of(west_of(pos->map[king] & ~FILE_H))
 		    | north_of(east_of(pos->map[king] & ~FILE_A));
 
-		value -= popcnt(shield & semi_open_files);
+		value -= popcnt(shield & pos->half_open_files[0]);
 		pawns = north_of(shield) & pos->map[pawn];
 		value += kings_pawn * popcnt(pawns & ~pos->attack[1]);
 	}
@@ -137,7 +133,7 @@ king_fortress(const struct position *pos,
 		    | south_of(west_of(pos->map[opponent_king] & ~FILE_H))
 		    | south_of(east_of(pos->map[opponent_king] & ~FILE_A));
 
-		value += popcnt(shield & semi_open_files_opp);
+		value += popcnt(shield & pos->half_open_files[1]);
 		pawns = south_of(shield) & pos->map[opponent_pawn];
 		value -= kings_pawn * popcnt(pawns & ~pos->attack[0]);
 	}
@@ -176,12 +172,10 @@ center_control(const struct position *pos)
 }
 
 static int
-rook_placement(const struct position *pos,
-		uint64_t semi_open_files,
-		uint64_t semi_open_files_opp)
+rook_placement(const struct position *pos)
 {
 	int value;
-	uint64_t open_files = semi_open_files & semi_open_files_opp;
+	uint64_t open_files = pos->half_open_files[0] & pos->half_open_files[1];
 
 	value = popcnt(open_files & pos->map[rook]);
 	value -= popcnt(open_files & pos->map[opponent_rook]);
@@ -190,23 +184,21 @@ rook_placement(const struct position *pos,
 	value += popcnt(open_files & pos->map[rook]);
 	value -= popcnt(open_files & pos->map[opponent_rook]);
 
-	value += rook_on_semi_open_file *
-	    (popcnt(semi_open_files & pos->map[rook])
-	    - popcnt(semi_open_files_opp & pos->map[opponent_rook]));
+	value += rook_on_half_open_file *
+	    (popcnt(pos->half_open_files[0] & pos->map[rook])
+	    - popcnt(pos->half_open_files[1] & pos->map[opponent_rook]));
 	value += rook_pair *
-	    (popcnt(semi_open_files & pos->map[rook]
+	    (popcnt(pos->half_open_files[0] & pos->map[rook]
 	    & south_of(kogge_stone_south(pos->map[rook]))));
 	value -= rook_pair *
-	    (popcnt(semi_open_files_opp & pos->map[opponent_rook]
+	    (popcnt(pos->half_open_files[1] & pos->map[opponent_rook]
 	    & south_of(kogge_stone_south(pos->map[opponent_rook]))));
 
 	return value;
 }
 
 static int
-pawn_structure(const struct position *pos,
-		uint64_t semi_open_files,
-		uint64_t semi_open_files_opp)
+pawn_structure(const struct position *pos)
 {
 	int value;
 
@@ -215,15 +207,17 @@ pawn_structure(const struct position *pos,
 	    - popcnt(pos->map[opponent_pawn] & pos->attack[opponent_pawn]));
 
 	value += isolated_pawn *
-	    popcnt(pos->map[pawn] & east_of(semi_open_files & ~FILE_H));
+	    popcnt(pos->map[pawn]
+	    & east_of(pos->half_open_files[0] & ~FILE_H));
 	value += isolated_pawn *
-	    popcnt(pos->map[pawn] & west_of(semi_open_files & ~FILE_A));
+	    popcnt(pos->map[pawn]
+	    & west_of(pos->half_open_files[0] & ~FILE_A));
 	value -= isolated_pawn *
 	    popcnt(pos->map[opponent_pawn]
-	    & east_of(semi_open_files_opp & ~FILE_H));
+	    & east_of(pos->half_open_files[1] & ~FILE_H));
 	value -= isolated_pawn *
 	    popcnt(pos->map[opponent_pawn]
-	    & west_of(semi_open_files_opp & ~FILE_A));
+	    & west_of(pos->half_open_files[1] & ~FILE_A));
 
 	value += blocked_pawn *
 	    (popcnt(north_of(pos->map[pawn]) & pos->map[1])
@@ -242,24 +236,19 @@ knight_placement(const struct position *pos)
 	int value = 0;
 	uint64_t outpost = pos->map[knight];
 	uint64_t opponent_outpost = pos->map[opponent_knight];
-	uint64_t pawn_reach;
-
-	outpost &= pos->attack[pawn] & ~EDGES;
-	opponent_outpost &= pos->attack[opponent_pawn] & ~EDGES;
-	pawn_reach = kogge_stone_south(south_of(pos->map[opponent_pawn]));
-	outpost &= ~east_of(pawn_reach);
-	outpost &= ~west_of(pawn_reach);
-	pawn_reach = kogge_stone_north(north_of(pos->map[pawn]));
-	opponent_outpost &= ~east_of(pawn_reach);
-	opponent_outpost &= ~west_of(pawn_reach);
-
-	value += knight_center *
-	    (popcnt(outpost & ~CENTER4_SQ)
-	    - popcnt(opponent_outpost & ~CENTER4_SQ));
 
 	outpost &= pos->attack[pawn];
 	opponent_outpost &= pos->attack[opponent_pawn];
-	value += knight_outpost * (popcnt(outpost) - popcnt(opponent_outpost));
+	outpost &= ~pos->pawn_attack_reach[1];
+	opponent_outpost &= ~pos->pawn_attack_reach[0];
+	outpost &= ~RANK_8;
+	opponent_outpost &= ~RANK_1;
+
+	value += knight_outpost * popcnt(outpost);
+	value -= knight_outpost * popcnt(opponent_outpost);
+
+	value += (knight_outpost / 2) * popcnt(outpost & CENTER4_SQ);
+	value -= (knight_outpost / 2) * popcnt(opponent_outpost & CENTER4_SQ);
 
 	return value;
 }
@@ -304,19 +293,16 @@ int
 eval(const struct position *pos)
 {
 	int value;
-	uint64_t semi_open_files = ~fill_files(pos->map[pawn]);
-	uint64_t semi_open_files_opp = ~fill_files(pos->map[opponent_pawn]);
 
 	value = pos->material_value;
 	value += basic_mobility(pos);
-	value += rook_placement(pos, semi_open_files, semi_open_files_opp);
-	value += pawn_structure(pos, semi_open_files, semi_open_files_opp);
+	value += rook_placement(pos);
+	value += pawn_structure(pos);
 	value += knight_placement(pos);
 	int mg_factor = middle_game(pos);
 	if (mg_factor != 0)
 		value += mg_factor *
-		    (center_control(pos) +
-		    king_fortress(pos, semi_open_files, semi_open_files_opp));
+		    (center_control(pos) + king_fortress(pos));
 	int eg_factor = end_game(pos);
 	value += (eg_factor + 1) * passed_pawns(pos);
 	invariant(value_bounds(value));
@@ -329,21 +315,16 @@ struct eval_factors
 compute_eval_factors(const struct position *pos)
 {
 	struct eval_factors ef;
-	uint64_t semi_open_files = ~fill_files(pos->map[pawn]);
-	uint64_t semi_open_files_opp = ~fill_files(pos->map[opponent_pawn]);
 
 	ef.material = pos->material_value;
 	ef.basic_mobility = basic_mobility(pos);
 	ef.end_game = end_game(pos);
 	ef.middle_game = middle_game(pos);
 	ef.center_control = center_control(pos);
-	ef.pawn_structure =
-	    pawn_structure(pos, semi_open_files, semi_open_files_opp);
+	ef.pawn_structure = pawn_structure(pos);
 	ef.passed_pawns = passed_pawns(pos);
-	ef.king_fortress =
-	    king_fortress(pos, semi_open_files, semi_open_files_opp);
-	ef.rook_placement =
-	    rook_placement(pos, semi_open_files, semi_open_files_opp);
+	ef.king_fortress = king_fortress(pos);
+	ef.rook_placement = rook_placement(pos);
 	ef.knight_placement = knight_placement(pos);
 	ef.center_control = center_control(pos);
 	return ef;

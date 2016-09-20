@@ -454,6 +454,29 @@ generate_opponent_attacks_move(struct position *pos, move m, uint64_t move_map)
 }
 
 
+// Generate the pawn_attack_reach, and half_open_files bitboards
+
+static void
+generate_pawn_reach_maps(struct position *pos)
+{
+	uint64_t reach = kogge_stone_north(north_of(pos->map[pawn]));
+
+	pos->half_open_files[0] = ~kogge_stone_south(reach);
+	pos->pawn_attack_reach[0] = (west_of(reach) & ~FILE_H) |
+	    (east_of(reach) & ~FILE_A);
+}
+
+static void
+generate_opponent_pawn_reach_maps(struct position *pos)
+{
+	uint64_t reach = kogge_stone_south(south_of(pos->map[opponent_pawn]));
+
+	pos->half_open_files[1] = ~kogge_stone_north(reach);
+	pos->pawn_attack_reach[1] = (west_of(reach) & ~FILE_H) |
+	    (east_of(reach) & ~FILE_A);
+}
+
+
 /*
  * Utility functions used in setting up a new position from scratch
  * non performance critical.
@@ -521,6 +544,8 @@ position_reset(struct position *pos,
 	if (!castle_rights_valid(pos))
 		return -1;
 	generate_attack_maps(pos);
+	generate_pawn_reach_maps(pos);
+	generate_opponent_pawn_reach_maps(pos);
 	setup_zhash(pos);
 	return 0;
 }
@@ -818,7 +843,7 @@ flip_board(struct position *restrict dst,
  * .
  * uint64_t map[13];
  *
- * This should amount to 28 bitboards, 14 pairs of bitboards.
+ * This should amount to 32 bitboards, 14 pairs of bitboards.
  * Each pair is a 128 bit value, that can be handle with some SSE
  * instructions.
  * Alternatively, each 256 wide quadruplet ( 7 of them ) of bitboards
@@ -826,6 +851,8 @@ flip_board(struct position *restrict dst,
  *
  * Note, thath attack[0] and attack[1] are not treated here.
  */
+
+#define FLIP_COUNT 32
 
 // make sure these follow each other
 static_assert(offsetof(struct position, sliding_attacks) ==
@@ -836,13 +863,17 @@ static_assert(offsetof(struct position, map) ==
 	offsetof(struct position, sliding_attacks) + 2 * sizeof(uint64_t),
 	"Invalid struct position");
 
-// surely, this is expected to consist of 28 bitboards
+// This is expected to consist of FLIP_COUNT bitboards
 static_assert(
-	offsetof(struct position, map) + sizeof(((struct position*)NULL)->map) -
-	offsetof(struct position, attack)
-	- 2 * sizeof(uint64_t) // exclude 2 bitboards: attack[0] and attack[1]
+	offsetof(struct position, pawn_attack_reach) +
+		sizeof(((struct position*)NULL)->pawn_attack_reach) -
+
+	// exclude 2 bitboards: attack[0] and attack[1]
+	offsetof(struct position, attack) - 2 * sizeof(uint64_t)
+
 	==
-	28 * sizeof(uint64_t),
+
+	FLIP_COUNT * sizeof(uint64_t),
 	"Invalid struct position");
 
 #ifdef TALTOS_CAN_USE_INTEL_AVX2
@@ -859,7 +890,7 @@ flip_piece_maps(struct position *restrict dst,
 	const __m256i *restrict src32 = (const __m256i*)(src->attack + 2);
 	__m256i *restrict dst32 = (__m256i*)(dst->attack + 2);
 
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < (FLIP_COUNT / 4); ++i) {
 #ifdef HAS_XMM_SHUFFLE_CONTROL_MASK_32
 		__asm__ volatile
 		    ("vpshufb %%ymm6, %1, %0"
@@ -885,7 +916,7 @@ flip_piece_maps(struct position *restrict dst,
 	__m128i attribute(align_value(16)) *restrict dst16
 	    = (__m128i*)(dst->attack + 2);
 
-	for (int i = 0; i < 14; ++i) {
+	for (int i = 0; i < (FLIP_COUNT / 2); ++i) {
 #ifdef HAS_XMM_SHUFFLE_CONTROL_MASK_16
 		__asm__ volatile
 		    ("vpshufb %%xmm6, %1, %0"
@@ -914,6 +945,10 @@ flip_piece_maps(struct position *restrict dst,
 		dst->map[i] = bswap(src->map[i + 1]);
 		dst->map[i + 1] = bswap(src->map[i]);
 	}
+	dst->half_open_files[0] = bswap(src->half_open_files[1]);
+	dst->half_open_files[1] = bswap(src->half_open_files[0]);
+	dst->pawn_attack_reach[0] = bswap(src->pawn_attack_reach[1]);
+	dst->pawn_attack_reach[1] = bswap(src->pawn_attack_reach[0]);
 }
 
 #endif
@@ -1187,13 +1222,18 @@ make_move(struct position *restrict dst,
 		dst->king_index = bsf(dst->map[king]);
 		move_pawn(dst, m);
 		search_pawn_king_attacks(dst);
+		generate_opponent_pawn_reach_maps(dst);
 	}
 	else {
 		move_piece(dst, m);
 		adjust_castle_rights_move(dst, m);
 		dst->king_index = bsf(dst->map[king]);
 		search_knight_king_attacks(dst);
+		if (is_promotion(m))
+			generate_opponent_pawn_reach_maps(dst);
 	}
+	if (mcapturedp(m) == pawn)
+		generate_pawn_reach_maps(dst);
 	dst->occupied = dst->map[0] | dst->map[1];
 	dst->opponent_material_value = -dst->material_value;
 	search_bishop_king_attacks(dst);
