@@ -246,7 +246,7 @@ xseconds_since(taltos_systime some_time_ago)
 		abort();
 #endif
 
-	return (xnow() - some_time_ago) / pcounter_frequency.QuadPart;
+	return (xnow() - some_time_ago) / (pcounter_frequency.QuadPart / 100);
 
 #else
 #error unable to use monotonic clock
