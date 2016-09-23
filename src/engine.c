@@ -216,7 +216,7 @@ static int (*thinking_cb)(uintmax_t);
 static uintmax_t thinking_cb_arg;
 
 // Used to keep track of when the current thinking started.
-static uintmax_t thinking_started;
+static taltos_systime thinking_started;
 
 static void (*show_thinking_cb)(const struct engine_result);
 static unsigned thread_count = 1;
