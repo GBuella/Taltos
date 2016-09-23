@@ -102,7 +102,7 @@ endif()
 
 # hack: this gets rid of some declarations in Visual C++ headers
 if (MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC__")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC__ -D_CRT_SECURE_NO_DEPRECATE")
 endif()
 
 configure_file(cmake/config.h.in taltos_config.h)

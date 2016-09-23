@@ -17,26 +17,209 @@
 #include "eval.h"
 #include "taltos.h"
 #include "move_order.h"
+#include "trace.h"
 
+// global config
 static const struct taltos_conf *horse;
-static struct position history[51];
-static unsigned history_length;
-static move engine_best_move;
-static void (*thinking_cb)(void);
-static unsigned computer_time;
-static unsigned opponent_time;
-static unsigned time_inc;
-static unsigned moves_left_in_time;
-static unsigned base_computer_time;
-static unsigned base_opponent_time;
-static unsigned base_moves_per_time = 0;
-static unsigned nps = 0;
-static int depth_limit;
-static void (*show_thinking_cb)(const struct engine_result);
-static bool is_tc_secs_per_move;
-static unsigned thread_count = 1;
 
 static mtx_t engine_mutex;
+
+
+/*	Timing	*/
+
+/*
+ * Two timing modes are supported:
+ * A fix number of seconds per each move ( when is_tc_secs_per_move is true ),
+ * and conventinal clock mode.
+ * These are based on the description of the xboard level and st commands at:
+ * http://www.gnu.org/software/xboard/engine-intf.html#11
+ */
+static bool is_tc_secs_per_move;
+
+static bool time_infinite;
+
+// Starting time on each players clock
+static unsigned base_computer_time;
+
+// Time left on the computer's clock
+static unsigned computer_time;
+
+/*
+ * Time added to each player's clock after each move made by that player.
+ * Thus computer_time decreases with each move, by the time spent with
+ * thinking on that move - but also increases by time_inc each time it
+ * is the computer's turn.
+ */
+static unsigned time_inc;
+
+/*
+ * If moves_left_in_time is greater than zero, it means the clock is
+ * going to have a significant amount of time added after the specified
+ * number of moves. Thus it is a good idea to allocate
+ * 'computer_time divided by moves_left_in_time' time for the next move.
+ *
+ * If moves_left_in_time is zero, it means the game is lost when
+ * computer_time reaches zero.
+ */
+static unsigned moves_left_in_time;
+
+/*
+ * When moves_left_in_time is zero, use this default_move_divisor
+ * as a guide for dividing the game time.
+ * I.e.: if the engine has 300 seconds on its clock, and
+ * default_move_divisor is 50, then use 300/50 == 6 seconds for
+ * thinking on the next move to make.
+ */
+static const unsigned default_move_divisor = 40;
+
+/*
+ * Timing is reset after each base_moves_per_time moves.
+ * Zero is a special value, it means clocks won't be reset, the
+ * whole game must be played in the time given by starting values
+ * of clocks ( plus per-move-increments if any ).
+ */
+static unsigned base_moves_per_time = 0;
+
+/*
+ * A safety margin. Every time the time to spend on thinking on a
+ * particular move is computed, this number of centiseconds are
+ * substracted from the result. This should help avoid running out of
+ * time when something goes wrong.
+ */
+static const unsigned time_safety = 3;
+
+/*
+ * Two ways of measuring "time" are supported:
+ * The default is using a monotonic clock provided by the platform.
+ * When nps is not zero, it is interpreted as the search speed in
+ * nodes-per-second, and search time computed by dividing the node count
+ * with nps. Thus a time limit of T seconds, is essentially converted to
+ * a maximum node count of T*nps available for search.
+ */
+static unsigned nps = 0;
+
+/*
+ * If depth_limit is non-zero, the thinking stops upon reaching the specified
+ * depth, even if there is plenty time left.
+ */
+static int depth_limit = 0;
+
+void
+set_time_infinite(void)
+{
+	mtx_lock(&engine_mutex);
+	trace(__func__);
+	time_infinite = true;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_search_depth_limit(unsigned limit)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s limit = %u", __func__, limit);
+	depth_limit = limit;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_search_nps(unsigned rate)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s rate = %u", __func__, rate);
+	nps = rate;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+unset_search_depth_limit(void)
+{
+	mtx_lock(&engine_mutex);
+	trace(__func__);
+	depth_limit = 0;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_time_inc(unsigned n)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s n = %u", __func__, n);
+	stop_thinking();
+	is_tc_secs_per_move = false;
+	time_infinite = false;
+	time_inc = n;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_moves_left_in_time(unsigned n)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s n = %u", __func__, n);
+	is_tc_secs_per_move = false;
+	time_infinite = false;
+	moves_left_in_time = n;
+	base_moves_per_time = n;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_computer_clock(unsigned t)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s n = %u", __func__, t);
+	computer_time = t;
+	time_infinite = false;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_secs_per_move(unsigned t)
+{
+	mtx_lock(&engine_mutex);
+	tracef("%s n = %u", __func__, t);
+	is_tc_secs_per_move = true;
+	time_infinite = false;
+	computer_time = t * 100;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_opponent_clock(unsigned t)
+{
+	(void) t;
+	// We don't care about the other player's clock for now
+}
+
+
+/*	Threads	*/
+
+/*
+ * All positions since the last irreversible move.
+ * Needed for three-fold repetition detection.
+ */
+static struct position history[51];
+static unsigned history_length;
+
+/*
+ * The best move known by the engine in the current position.
+ * Before search, it is at least filled with the first known legal move.
+ */
+static move engine_best_move;
+
+/*
+ * When thinking is done ( on all threads ) call this function.
+ * Used by command_loop.c
+ */
+static int (*thinking_cb)(uintmax_t);
+static uintmax_t thinking_cb_arg;
+
+// Used to keep track of when the current thinking started.
+static uintmax_t thinking_started;
+
+static void (*show_thinking_cb)(const struct engine_result);
+static unsigned thread_count = 1;
 
 struct search_thread_data {
 	mtx_t mutex;
@@ -103,81 +286,9 @@ add_history_as_repetition(void)
 	}
 }
 
-void
-set_search_depth_limit(unsigned limit)
-{
-	mtx_lock(&engine_mutex);
-	depth_limit = limit;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_search_nps(unsigned rate)
-{
-	mtx_lock(&engine_mutex);
-	nps = rate;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-unset_search_depth_limit(void)
-{
-	mtx_lock(&engine_mutex);
-	depth_limit = -1;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_time_inc(unsigned n)
-{
-	mtx_lock(&engine_mutex);
-	stop_thinking();
-	is_tc_secs_per_move = false;
-	time_inc = n;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_moves_left_in_time(unsigned n)
-{
-	mtx_lock(&engine_mutex);
-	is_tc_secs_per_move = false;
-	moves_left_in_time = n;
-	base_moves_per_time = n;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_computer_clock(unsigned t)
-{
-	mtx_lock(&engine_mutex);
-	computer_time = t;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_secs_per_move(unsigned t)
-{
-	mtx_lock(&engine_mutex);
-	is_tc_secs_per_move = true;
-	computer_time = t * 100;
-	depth_limit = 0;
-	mtx_unlock(&engine_mutex);
-}
-
-void
-set_opponent_clock(unsigned t)
-{
-	mtx_lock(&engine_mutex);
-	opponent_time = t;
-	mtx_unlock(&engine_mutex);
-}
-
 static void
 join_all_threads(bool signal_stop)
 {
-	if (signal_stop)
-		mtx_lock(&engine_mutex);
 	for (unsigned i = 0; i < MAX_THREAD_COUNT; ++i) {
 		struct search_thread_data *thread = threads + i;
 		mtx_lock(&(thread->mutex));
@@ -186,7 +297,9 @@ join_all_threads(bool signal_stop)
 			if (signal_stop)
 				atomic_flag_clear(&(thread->run_flag));
 			mtx_unlock(&(thread->mutex));
+			tracef("thrd_join search thread #%u", i);
 			thrd_join(thread->thr, NULL);
+			tracef("thrd_join search thread #%u - done", i);
 			if (!signal_stop)
 				atomic_flag_clear(&(thread->run_flag));
 		}
@@ -194,20 +307,49 @@ join_all_threads(bool signal_stop)
 			mtx_unlock(&(thread->mutex));
 		}
 	}
-	if (signal_stop)
-		mtx_unlock(&engine_mutex);
 }
 
 void
 stop_thinking(void)
 {
+	trace(__func__);
 	join_all_threads(true);
 }
 
 void
 wait_thinking(void)
 {
+	trace(__func__);
 	join_all_threads(false);
+}
+
+static void
+thinking_done(void)
+{
+	trace(__func__);
+
+	bool is_valid;
+
+	mtx_lock(&engine_mutex);
+
+	if (thinking_cb != NULL)
+		is_valid = (thinking_cb(thinking_cb_arg) == 0);
+	else
+		is_valid = false;
+
+	if (is_valid && !is_tc_secs_per_move && !time_infinite) {
+		uintmax_t time_spent = xseconds_since(thinking_started);
+
+		if (time_spent > computer_time)
+			computer_time = 0;
+		else
+			computer_time -= (unsigned)time_spent;
+
+		tracef("%s time_spent = %" PRIuMAX " computer_time = %u",
+		    __func__, time_spent, computer_time);
+	}
+
+	mtx_unlock(&engine_mutex);
 }
 
 int
@@ -216,10 +358,12 @@ engine_get_best_move(move *m)
 	int result = 0;
 
 	mtx_lock(&engine_mutex);
+
 	if (engine_best_move != 0)
 		*m = engine_best_move;
 	else
 		result = -1;
+
 	mtx_unlock(&engine_mutex);
 	return result;
 }
@@ -241,7 +385,9 @@ void
 set_show_thinking(void (*cb)(const struct engine_result))
 {
 	mtx_lock(&engine_mutex);
+
 	show_thinking_cb = cb;
+
 	mtx_unlock(&engine_mutex);
 }
 
@@ -249,7 +395,9 @@ void
 set_no_show_thinking(void)
 {
 	mtx_lock(&engine_mutex);
+
 	show_thinking_cb = NULL;
+
 	mtx_unlock(&engine_mutex);
 }
 
@@ -301,12 +449,14 @@ setup_search(struct search_thread_data *thread)
 static int
 iterative_deepening(void *arg)
 {
+	trace(__func__);
 	assert(arg != NULL);
 
 	struct engine_result engine_result;
 	struct search_thread_data *data = (struct search_thread_data*)arg;
 
 	mtx_lock(&(data->mutex));
+
 	memset(&engine_result, 0, sizeof(engine_result));
 	engine_result.first = true;
 
@@ -316,7 +466,9 @@ iterative_deepening(void *arg)
 		struct search_result result;
 
 		mtx_unlock(&(data->mutex));
+		tracef("iterative_deepening -- start depth %d", data->sd.depth);
 		result = search(&data->root, data->sd, &data->run_flag);
+		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&(data->mutex));
 		if (result.is_terminated)
 			break;
@@ -338,6 +490,7 @@ iterative_deepening(void *arg)
 	if (data->thinking_cb != NULL)
 		data->thinking_cb();
 	mtx_unlock(&(data->mutex));
+	tracef("%s -- done", __func__);
 	// data->is_started_flag = false;
 
 	return 0;
@@ -346,81 +499,109 @@ iterative_deepening(void *arg)
 static unsigned
 get_time_for_move(void)
 {
+	unsigned result;
+
 	if (is_tc_secs_per_move)
-		return computer_time;
-	if (moves_left_in_time)
-		return (computer_time / moves_left_in_time) - 1;
-	return computer_time / 10;
+		result = computer_time;
+	else if (moves_left_in_time > 0)
+		result = computer_time / moves_left_in_time;
+	else
+		result = computer_time / default_move_divisor;
+
+	if (result > time_safety)
+		result -= time_safety;
+	else
+		result = 1;
+
+	tracef("%s result = %u", __func__, result);
+
+	return result;
 }
 
 static void
-start_thinking_one_thread(void)
+think(bool infinite, bool single_thread)
 {
+	(void) single_thread; // ignored, no paralell search implemented yet
+
 	mtx_lock(&engine_mutex);
+
 	stop_thinking();
-	if (depth_limit == 0)
+
+	mtx_lock(&threads[0].mutex);
+
+	thinking_started = threads[0].sd.thinking_started = xnow();
+
+	ht_swap(threads[0].sd.tt);
+
+	if (infinite || depth_limit == 0)
 		threads[0].sd.depth_limit = -1;
 	else
 		threads[0].sd.depth_limit = depth_limit;
-	threads[0].sd.thinking_started = xnow();
-	if (is_tc_secs_per_move)
-		threads[0].sd.node_count_limit
-		    = nps * (get_time_for_move() / 100);
-	else
+
+	if (infinite || time_infinite) {
+		threads[0].sd.time_limit = 0;
 		threads[0].sd.node_count_limit = 0;
-	threads[0].sd.time_limit = 0;
-	threads[0].thinking_cb = thinking_cb;
+	}
+	else {
+		threads[0].sd.time_limit = get_time_for_move();
+		threads[0].sd.node_count_limit = (nps * get_time_for_move()) / 100;
+	}
+
+	threads[0].thinking_cb = &thinking_done;
 	threads[0].show_thinking_cb = show_thinking_cb;
 	threads[0].root = history[history_length - 1];
 	threads[0].is_started_flag = true;
 	threads[0].export_best_move = true;
 	(void) atomic_flag_test_and_set(&(threads[0].run_flag));
-	thrd_create(&threads[0].thr,
-	    iterative_deepening,
-	    &threads[0]);
+
+	thrd_create(&threads[0].thr, iterative_deepening, &threads[0]);
+
+	mtx_unlock(&threads[0].mutex);
 	mtx_unlock(&engine_mutex);
 }
 
 void
-start_thinking_no_time_limit(void)
+start_thinking_infinite(void)
 {
-	start_thinking_one_thread();
+	think(true, false);
+}
+
+void
+start_thinking_single_thread(void)
+{
+	think(false, true);
 }
 
 void
 start_thinking(void)
 {
+	think(false, false);
+}
+
+void
+set_thinking_done_cb(int (*cb)(uintmax_t), uintmax_t arg)
+{
 	mtx_lock(&engine_mutex);
-	stop_thinking();
-	ht_swap(threads[0].sd.tt);
-	threads[0].sd.thinking_started = xnow();
-	if (depth_limit == 0)
-		threads[0].sd.depth_limit = -1;
-	else
-		threads[0].sd.depth_limit = depth_limit;
-	threads[0].sd.time_limit = get_time_for_move();
-	threads[0].sd.node_count_limit = nps * (get_time_for_move() / 100);
-	threads[0].thinking_cb = thinking_cb;
-	threads[0].show_thinking_cb = show_thinking_cb;
-	threads[0].root = history[history_length - 1];
-	threads[0].is_started_flag = true;
-	threads[0].export_best_move = true;
-	(void) atomic_flag_test_and_set(&(threads[0].run_flag));
-	thrd_create(&threads[0].thr,
-	    iterative_deepening,
-	    &threads[0]);
+
+	thinking_cb = cb;
+	thinking_cb_arg = arg;
+
 	mtx_unlock(&engine_mutex);
 }
 
-void
-set_thinking_done_cb(void (*cb)(void))
-{
-	thinking_cb = cb;
-}
-
+/*
+ * Adjust timing after a move on the computer's side:
+ * If it is fix timing per move, nothing to do.
+ * Otherwise, make note of how many moves are left till clock
+ */
 void
 engine_move_count_inc(void)
 {
+	trace(__func__);
+
+	if (is_tc_secs_per_move)
+		return;
+
 	if (moves_left_in_time > 0) {
 		--moves_left_in_time;
 	}
@@ -428,7 +609,6 @@ engine_move_count_inc(void)
 		if (base_moves_per_time > 0) {
 			moves_left_in_time = base_moves_per_time;
 			computer_time += base_computer_time;
-			opponent_time += base_opponent_time;
 		}
 		else {
 			/* ?? */
@@ -448,7 +628,10 @@ xmtx_init(mtx_t *mtx, int type)
 void
 engine_process_move(move m)
 {
+	trace(__func__);
+
 	mtx_lock(&engine_mutex);
+
 	// todo: rotate_threads();
 	struct position *pos = history + history_length;
 	position_make_move(pos, pos - 1, m);
@@ -461,13 +644,17 @@ engine_process_move(move m)
 	}
 	add_history_as_repetition();
 	fill_best_move();
+
 	mtx_unlock(&engine_mutex);
 }
 
 void
 reset_engine(const struct position *pos)
 {
+	trace(__func__);
+
 	mtx_lock(&engine_mutex);
+
 	stop_thinking();
 	for (unsigned i = 0; i < thread_count; ++i) {
 		if (threads[i].sd.tt != NULL) {
@@ -492,6 +679,7 @@ reset_engine(const struct position *pos)
 	history[0] = *pos;
 	history_length = 1;
 	fill_best_move();
+
 	mtx_unlock(&engine_mutex);
 }
 

@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <threads.h>
 
 #include "book.h"
 #include "perft.h"
@@ -22,6 +23,7 @@
 #include "hash.h"
 #include "eval.h"
 #include "str_util.h"
+#include "trace.h"
 
 struct cmd_entry {
 	const char text[16];
@@ -32,7 +34,29 @@ struct cmd_entry {
 static struct taltos_conf *conf;
 static struct book *book;
 static jmp_buf command_error;
-static int error_condition = 0;
+static int error_condition;
+static char *line_lasts;
+static uintmax_t callback_key;
+static mtx_t stdout_mutex;
+static mtx_t game_mutex;
+
+static void
+setup_mutexes(void)
+{
+	if (mtx_init(&stdout_mutex, mtx_plain | mtx_recursive) != thrd_success)
+		abort();
+
+	if (mtx_init(&game_mutex, mtx_plain | mtx_recursive) != thrd_success)
+		abort();
+}
+
+static void
+reset_mutexes(void)
+{
+	mtx_destroy(&stdout_mutex);
+	mtx_destroy(&game_mutex);
+	setup_mutexes();
+}
 
 #define CMD_PARAM_ERROR 1
 #define CMD_GENERAL_ERROR 2
@@ -45,6 +69,7 @@ static void
 param_error(void)
 {
 	error_condition = CMD_PARAM_ERROR;
+	reset_mutexes();
 	longjmp(command_error, 1);
 }
 
@@ -52,6 +77,7 @@ static void
 general_error(void)
 {
 	error_condition = CMD_GENERAL_ERROR;
+	reset_mutexes();
 	longjmp(command_error, 1);
 }
 
@@ -84,9 +110,12 @@ current_position(void)
 static void
 add_move(move m)
 {
-	if (game_append(game, m) != 0)
-		INTERNAL_ERROR();
-	engine_process_move(m);
+	mtx_lock(&game_mutex);
+
+	if (game_append(game, m) == 0)
+		engine_process_move(m);
+
+	mtx_unlock(&game_mutex);
 }
 
 static int
@@ -137,7 +166,7 @@ get_single_response(void)
 	return game_get_single_response(game);
 }
 
-static void dispatch_command(const char *cmd);
+static void dispatch_command(char *cmd);
 
 static void
 set_xboard(void)
@@ -152,7 +181,7 @@ set_xboard(void)
 static char*
 get_str_arg_opt(void)
 {
-	return strtok(NULL, " \t\n\r");
+	return xstrtok_r(NULL, " \t\n\r", &line_lasts);
 }
 
 static char*
@@ -166,19 +195,19 @@ get_str_arg(void)
 	return str;
 }
 
-static long
-get_long_arg(void)
+static long long
+get_num_arg(const char *str)
 {
-	long n;
-	char *str;
+	long long n;
 	char *endptr;
 
-	str = get_str_arg();
-	n = strtol(str, &endptr, 0);
-	if (n == LONG_MAX || n == LONG_MIN || *endptr != '\0') {
+	n = strtoll(str, &endptr, 0);
+
+	if (n == LLONG_MAX || n == LLONG_MIN || *endptr != '\0') {
 		(void) fprintf(stderr, "Invalid numeric argument\n");
 		param_error();
 	}
+
 	return n;
 }
 
@@ -211,31 +240,43 @@ print_computer_move(move m)
 {
 	char str[MOVE_STR_BUFFER_LENGTH];
 	enum move_notation_type mn;
+	unsigned move_counter;
+	bool is_black;
 
 	if (is_xboard)
 		mn = mn_coordinate;
 	else
 		mn = conf->move_not;
+
+	mtx_lock(&game_mutex);
+
 	(void) print_move(current_position(), m, str, mn, turn());
+	move_counter = game_full_move_count(game);
+	is_black = (turn() == black);
+
+	mtx_unlock(&game_mutex);
+
+	mtx_lock(&stdout_mutex);
+
 	if (is_xboard) {
 		printf("move %s\n", str);
 	}
 	else {
-		printf("%u. ", game_full_move_count(game));
-		if (turn() == black) {
+		printf("%u. ", move_counter);
+		if (is_black)
 			printf("... ");
-		}
-		printf("%s\n", str);
+		puts(str);
 	}
+
+	mtx_unlock(&stdout_mutex);
 }
 
 static void
 decide_move(void)
 {
-	if (!is_end()) {
-		if (is_force_mode || !game_started) {
-			return;
-		}
+	mtx_lock(&game_mutex);
+
+	if (game_started && !is_end() && !is_force_mode) {
 		if (game_started && has_single_response()) {
 			move m = get_single_response();
 
@@ -258,16 +299,23 @@ decide_move(void)
 	else {
 		game_started = false;
 	}
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
 operator_move(move m)
 {
 	stop_thinking();
+
+	mtx_lock(&game_mutex);
+
 	if (!is_force_mode)
 		game_started = true;
 	add_move(m);
 	decide_move();
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
@@ -355,6 +403,9 @@ print_centipawns(int value)
 static void
 print_current_result(struct engine_result res)
 {
+	mtx_lock(&game_mutex);
+	mtx_lock(&stdout_mutex);
+
 	if (is_xboard) {
 		printf("%u %d %ju %ju ",
 		    res.depth, res.sresult.value,
@@ -377,22 +428,35 @@ print_current_result(struct engine_result res)
 	}
 	print_move_path(game, res.pv, conf->move_not);
 	putchar('\n');
+
+	mtx_unlock(&stdout_mutex);
+	mtx_unlock(&game_mutex);
 }
 
-static void
-computer_move(void)
+static int
+computer_move(uintmax_t key)
 {
+	if (key != callback_key)
+		return -1;
+
 	move m;
+
+	mtx_lock(&game_mutex);
 
 	if (engine_get_best_move(&m) != 0) {
 		puts("-");
-		return;
 	}
-	print_computer_move(m);
-	if (exit_on_done)
-		exit(EXIT_SUCCESS);
-	add_move(m);
-	engine_move_count_inc();
+	else {
+		print_computer_move(m);
+		if (exit_on_done)
+			exit(EXIT_SUCCESS);
+		add_move(m);
+		engine_move_count_inc();
+	}
+
+	mtx_unlock(&game_mutex);
+
+	return 0;
 }
 
 static int
@@ -431,15 +495,35 @@ loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 	conf = arg_conf;
 	book = arg_book;
 	init_settings();
+
+	setup_mutexes();
+
 	while (true) {
 		if (fgets(line, sizeof line, stdin) == NULL) {
 			if (exit_on_done)
 				wait_thinking();
 			exit(EXIT_SUCCESS);
 		}
-		if ((cmd = strtok(line, " \t\n")) == NULL)
+
+		if (line[0] == '\0')
 			continue;
-		if (try_read_move(cmd) != 0)
+
+		line[strcspn(line, "\n\r")] = '\0';
+
+		tracef("%s input: \"%s\"", __func__, line);
+
+		bool is_it_move;
+
+		if ((cmd = xstrtok_r(line, " \t\n", &line_lasts)) == NULL)
+			continue;
+
+		mtx_lock(&game_mutex);
+
+		is_it_move = (try_read_move(cmd) == 0);
+
+		mtx_unlock(&game_mutex);
+
+		if (!is_it_move)
 			dispatch_command(cmd);
 	}
 }
@@ -454,15 +538,15 @@ cmd_quit(void)
 static int
 get_int(int min, int max)
 {
-	long n;
+	long long n;
 
-	n = get_long_arg();
-	if (n < (long)min) {
-		(void) fprintf(stderr, "Number too low: %ld\n", n);
+	n = get_num_arg(get_str_arg());
+	if (n < (long long)min) {
+		(void) fprintf(stderr, "Number too low: %lld\n", n);
 		param_error();
 	}
-	if (n > (long)max) {
-		(void) fprintf(stderr, "Number too high: %ld\n", n);
+	if (n > (long long)max) {
+		(void) fprintf(stderr, "Number too high: %lld\n", n);
 		param_error();
 	}
 	return (int)n;
@@ -471,15 +555,15 @@ get_int(int min, int max)
 static unsigned
 get_uint(unsigned min, unsigned max)
 {
-	long n;
+	long long n;
 
-	n = get_long_arg();
-	if (n < (long)min) {
-		(void) fprintf(stderr, "Number too low: %ld\n", n);
+	n = get_num_arg(get_str_arg());
+	if (n < (long long)min) {
+		(void) fprintf(stderr, "Number too low: %lld\n", n);
 		param_error();
 	}
-	if (n > (long)max) {
-		(void) fprintf(stderr, "Number too high: %ld\n", n);
+	if (n > (long long)max) {
+		(void) fprintf(stderr, "Number too high: %lld\n", n);
 		param_error();
 	}
 	return (unsigned)n;
@@ -522,12 +606,21 @@ run_cmd_divide(bool ordered)
 	struct divide_info *dinfo;
 	const char *line;
 
+	mtx_lock(&game_mutex);
+
 	dinfo = divide_init(current_position(),
 	    get_uint(0, 1024),
 	    turn(),
 	    ordered);
+
+	mtx_unlock(&game_mutex);
+
+	mtx_lock(&stdout_mutex);
+
 	while ((line = divide(dinfo, conf->move_not)) != NULL)
 		puts(line);
+	mtx_unlock(&stdout_mutex);
+
 	divide_destruct(dinfo);
 }
 
@@ -550,7 +643,7 @@ cmd_setboard(void)
 
 	if (game_started)
 		return;
-	if ((g = game_create_fen(strtok(NULL, "\n\r"))) == NULL) {
+	if ((g = game_create_fen(xstrtok_r(NULL, "\n\r", &line_lasts))) == NULL) {
 		(void) fprintf(stderr, "Unable to parse FEN\n");
 		return;
 	}
@@ -564,7 +657,12 @@ cmd_printboard(void)
 {
 	char str[BOARD_BUFFER_LENGTH];
 
+	mtx_lock(&game_mutex);
+
 	(void) board_print(str, current_position(), turn());
+
+	mtx_unlock(&game_mutex);
+
 	(void) fputs(str, stdout);
 }
 
@@ -582,25 +680,31 @@ cmd_echo(void)
 {
 	char *str;
 
-	if ((str = strtok(NULL, "\n\r")) != NULL)
+	if ((str = xstrtok_r(NULL, "\n\r", &line_lasts)) != NULL)
 		puts(str);
 }
 
 static void
 cmd_new(void)
 {
+	callback_key++;
 	stop_thinking();
+
+	mtx_lock(&game_mutex);
+
 	game_destroy(game);
 	if ((game = game_create()) == NULL)
 		INTERNAL_ERROR();
 	reset_engine(current_position());
 	computer_side = black;
-	set_thinking_done_cb(computer_move);
+	set_thinking_done_cb(computer_move, ++callback_key);
 	unset_search_depth_limit();
 	if (!is_xboard)
 		puts("New game - computer black");
 	game_started = false;
 	is_force_mode = false;
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
@@ -621,10 +725,14 @@ cmd_hint(void)
 	move m;
 	char str[MOVE_STR_BUFFER_LENGTH];
 
+	mtx_lock(&game_mutex);
+
 	if (engine_get_best_move(&m) == 0) {
 		print_move(current_position(), m, str, conf->move_not, turn());
 		printf("Hint: %s\n", str);
 	}
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
@@ -677,14 +785,48 @@ cmd_white(void)
 		decide_move();
 }
 
+/*
+ * Xboard - level command
+ * Arguments are three numbers, or four numbers with a colon between
+ * the two in the middle:
+ *
+ *  level 40 5 0
+ *
+ * or
+ *
+ *  level 20 1:40 2
+ */
 static void
 cmd_level(void)
 {
 	unsigned mps, base, inc;
+	char *base_str;
+	char *base_token;
+	char *lasts;
+	long long base_minutes;
+	long long base_seconds;
 
 	mps = get_uint(0, 1024);
-	base = get_uint(0, 1024);
+	base_str = get_str_arg();
 	inc = get_uint(0, 1024);
+
+	base_token = xstrtok_r(base_str, ":", &lasts);
+	base_minutes = get_num_arg(base_token);
+	if (base_minutes < 0 || base_minutes > 8192)
+		param_error();
+
+	if ((base_token = xstrtok_r(NULL, ":", &lasts)) != NULL)
+		base_seconds = get_num_arg(base_token);
+	else
+		base_seconds = 0;
+
+	if (base_minutes < 0 || base_minutes > 59)
+		param_error();
+
+	if (xstrtok_r(NULL, ":", &lasts) != NULL)
+		param_error();
+
+	base = ((unsigned)base_minutes) * 60 + (unsigned)base_seconds;
 	set_moves_left_in_time(mps);
 	set_computer_clock(base * 100);
 	set_time_inc(inc * 100);
@@ -693,17 +835,24 @@ cmd_level(void)
 static void
 cmd_protover(void)
 {
+	mtx_lock(&stdout_mutex);
+
 	printf("feature");
+
 	for (const char **f = features; *f != NULL; ++f)
 		printf(" %s", *f);
+
 	printf("\nfeature done=1\n");
+
+	mtx_unlock(&stdout_mutex);
 }
 
 static void
 cmd_force(void)
 {
-	stop_thinking();
+	callback_key++;
 	is_force_mode = true;
+	stop_thinking();
 }
 
 static void
@@ -721,6 +870,7 @@ cmd_go(void)
 static void
 cmd_playother(void)
 {
+	callback_key++;
 	if (!game_started || !is_force_mode || is_comp_turn())
 		return;
 	stop_thinking();
@@ -732,6 +882,12 @@ static void
 cmd_st(void)
 {
 	set_secs_per_move(get_uint(1, 0x10000));
+}
+
+static void
+cmd_sti(void)
+{
+	set_time_infinite();
 }
 
 static void
@@ -766,19 +922,26 @@ set_exitondone(void)
 	set_var_onoff(&exit_on_done);
 }
 
-static void
-search_cb(void)
+static int
+search_cb(uintmax_t key)
 {
+	if (key != callback_key)
+		return -1;
+
 	move m;
 
-	if (engine_get_best_move(&m) != 0) {
-		// error?
-		return;
+	mtx_lock(&game_mutex);
+
+	if (engine_get_best_move(&m) == 0) {
+		print_computer_move(m);
+		set_thinking_done_cb(computer_move, ++callback_key);
 	}
-	print_computer_move(m);
-	set_thinking_done_cb(computer_move);
 	if (exit_on_done)
 		exit(EXIT_SUCCESS);
+
+	mtx_unlock(&game_mutex);
+
+	return 0;
 }
 
 static void
@@ -786,8 +949,8 @@ cmd_search(void)
 {
 	if (game_started)
 		return;
-	set_thinking_done_cb(search_cb);
-	start_thinking_no_time_limit();
+	set_thinking_done_cb(search_cb, ++callback_key);
+	start_thinking_single_thread();
 }
 
 static void
@@ -795,8 +958,8 @@ cmd_search_sync(void)
 {
 	if (game_started)
 		return;
-	set_thinking_done_cb(search_cb);
-	start_thinking_no_time_limit();
+	set_thinking_done_cb(search_cb, ++callback_key);
+	start_thinking_single_thread();
 	wait_thinking();
 }
 
@@ -826,11 +989,15 @@ cmd_undo(void)
 static void
 cmd_redo(void)
 {
+	mtx_lock(&game_mutex);
+
 	if (is_force_mode) {
 		if (forward() != 0)
 			general_error();
 		reset_engine(current_position());
 	}
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
@@ -1028,6 +1195,7 @@ static struct cmd_entry cmd_list[] = {
 	{"white",        cmd_white,              NULL},
 	{"playother",    cmd_playother,          NULL},
 	{"st",           cmd_st,                 NULL},
+	{"sti",          cmd_sti,                NULL},
 	{"accepted",     nop,                    NULL},
 	{"exitondone",   set_exitondone,         "on|off"},
 	{"random",       nop,                    NULL},
@@ -1066,7 +1234,7 @@ init_settings(void)
 	    (int (*)(const void*, const void*))strcmp);
 	game = game_create();
 	reset_engine(current_position());
-	set_thinking_done_cb(computer_move);
+	set_thinking_done_cb(computer_move, callback_key);
 	set_show_thinking(print_current_result);
 	set_computer_clock(30000);
 	set_opponent_clock(30000);
@@ -1076,13 +1244,12 @@ init_settings(void)
 }
 
 static void
-dispatch_command(const char *cmd)
+dispatch_command(char *cmd)
 {
 	const struct cmd_entry *e;
-	char cmdlower[strlen(cmd) + 1];
 
-	(void) str_to_lower(strcpy(cmdlower, cmd));
-	e = bsearch(cmdlower, cmd_list,
+	(void) str_to_lower(cmd);
+	e = bsearch(cmd, cmd_list,
 	    ARRAY_LENGTH(cmd_list), sizeof *cmd_list,
 	    (int (*)(const void*, const void*))strcmp);
 	if (e == NULL) {

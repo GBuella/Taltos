@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "macros.h"
 #include "chess.h"
@@ -14,6 +15,9 @@
 #include "hash.h"
 #include "taltos.h"
 #include "tests.h"
+#include "trace.h"
+
+FILE *trace_file;
 
 static const char *progname;
 static bool must_run_internal_tests = true;
@@ -81,6 +85,23 @@ exit_routine(void)
 }
 
 static void
+trace_init(const char *path)
+{
+	errno = 0;
+
+	trace_file = fopen(path, "w");
+
+	if (trace_file == NULL) {
+		perror(path);
+		exit(EXIT_FAILURE);
+	}
+
+	(void) setvbuf(trace_file, NULL, _IONBF, 0);
+
+	trace("Taltos debug log start");
+}
+
+static void
 process_args(char **arg)
 {
 	progname = *arg;
@@ -88,6 +109,12 @@ process_args(char **arg)
 		if (strcmp(*arg, "-t") == 0) {
 			conf.timing = true;
 			conf.start_time = xnow();
+		}
+		else if (strcmp(*arg, "--trace") == 0) {
+			++arg;
+			if (*arg == NULL)
+				usage(EXIT_FAILURE);
+			trace_init(*arg);
 		}
 		else if (strcmp(*arg, "--notest") == 0) {
 			must_run_internal_tests = false;
@@ -126,6 +153,7 @@ usage(int status)
 	    "usage: %s [options]\n"
 	    "OPTIONS:"
 	    "  -t                  print time after quitting\n"
+	    "  --trace path        log debug information to file at path\n"
 	    "  --book path         load polyglot book at path\n"
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n",
@@ -145,4 +173,56 @@ init_book(struct book **book)
 			perror(conf.book_path);
 		exit(EXIT_FAILURE);
 	}
+}
+
+static char*
+trace_stamp(char *buf)
+{
+	time_t now = time(NULL);
+
+	char *t = ctime(&now);
+
+	while (*t != '\0' && *t != '\n' && *t != '\r')
+		*buf++ = *t++;
+
+	*buf++ = ' ';
+
+	return buf;
+}
+
+void
+trace(const char *str)
+{
+	if (trace_file == NULL)
+		return;
+
+	char buffer[0x400];
+	char *b = trace_stamp(buffer);
+
+	while (*str != '\0' && b + 1 < buffer + sizeof(buffer))
+		*b++ = *str++;
+
+	*b++ = '\n';
+
+	fwrite(buffer, b - buffer, 1, trace_file);
+}
+
+void
+tracef(const char *format, ...)
+{
+	if (trace_file == NULL)
+		return;
+
+	char buffer[0x400];
+	char *b = trace_stamp(buffer);
+
+	va_list ap;
+
+	va_start(ap, format);
+	b += vsnprintf(b, buffer + sizeof(buffer) - b - 1, format, ap);
+	va_end(ap);
+
+	*b++ = '\n';
+
+	fwrite(buffer, b - buffer, 1, trace_file);
 }

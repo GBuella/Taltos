@@ -265,3 +265,31 @@ get_big_endian_num(size_t size, const unsigned char str[size])
 	}
 	return value;
 }
+
+// http://pubs.opengroup.org/onlinepubs/9699919799/functions/strtok.html
+char*
+xstrtok_r(char *restrict str, const char *restrict sep, char **restrict lasts)
+{
+	if (str == NULL) {
+		str = *lasts;
+		if (str == NULL)
+			return NULL;
+	}
+
+	str += strspn(str, sep);
+	if (*str != '\0') {
+		char *end = str + strcspn(str, sep);
+
+		if (*end == '\0') {
+			*lasts = NULL;
+		}
+		else {
+			*end = '\0';
+			*lasts = end + 1;
+		}
+		return str;
+	}
+	else {
+		return NULL;
+	}
+}

@@ -23,11 +23,12 @@ struct engine_result {
 };
 
 void start_thinking(void);
-void start_thinking_no_time_limit(void);
+void start_thinking_infinite(void);
+void start_thinking_single_thread(void);
 void stop_thinking(void);
 void move_now(void);
 void set_clock(unsigned white_time, unsigned black_time);
-void set_thinking_done_cb(void (*cb)(void));
+void set_thinking_done_cb(int (*cb)(uintmax_t), uintmax_t arg);
 void engine_move_count_inc(void);
 int engine_get_best_move(move*);
 void reset_clock(void);
@@ -42,6 +43,7 @@ void set_no_show_thinking(void);
 void set_time_inc(unsigned);
 void set_moves_left_in_time(unsigned);
 void set_secs_per_move(unsigned);
+void set_time_infinite(void);
 void wait_thinking(void);
 void init_engine(const struct taltos_conf*);
 void reset_engine(const struct position*);

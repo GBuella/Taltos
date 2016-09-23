@@ -58,4 +58,8 @@ taltos_systime xnow(void);
 uintmax_t xseconds_since(taltos_systime);
 uintmax_t get_big_endian_num(size_t size, const unsigned char[size]);
 
+char* xstrtok_r(char *restrict str, const char *restrict sep,
+		char **restrict lasts)
+	attribute(nonnull(2, 3));
+
 #endif
