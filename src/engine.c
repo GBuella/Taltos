@@ -544,7 +544,8 @@ think(bool infinite, bool single_thread)
 	}
 	else {
 		threads[0].sd.time_limit = get_time_for_move();
-		threads[0].sd.node_count_limit = (nps * get_time_for_move()) / 100;
+		threads[0].sd.node_count_limit =
+		    (nps * get_time_for_move()) / 100;
 	}
 
 	threads[0].thinking_cb = &thinking_done;

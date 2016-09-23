@@ -266,6 +266,7 @@ get_big_endian_num(size_t size, const unsigned char str[size])
 	return value;
 }
 
+/*CSTYLED*/
 // http://pubs.opengroup.org/onlinepubs/9699919799/functions/strtok.html
 char*
 xstrtok_r(char *restrict str, const char *restrict sep, char **restrict lasts)

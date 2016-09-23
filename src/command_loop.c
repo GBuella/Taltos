@@ -643,13 +643,20 @@ cmd_setboard(void)
 
 	if (game_started)
 		return;
-	if ((g = game_create_fen(xstrtok_r(NULL, "\n\r", &line_lasts))) == NULL) {
+
+	g = game_create_fen(xstrtok_r(NULL, "\n\r", &line_lasts));
+	if (g == NULL) {
 		(void) fprintf(stderr, "Unable to parse FEN\n");
 		return;
 	}
+
+	mtx_lock(&game_mutex);
+
 	game_destroy(game);
 	game = g;
 	reset_engine(current_position());
+
+	mtx_unlock(&game_mutex);
 }
 
 static void
