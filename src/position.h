@@ -369,6 +369,28 @@ is_in_check(const struct position *p)
 	return is_nonempty(p->king_attack_map);
 }
 
+static inline bool
+has_insufficient_material(const struct position *p)
+{
+	// Look at all pieces except kings.
+	uint64_t pieces = p->occupied & ~(p->map[king] | p->map[opponent_king]);
+
+	// Are there only kings and bishops left?
+	// This also covers the case where nothing but kings are left.
+	if (pieces == (p->map[bishop] | p->map[opponent_bishop])) {
+		// All bishops on the same color?
+		if (is_empty(pieces & BLACK_SQUARES))
+			return true;
+		if (is_empty(pieces & WHITE_SQUARES))
+			return true;
+	}
+	else if (is_singular(pieces) && p->board[bsf(pieces)] == knight) {
+		return true; // Only a single knight left
+	}
+
+	return false;
+}
+
 void make_move(struct position *restrict dst,
 		const struct position *restrict src,
 		move)

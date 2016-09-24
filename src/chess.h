@@ -460,10 +460,13 @@ bool has_any_legal_move(const struct position*)
 bool is_legal_move(const struct position*, move)
 	attribute(nonnull);
 
-bool is_mate(const struct position*)
+bool pos_is_check(const struct position*)
 	attribute(nonnull);
 
-bool is_stalemate(const struct position*)
+bool pos_has_insufficient_material(const struct position*)
+	attribute(nonnull);
+
+bool pos_equal(const struct position*, const struct position*)
 	attribute(nonnull);
 
 #endif /* TALTOS_CHESS_H */

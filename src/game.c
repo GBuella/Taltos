@@ -279,8 +279,48 @@ game_copy(const struct game *src)
 bool
 game_is_ended(const struct game *g)
 {
-	return !has_any_legal_move(g->current->pos);
+	return game_is_draw_by_repetition(g)
+	    || game_is_draw_by_insufficient_material(g)
+	    || !has_any_legal_move(g->current->pos);
 }
+
+bool
+game_is_checkmate(const struct game *g)
+{
+	return pos_is_check(g->current->pos)
+	    && !has_any_legal_move(g->current->pos);
+}
+
+bool
+game_is_stalemate(const struct game *g)
+{
+	return !pos_is_check(g->current->pos)
+	    && !has_any_legal_move(g->current->pos);
+}
+
+bool
+game_is_draw_by_insufficient_material(const struct game *g)
+{
+	return pos_has_insufficient_material(g->current->pos);
+}
+
+bool
+game_is_draw_by_repetition(const struct game *g)
+{
+	unsigned repetitions = 1;
+
+	const struct history_item *i = g->current;
+
+	while (i->prev != NULL) {
+		i = i->prev;
+		if (i->turn == g->current->turn
+		    && pos_equal(i->pos, g->current->pos))
+			++repetitions;
+	}
+
+	return repetitions >= 3;
+}
+
 
 move
 game_get_single_response(const struct game *g)

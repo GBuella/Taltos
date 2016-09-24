@@ -107,17 +107,6 @@ current_position(void)
 	return game_current_position(game);
 }
 
-static void
-add_move(move m)
-{
-	mtx_lock(&game_mutex);
-
-	if (game_append(game, m) == 0)
-		engine_process_move(m);
-
-	mtx_unlock(&game_mutex);
-}
-
 static int
 revert(void)
 {
@@ -155,6 +144,30 @@ is_end(void)
 }
 
 static bool
+is_checkmate(void)
+{
+	return game_is_checkmate(game);
+}
+
+static bool
+is_stalemate(void)
+{
+	return game_is_stalemate(game);
+}
+
+static bool
+is_draw_by_insufficient_material(void)
+{
+	return game_is_draw_by_insufficient_material(game);
+}
+
+static bool
+is_draw_by_repetition(void)
+{
+	return game_is_draw_by_repetition(game);
+}
+
+static bool
 has_single_response(void)
 {
 	return game_has_single_response(game);
@@ -165,6 +178,34 @@ get_single_response(void)
 {
 	return game_get_single_response(game);
 }
+
+static void
+add_move(move m)
+{
+	mtx_lock(&game_mutex);
+
+	if (game_append(game, m) == 0) {
+		engine_process_move(m);
+
+		if (is_end()) {
+			game_started = false;
+
+			if (is_checkmate() && turn() == white)
+				puts("0-1 {Black mates}");
+			else if (is_checkmate() && turn() == black)
+				puts("0-1 {White mates}");
+			else if (is_stalemate())
+				puts("1/2-1/2 {Stalemate}");
+			else if (is_draw_by_insufficient_material())
+				puts("1/2-1/2 {No mating material}");
+			else if (is_draw_by_repetition())
+				puts("1/2-1/2 {Draw by repetition}");
+		}
+	}
+
+	mtx_unlock(&game_mutex);
+}
+
 
 static void dispatch_command(char *cmd);
 

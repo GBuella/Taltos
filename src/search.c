@@ -402,24 +402,6 @@ setup_moves(struct node *node)
 	return 0;
 }
 
-static bool
-insufficient_material(const struct position *pos)
-{
-	uintmax_t pieces =
-	    pos->occupied & ~(pos->map[king] | pos->map[opponent_king]);
-
-	if (pieces == (pos->map[bishop] | pos->map[opponent_bishop])) {
-		if (is_empty(pieces & BLACK_SQUARES))
-			return true;
-		if (is_empty(pieces & WHITE_SQUARES))
-			return true;
-	}
-	else if (is_singular(pieces) && pos->board[bsf(pieces)] == knight) {
-		return true;
-	}
-	return false;
-}
-
 static int
 mate_adjust(int value)
 {
@@ -437,7 +419,7 @@ negamax(struct node *node)
 	house_keeping(node);
 	node->value = NON_VALUE;
 	node->best_move = 0;
-	if (insufficient_material(node->pos) || is_repetition(node)) {
+	if (has_insufficient_material(node->pos) || is_repetition(node)) {
 		node->value = 0;
 		return;
 	}

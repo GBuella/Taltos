@@ -58,6 +58,18 @@ unsigned game_half_move_count(const struct game*)
 bool game_is_ended(const struct game*)
 	attribute(nonnull);
 
+bool game_is_checkmate(const struct game *g)
+	attribute(nonnull);
+
+bool game_is_stalemate(const struct game *g)
+	attribute(nonnull);
+
+bool game_is_draw_by_insufficient_material(const struct game *g)
+	attribute(nonnull);
+
+bool game_is_draw_by_repetition(const struct game *g)
+	attribute(nonnull);
+
 move game_get_single_response(const struct game*)
 	attribute(nonnull);
 

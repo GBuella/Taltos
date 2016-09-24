@@ -15,6 +15,40 @@
 
 /* Little getter functions, used in bookkeeping - non performance critical */
 
+bool
+pos_is_check(const struct position *pos)
+{
+	return is_in_check(pos);
+}
+
+bool
+pos_has_insufficient_material(const struct position *pos)
+{
+	return has_insufficient_material(pos);
+}
+
+bool
+pos_equal(const struct position *a, const struct position *b)
+{
+	for (unsigned i = 0; i < 64; ++i) {
+		if (a->board[i] != b->board[i])
+			return false;
+	}
+
+	if (a->ep_index != b->ep_index)
+		return false;
+	if (a->cr_king_side != b->cr_king_side)
+		return false;
+	if (a->cr_queen_side != b->cr_queen_side)
+		return false;
+	if (a->cr_opponent_king_side != b->cr_opponent_king_side)
+		return false;
+	if (a->cr_opponent_queen_side != b->cr_opponent_queen_side)
+		return false;
+
+	return true;
+}
+
 int
 position_square_at(const struct position *pos, int index)
 {
