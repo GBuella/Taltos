@@ -14,6 +14,7 @@
 #include "position.h"
 #include "hash.h"
 #include "util.h"
+#include "taltos.h"
 
 #ifndef MAX_THREAD_COUNT
 // single thread for now...
@@ -36,6 +37,8 @@ struct search_description {
 	taltos_systime thinking_started;
 
 	uintmax_t node_count_limit;
+
+	struct search_settings settings;
 };
 
 struct search_result {

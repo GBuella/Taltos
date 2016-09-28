@@ -553,6 +553,7 @@ think(bool infinite, bool single_thread)
 	threads[0].root = history[history_length - 1];
 	threads[0].is_started_flag = true;
 	threads[0].export_best_move = true;
+	threads[0].sd.settings = horse->search;
 	(void) atomic_flag_test_and_set(&(threads[0].run_flag));
 
 	thrd_create(&threads[0].thr, iterative_deepening, &threads[0]);

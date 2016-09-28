@@ -162,9 +162,8 @@ handle_node_types(struct node *node)
 static int
 get_lmr_factor(const struct node *node)
 {
-	// disabled for now
-	(void) node;
-	return 0;
+	if (!node->common->sd.settings.use_lmr)
+		return 0;
 
 	int reduction;
 

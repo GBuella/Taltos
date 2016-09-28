@@ -13,6 +13,11 @@
 #include "game.h"
 #include "book.h"
 
+struct search_settings {
+	bool use_lmr;
+	bool use_null_moves;
+};
+
 struct taltos_conf {
 	enum move_notation_type move_not;
 	bool timing;
@@ -21,6 +26,7 @@ struct taltos_conf {
 	char *book_path;
 	enum book_type book_type;
 	bool use_unicode;
+	struct search_settings search;
 };
 
 noreturn void loop_cli(struct taltos_conf*, struct book*);

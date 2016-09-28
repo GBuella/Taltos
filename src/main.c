@@ -73,6 +73,8 @@ setup_defaults(void)
 	conf.book_path = NULL;   // book path, none by default
 	conf.book_type = bt_builtin;  // use the builtin book by default
 	conf.use_unicode = false;
+
+	conf.search.use_lmr = false;
 }
 
 static void
@@ -142,6 +144,12 @@ process_args(char **arg)
 		    || strcmp(*arg, "-h") == 0) {
 			usage(EXIT_SUCCESS);
 		}
+		else if (strcmp(*arg, "--lmr") == 0) {
+			conf.search.use_lmr = true;
+		}
+		else {
+			usage(EXIT_FAILURE);
+		}
 	}
 }
 
@@ -156,7 +164,8 @@ usage(int status)
 	    "  --trace path        log debug information to file at path\n"
 	    "  --book path         load polyglot book at path\n"
 	    "  --nobook            don't use any opening book\n"
-	    "  --unicode           use some unicode characters in the output\n",
+	    "  --unicode           use some unicode characters in the output\n"
+	    "  --lmr               use LMR heuristics\n",
 	    progname);
 	exit(status);
 }
