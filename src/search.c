@@ -58,6 +58,7 @@ struct node {
 	bool search_reached;
 	bool any_search_reached;
 	struct nodes_common_data *common;
+	struct search_settings settings;
 	struct move_fsm move_fsm;
 };
 
@@ -238,29 +239,34 @@ enum { prune_successfull = 1 };
 static int
 try_null_move_prune(struct node *node)
 {
-	// disabled for now
-	(void) node;
-	return 0;
-	if (!   (node->expected_type == cut_node)
-	    && (node->depth > nmr_factor + PLY)
-	    && !is_in_check(node->pos)
-	    && (node->move_fsm.count > 16)
-	    && (popcnt(node->pos->map[1]) > 6)
-	    && (node->pos->material_value > node->beta))
+	if (!node->common->sd.settings.use_null_moves)
 		return 0;
 
-	struct node *child_node = node + 1;
+	if (node->expected_type != cut_node
+	    || node->depth <= 0
+	    || is_in_check(node->pos)
+	    || node->move_fsm.count < 16
+	    || popcnt(node->pos->map[0]) < 7
+	    || popcnt(node->pos->map[1]) < 7)
+		return 0;
 
-	position_flip(child_node->pos, node->pos);
-	child_node->expected_type = all_node;
-	child_node->depth = node->depth - nmr_factor;
-	child_node->alpha = -node->beta - 1;
-	child_node->beta = -node->beta;
-	negamax(child_node);
-	if (-child_node->value >= node->beta) {
-		node->value = -child_node->value;
+	struct node *child = node + 1;
+
+	position_flip(child->pos, node->pos);
+
+	child->expected_type = all_node;
+	child->depth = node->depth - nmr_factor;
+	child->alpha = -node->beta - 1;
+	child->beta = -node->beta;
+	child->settings.use_null_moves = false;
+
+	negamax(child);
+
+	if (-child->value >= node->beta && -child->value < mate_value) {
+		node->value = -child->value;
 		return prune_successfull;
 	}
+
 	return 0;
 }
 
@@ -479,29 +485,32 @@ negamax(struct node *node)
 	}
 	assert(node->alpha < node->beta);
 
-	if (false && try_null_move_prune(node) == prune_successfull)
+	if (try_null_move_prune(node) == prune_successfull)
 		return;
 
+	struct node *child = node + 1;
+
+	child->settings.use_null_moves = node->settings.use_null_moves;
 
 	do {
 		handle_node_types(node);
 		move m = select_next_move(node->pos, &node->move_fsm);
-		make_move(node[1].pos, node->pos, m);
-		node[1].is_GHI_barrier = is_move_irreversible(node->pos, m);
+		make_move(child->pos, node->pos, m);
+		child->is_GHI_barrier = is_move_irreversible(node->pos, m);
 		int lmr_factor = get_lmr_factor(node);
 
-		node[1].depth = node->depth - PLY - lmr_factor;
-		node[1].beta = -node->alpha;
-		node[1].alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
+		child->depth = node->depth - PLY - lmr_factor;
+		child->beta = -node->alpha;
+		child->alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
 		negamax(node + 1);
-		if (-node[1].value > node->value && lmr_factor != 0) {
-			node[1].depth = node->depth - PLY;
-			node[1].alpha = -node->beta;
-			node[1].beta = -node->alpha;
+		if (-child->value > node->value && lmr_factor != 0) {
+			child->depth = node->depth - PLY;
+			child->alpha = -node->beta;
+			child->beta = -node->alpha;
 			negamax(node + 1);
 		}
-		if (-node[1].value > node->value) {
-			node->value = mate_adjust(-node[1].value);
+		if (-child->value > node->value) {
+			node->value = mate_adjust(-child->value);
 			if (node->value > node->alpha) {
 				node->alpha = node->value;
 				node->best_move = m;
@@ -534,6 +543,7 @@ setup_node_array(size_t count, struct node nodes[count],
 		nodes[i].root_distance = i - 1;
 		nodes[i].tt = sd.tt;
 		nodes[i].common = common;
+		nodes[i].settings = common->sd.settings;
 	}
 	nodes[count - 1].root_distance = 0xffff;
 }

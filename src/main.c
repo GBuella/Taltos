@@ -75,6 +75,7 @@ setup_defaults(void)
 	conf.use_unicode = false;
 
 	conf.search.use_lmr = false;
+	conf.search.use_null_moves = false;
 }
 
 static void
@@ -147,6 +148,9 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--lmr") == 0) {
 			conf.search.use_lmr = true;
 		}
+		else if (strcmp(*arg, "--nullm") == 0) {
+			conf.search.use_null_moves = true;
+		}
 		else {
 			usage(EXIT_FAILURE);
 		}
@@ -165,7 +169,8 @@ usage(int status)
 	    "  --book path         load polyglot book at path\n"
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
-	    "  --lmr               use LMR heuristics\n",
+	    "  --lmr               use LMR heuristics\n"
+	    "  --nullm             use null move heuristics\n",
 	    progname);
 	exit(status);
 }
