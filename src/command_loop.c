@@ -312,6 +312,32 @@ print_computer_move(move m)
 	mtx_unlock(&stdout_mutex);
 }
 
+static int
+computer_move(uintmax_t key)
+{
+	if (key != callback_key)
+		return -1;
+
+	move m;
+
+	mtx_lock(&game_mutex);
+
+	if (engine_get_best_move(&m) != 0) {
+		puts("-");
+	}
+	else {
+		print_computer_move(m);
+		if (exit_on_done)
+			exit(EXIT_SUCCESS);
+		add_move(m);
+		engine_move_count_inc();
+	}
+
+	mtx_unlock(&game_mutex);
+
+	return 0;
+}
+
 static void
 decide_move(void)
 {
@@ -333,6 +359,8 @@ decide_move(void)
 				engine_move_count_inc();
 			}
 			else {
+				set_thinking_done_cb(computer_move,
+				    ++callback_key);
 				start_thinking();
 			}
 		}
@@ -472,32 +500,6 @@ print_current_result(struct engine_result res)
 
 	mtx_unlock(&stdout_mutex);
 	mtx_unlock(&game_mutex);
-}
-
-static int
-computer_move(uintmax_t key)
-{
-	if (key != callback_key)
-		return -1;
-
-	move m;
-
-	mtx_lock(&game_mutex);
-
-	if (engine_get_best_move(&m) != 0) {
-		puts("-");
-	}
-	else {
-		print_computer_move(m);
-		if (exit_on_done)
-			exit(EXIT_SUCCESS);
-		add_move(m);
-		engine_move_count_inc();
-	}
-
-	mtx_unlock(&game_mutex);
-
-	return 0;
 }
 
 static int
