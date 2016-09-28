@@ -64,7 +64,7 @@ struct node {
 static bool
 is_qsearch(const struct node *node)
 {
-	return node->depth <= 0;
+	return node->depth <= 0 && !is_in_check(node->pos);
 }
 
 static void negamax(struct node*);
@@ -340,7 +340,7 @@ adjust_depth(struct node *node)
 		return too_deep;
 	}
 	if (is_in_check(node->pos))
-		node->depth = max(node->depth + 1, PLY);
+		node->depth++;
 	else if (node->depth < PLY && node->depth > 0)
 		node->depth = PLY;
 	return 0;
@@ -409,6 +409,27 @@ mate_adjust(int value)
 		return value - 1;
 	else
 		return value;
+}
+
+static bool
+search_more_moves(const struct node *node)
+{
+	if (move_fsm_done(&node->move_fsm))
+		return false; // no more moves
+
+	/*
+	 * if depth < 0 then search only tactical moves,
+	 * except when in check.
+	 * A special case is when depth < 0 and in check.
+	 * All legal moves are generated, and at least one
+	 * must be searched, or enough to prove that it is not
+	 * a position leading to checkmate in qsearch.
+	 */
+	if (node->depth >= 0)
+		return true;
+	else // if in_check
+		return node->value <= -mate_value
+		    || !node->move_fsm.is_in_late_move_phase;
 }
 
 static void
@@ -492,7 +513,7 @@ negamax(struct node *node)
 				node->expected_type = PV_node;
 			}
 		}
-	} while (!move_fsm_done(&node->move_fsm));
+	} while (search_more_moves(node));
 
 	ht_entry entry = hash_current_node_value(node);
 	setup_best_move(node);
