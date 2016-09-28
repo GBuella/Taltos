@@ -101,7 +101,7 @@ print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH],
 	str = index_to_str(str, mfrom(m), turn);
 	str = index_to_str(str, mto(m), turn);
 	if (is_promotion(m))
-		*str++ = toupper((unsigned char)piece_to_char(mresultp(m)));
+		*str++ = tolower((unsigned char)piece_to_char(mresultp(m)));
 	*str = '\0';
 	return str;
 }
