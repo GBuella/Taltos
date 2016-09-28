@@ -135,3 +135,10 @@ if (NOT TALTOS_CAN_USE_MACH_ABS_TIME)
 	                      TALTOS_CAN_USE_W_PERFCOUNTER)
     endif()
 endif()
+
+CHECK_C_SOURCE_COMPILES("
+#include <stdint.h>
+_Static_assert(_Alignof(max_align_t) % 32 == 0, \"no\");
+int main() { return 0; }
+"
+ TALTOS_MAX_ALIGN_IS_GTE_32)

@@ -7,7 +7,6 @@ include_directories(src tests "${PROJECT_BINARY_DIR}")
 
 add_executable(gen_constants util/gen_constants.c)
 
-option(POSITION_ALIGN_64 "Use 64 char alignment for struct position" ON)
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
 option(USE_KNIGHT_LOOKUP_TABLE "lookup table for knight moves" ON)

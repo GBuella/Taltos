@@ -55,6 +55,6 @@
 #cmakedefine USE_GLOBAL_REGISTERS
 #cmakedefine USE_KNIGHT_LOOKUP_TABLE
 #cmakedefine SLIDING_BYTE_LOOKUP
-#cmakedefine POSITION_ALIGN_64
+#cmakedefine TALTOS_MAX_ALIGN_IS_GTE_32
 
 #endif

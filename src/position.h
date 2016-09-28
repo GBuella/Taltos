@@ -19,8 +19,9 @@
 
 void setup_registers(void);
 
-#ifdef POSITION_ALIGN_64
-enum { pos_alignment = 64 };
+#if defined(TALTOS_CAN_USE_INTEL_AVX) \
+	&& !defined(TALTOS_MAX_ALIGN_IS_GTE_32)
+enum { pos_alignment = 32 };
 #else
 enum { pos_alignment = alignof(max_align_t) };
 #endif
@@ -48,9 +49,8 @@ static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
 
 struct position {
-#ifdef POSITION_ALIGN_64
-	alignas(64)
-#endif
+	alignas(pos_alignment)
+
 	char board[64];
 
 	/*
