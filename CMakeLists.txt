@@ -113,10 +113,4 @@ add_custom_target(cstyle
 	-pc ${PROJECT_SOURCE_DIR}/src/*
 	${PROJECT_SOURCE_DIR}/tests/*.{h,c})
 
-
-add_custom_command(
-    OUTPUT  tests/CMakeLists.txt
-    COMMAND util/gen_test_cmake.sh ${PROJECT_SOURCE_DIR}/util/runtest.sh ${PROJECT_SOURCE_DIR}/tests/perftsuite ${PROJECT_BINARY_DIR}/taltos > tests/CMakeLists.txt
-    DEPENDS ${PROJECT_SOURCE_DIR}/util/gen_test_cmake.sh)
-
 include(tests/CMakeLists.txt)
