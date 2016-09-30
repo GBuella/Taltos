@@ -141,9 +141,9 @@ fen_read_move(const char *fen, const char *str, move *m)
 }
 
 static bool
-is_uppercase_piece(char c)
+is_promotion_target(char c)
 {
-	return isupper(c) && (char_to_piece(c) != 0);
+	return strchr("QNRBqnrb", c) != NULL;
 }
 
 static void
@@ -153,21 +153,30 @@ cleanup_move(char str[])
 	char *dst;
 
 	src = dst = str;
+
+	// remove periods "exb3.ep" -> "exb3ep"
 	do {
 		if (*src != '.')
 			*dst++ = *src;
 		++src;
 	} while (*src != '\0' && !isspace(*src));
+
+	// remove "ep" "exb3ep" -> "exb3"
 	if (dst - str >= 3 && dst[-1] == 'p' && dst[-2] == 'e')
 		dst -= 2;
 	*dst = '\0';
+
+	// remove extra characters
 	src = dst = str;
 	do {
-		if (is_rank(*src) || is_file(*src) || is_uppercase_piece(*src))
+		if (is_promotion_target(*src))
+			*dst++ = tolower(*src);
+		else if (is_rank(*src) || is_file(*src))
 			*dst++ = *src;
 		else if (tolower(*src) == 'o' || *src == '-')
 			*dst++ = toupper(*src);
 	} while (*++src != '\0');
+
 	*dst = '\0';
 }
 
