@@ -22,7 +22,7 @@
 
 enum {
 	node_array_length = MAX_PLY + MAX_Q_PLY + 32,
-	nmr_factor = 2 * PLY
+	nmr_factor = PLY + 1
 };
 
 enum node_type {
@@ -242,12 +242,15 @@ try_null_move_prune(struct node *node)
 	if (!node->common->sd.settings.use_null_moves)
 		return 0;
 
-	if (node->expected_type != cut_node
-	    || node->depth <= 0
+	if ((node->expected_type != cut_node)
+	    || (node->pos->material_value <= node->beta + rook_value)
+	    || (node->depth < PLY)
 	    || is_in_check(node->pos)
-	    || node->move_fsm.count < 16
-	    || popcnt(node->pos->map[0]) < 7
-	    || popcnt(node->pos->map[1]) < 7)
+	    || (node->move_fsm.count < 18))
+		return 0;
+
+	if (node->pos->map[0] ==
+	    (node->pos->map[king] | node->pos->map[pawn]))
 		return 0;
 
 	struct node *child = node + 1;
@@ -255,9 +258,9 @@ try_null_move_prune(struct node *node)
 	position_flip(child->pos, node->pos);
 
 	child->expected_type = all_node;
-	child->depth = node->depth - nmr_factor;
-	child->alpha = -node->beta - 1;
-	child->beta = -node->beta;
+	child->depth = node->depth - PLY - nmr_factor;
+	child->alpha = -node->beta;
+	child->beta = -node->beta + 1;
 	child->settings.use_null_moves = false;
 
 	negamax(child);
@@ -465,15 +468,21 @@ negamax(struct node *node)
 	}
 	if (setup_moves(node) == no_legal_moves)
 		return;
+
+	if (try_null_move_prune(node) == prune_successfull)
+		return;
+
 	if (node->root_distance > 0) {
 		if (is_singular(node->pos->map[1]))
 			node->lower_bound = max(0, node->lower_bound);
 		if (is_singular(node->pos->map[0]))
 			node->upper_bound = 0;
 	}
+
 	if (fetch_hash_value(node) == cutoff) {
 		return;
 	}
+
 	if (node->lower_bound > node->alpha)
 		node->alpha = node->lower_bound;
 	if (node->upper_bound < node->beta)
@@ -485,8 +494,6 @@ negamax(struct node *node)
 	}
 	assert(node->alpha < node->beta);
 
-	if (try_null_move_prune(node) == prune_successfull)
-		return;
 
 	struct node *child = node + 1;
 

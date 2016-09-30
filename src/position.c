@@ -412,14 +412,14 @@ search_rook_king_attacks(struct position *pos)
 static void
 search_knight_king_attacks(struct position *pos)
 {
-	pos->king_attack_map =
+	pos->king_attack_map |=
 	    knight_pattern(pos->king_index) & pos->map[opponent_knight];
 }
 
 static void
 search_pawn_king_attacks(struct position *pos)
 {
-	pos->king_attack_map =
+	pos->king_attack_map |=
 	    pawn_attacks_player(pos->map[king]) & pos->map[opponent_pawn];
 }
 
@@ -1097,7 +1097,7 @@ clear_extra_bitboards(struct position *pos)
 
 #else
 
-	// pos->king_attack_map = EMPTY;
+	pos->king_attack_map = EMPTY;
 	pos->rpin_map = EMPTY;
 	pos->bpin_map = EMPTY;
 	pos->ep_index = 0;
@@ -1109,16 +1109,18 @@ void
 position_flip(struct position *restrict dst,
 		const struct position *restrict src)
 {
-	assert(!pos_has_ep_target(src));
-	dst->ep_index = 0;
+	assert(!is_in_check(src));
+
 	flip_board(dst, src);
-	// todo: fix this!!!!
+	dst->attack[0] = bswap(src->attack[1]);
+	dst->attack[1] = bswap(src->attack[0]);
 	flip_piece_maps(dst, src);
-	clear_extra_bitboards(dst);
 	flip_tail(dst, src);
-	dst->occupied = dst->map[0] | dst->map[1];
+	clear_extra_bitboards(dst);
 	dst->king_index = bsf(dst->map[king]);
-	generate_attack_maps(dst);
+	dst->occupied = bswap(src->occupied);
+	search_bishop_king_attacks(dst);
+	search_rook_king_attacks(dst);
 }
 
 bool
