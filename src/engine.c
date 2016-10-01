@@ -599,12 +599,12 @@ set_thinking_done_cb(int (*cb)(uintmax_t), uintmax_t arg)
 void
 engine_move_count_inc(void)
 {
-	trace(__func__);
+	unsigned before = moves_left_in_time;
 
 	if (is_tc_secs_per_move)
 		return;
 
-	if (moves_left_in_time > 0) {
+	if (moves_left_in_time > 1) {
 		--moves_left_in_time;
 	}
 	else {
@@ -616,6 +616,8 @@ engine_move_count_inc(void)
 			/* ?? */
 		}
 	}
+
+	tracef("%s before: %u after: %u", __func__, before, moves_left_in_time);
 }
 
 static void
