@@ -281,6 +281,7 @@ game_is_ended(const struct game *g)
 {
 	return game_is_draw_by_repetition(g)
 	    || game_is_draw_by_insufficient_material(g)
+	    || game_is_draw_by_50_move_rule(g)
 	    || !has_any_legal_move(g->current->pos);
 }
 
@@ -302,6 +303,12 @@ bool
 game_is_draw_by_insufficient_material(const struct game *g)
 {
 	return pos_has_insufficient_material(g->current->pos);
+}
+
+bool
+game_is_draw_by_50_move_rule(const struct game *g)
+{
+	return g->current->half_move >= 50;
 }
 
 bool

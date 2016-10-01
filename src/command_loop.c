@@ -167,6 +167,12 @@ is_draw_by_repetition(void)
 }
 
 static bool
+is_draw_by_50_move_rule(void)
+{
+	return game_is_draw_by_50_move_rule(game);
+}
+
+static bool
 has_single_response(void)
 {
 	return game_has_single_response(game);
@@ -199,6 +205,10 @@ add_move(move m)
 				puts("1/2-1/2 {No mating material}");
 			else if (is_draw_by_repetition())
 				puts("1/2-1/2 {Draw by repetition}");
+			else if (is_draw_by_50_move_rule())
+				puts("1/2-1/2 {Draw by 50 move rule}");
+			else
+				abort();
 		}
 	}
 

@@ -70,6 +70,9 @@ bool game_is_draw_by_insufficient_material(const struct game *g)
 bool game_is_draw_by_repetition(const struct game *g)
 	attribute(nonnull);
 
+bool game_is_draw_by_50_move_rule(const struct game*)
+	attribute(nonnull);
+
 move game_get_single_response(const struct game*)
 	attribute(nonnull);
 
