@@ -86,7 +86,6 @@ static const char *features[] = {
 	"setboard=1",
 	"sigint=1",
 	"reuse=1",
-	"myname=\"Taltos\"",
 	NULL
 };
 
@@ -892,7 +891,8 @@ cmd_protover(void)
 	for (const char **f = features; *f != NULL; ++f)
 		printf(" %s", *f);
 
-	printf("\nfeature done=1\n");
+	printf(" myname=\"%s\"\n", conf->display_name);
+	puts("feature done=1");
 
 	mtx_unlock(&stdout_mutex);
 }

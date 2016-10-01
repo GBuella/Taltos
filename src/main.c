@@ -25,6 +25,7 @@ static void usage(int status);
 static void process_args(char **arg);
 static void init_book(struct book **book);
 static void setup_defaults(void);
+static void setup_display_name(void);
 
 int
 main(int argc, char **argv)
@@ -41,6 +42,7 @@ main(int argc, char **argv)
 		return EXIT_FAILURE;
 	(void) setvbuf(stdout, NULL, _IONBF, 0);
 
+	setup_display_name();
 	loop_cli(&conf, book);
 }
 
@@ -72,6 +74,22 @@ setup_defaults(void)
 
 	conf.search.use_lmr = false;
 	conf.search.use_null_moves = false;
+
+	conf.display_name = "Taltos";
+}
+
+static void
+setup_display_name(void)
+{
+	if (conf.search.use_lmr) {
+		if (conf.search.use_null_moves)
+			conf.display_name = "Taltos-lmr-nullm";
+		else
+			conf.display_name = "Taltos-lmr";
+	}
+	else if (conf.search.use_null_moves) {
+		conf.display_name = "Taltos-nullm";
+	}
 }
 
 static void

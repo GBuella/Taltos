@@ -27,6 +27,7 @@ struct taltos_conf {
 	enum book_type book_type;
 	bool use_unicode;
 	struct search_settings search;
+	const char *display_name;
 };
 
 noreturn void loop_cli(struct taltos_conf*, struct book*);
