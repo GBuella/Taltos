@@ -9,7 +9,7 @@
  * Should be included first.
  * Getting rid of the NDEBUG macro, so asserts in tests
  * work in Release builds as well.
-*/
+ */
 
 #ifdef NDEBUG
 #undef NDEBUG
