@@ -645,6 +645,11 @@ engine_process_move(move m)
 	}
 	else {
 		++history_length;
+		if (history_length > ARRAY_LENGTH(history)) {
+			tracef("%s history_length > ARRAY_LENGTH(history)",
+			    __func__);
+			abort();
+		}
 	}
 	add_history_as_repetition();
 	fill_best_move();
