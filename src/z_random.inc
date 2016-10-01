@@ -1,4 +1,6 @@
 
+/* vim: set filetype=c : */
+
 #include <stdint.h>
 
 const uint64_t z_random[14][64] = {
