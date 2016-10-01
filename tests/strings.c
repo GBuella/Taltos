@@ -2,16 +2,69 @@
 /* vim: set filetype=c : */
 /* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
 
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
+#include "tests.h"
 
-#include <assert.h>
 #include <string.h>
 
-#include "tests.h"
 #include "str_util.h"
 #include "position.h"
+
+static void
+test_chars(void)
+{
+	assert(char_to_file('a') == file_a);
+	assert(char_to_file('b') == file_b);
+	assert(char_to_file('h') == file_h);
+	assert(char_to_file('A') == file_a);
+	assert(char_to_file('B') == file_b);
+	assert(char_to_file('H') == file_h);
+
+	assert(char_to_rank('1', white) == rank_1);
+	assert(char_to_rank('2', white) == rank_2);
+	assert(char_to_rank('3', white) == rank_3);
+	assert(char_to_rank('4', white) == rank_4);
+	assert(char_to_rank('5', white) == rank_5);
+	assert(char_to_rank('8', white) == rank_8);
+	assert(char_to_rank('1', black) == rank_8);
+	assert(char_to_rank('2', black) == rank_7);
+	assert(char_to_rank('3', black) == rank_6);
+	assert(char_to_rank('4', black) == rank_5);
+	assert(char_to_rank('5', black) == rank_4);
+	assert(char_to_rank('8', black) == rank_1);
+
+	assert(index_to_file_ch(0) == 'h');
+	assert(index_to_file_ch(1) == 'g');
+	assert(index_to_file_ch(7) == 'a');
+	assert(index_to_file_ch(63) == 'a');
+
+	assert(index_to_rank_ch(0, white) == '8');
+	assert(index_to_rank_ch(1, white) == '8');
+	assert(index_to_rank_ch(8 + 7, white) == '7');
+	assert(index_to_rank_ch(63, white) == '1');
+	assert(index_to_rank_ch(0, black) == '1');
+	assert(index_to_rank_ch(1, black) == '1');
+	assert(index_to_rank_ch(8 + 7, black) == '2');
+	assert(index_to_rank_ch(63, black) == '8');
+
+	assert(piece_to_char(queen) == 'q');
+
+	assert(square_to_char(queen, white) == 'Q');
+	assert(square_to_char(queen, black) == 'q');
+
+	assert(is_file('f'));
+	assert(is_file('F'));
+	assert(!is_file('4'));
+	assert(!is_file('i'));
+	assert(!is_file(' '));
+
+	assert(is_rank('1'));
+	assert(is_rank('6'));
+	assert(!is_rank('9'));
+	assert(!is_rank('0'));
+	assert(!is_rank('a'));
+	assert(!is_rank(' '));
+
+}
 
 static void
 test_coordinates(void)
@@ -130,7 +183,7 @@ static const struct {
 };
 
 void
-run_string_tests(void)
+run_tests(void)
 {
 	struct position pos;
 	enum player turn;
@@ -139,6 +192,7 @@ run_string_tests(void)
 	const char *end;
 	move m;
 
+	test_chars();
 	test_coordinates();
 	test_invalid_fens();
 

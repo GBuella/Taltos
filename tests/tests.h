@@ -1,19 +1,24 @@
-
 /* vim: set filetype=c : */
 /* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
 
 #ifndef TALTOS_TESTS_H
 #define TALTOS_TESTS_H
 
-#ifdef TALTOS_BUILD_WITHOUT_TESTS
+/*
+ * Common header for tests.
+ * Should be included first.
+ * Getting rid of the NDEBUG macro, so asserts in tests
+ * work in Release builds as well.
+*/
 
-static inline void run_internal_tests(void) { }
-
-#else
-
-void run_internal_tests(void);
-void run_hash_table_tests(void);
-void run_string_tests(void);
-
+#ifdef NDEBUG
+#undef NDEBUG
 #endif
+
+#include <assert.h>
+
+#include "macros.h"
+
+void run_tests(void);
+
 #endif

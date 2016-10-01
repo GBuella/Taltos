@@ -2,12 +2,6 @@
 /* vim: set filetype=c : */
 /* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
 
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-
-#include <assert.h>
-
 #include "tests.h"
 #include "hash.h"
 #include "position.h"
@@ -105,7 +99,7 @@ verify_entry4(ht_entry entry)
 }
 
 void
-run_hash_table_tests(void)
+run_tests(void)
 {
 	ht_entry entry;
 	move pv[16];

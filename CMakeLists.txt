@@ -13,8 +13,6 @@ add_executable(gen_constants util/gen_constants.c)
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
 option(USE_KNIGHT_LOOKUP_TABLE "lookup table for knight moves" ON)
 option(USE_GLOBAL_REGISTERS "Store some values in some XMM / YMM registers" OFF)
-option(TALTOS_BUILD_WITHOUT_TESTS
-	"exclude some tests that would otherwise be compiled into the executable" OFF)
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)
@@ -40,13 +38,11 @@ add_custom_command(
 
 set(TALTOS_SOURCES 
 	src/book.c
-	src/engine.c
 	src/eval.c
 	src/fen.c
 	src/fen_book.c
 	src/game.c
 	src/hash.c
-	src/main.c
 	src/move.c
 	src/move_gen.c
 	src/move_order.c
@@ -63,17 +59,10 @@ if(NOT TALTOS_CAN_USE_ISO_THREADS)
 	include_directories(src tests tinycthread "${PROJECT_BINARY_DIR}")
 endif()
 
-if(NOT TALTOS_BUILD_WITHOUT_TESTS)
-	set(TALTOS_SOURCES
-	    tests/tests.c
-	    tests/hash_table.c
-	    tests/strings.c
-	    ${TALTOS_SOURCES})
-endif()
+add_library(taltos_code STATIC move_gen_const.inc ${TALTOS_SOURCES})
 
-add_executable(taltos
-    move_gen_const.inc
-    ${TALTOS_SOURCES})
+add_executable(taltos src/main.c src/engine.c)
+target_link_libraries(taltos taltos_code)
 
 set_property(TARGET taltos PROPERTY C_STANDARD 11)
 # set_property(TARGET taltos PROPERTY C_EXTENSIONS OFF)

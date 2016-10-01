@@ -14,13 +14,11 @@
 #include "engine.h"
 #include "hash.h"
 #include "taltos.h"
-#include "tests.h"
 #include "trace.h"
 
 FILE *trace_file;
 
 static const char *progname;
-static bool must_run_internal_tests = true;
 static struct taltos_conf conf;
 static void exit_routine(void);
 static void usage(int status);
@@ -37,8 +35,6 @@ main(int argc, char **argv)
 	setup_defaults();
 	init_move_gen();
 	process_args(argv);
-	if (must_run_internal_tests)
-		run_internal_tests();
 	init_book(&book);
 	init_engine(&conf);
 	if (atexit(exit_routine) != 0)
@@ -118,9 +114,6 @@ process_args(char **arg)
 			if (*arg == NULL)
 				usage(EXIT_FAILURE);
 			trace_init(*arg);
-		}
-		else if (strcmp(*arg, "--notest") == 0) {
-			must_run_internal_tests = false;
 		}
 		else if (strcmp(*arg, "--book") == 0
 		    || strcmp(*arg, "--fenbook") == 0) {
