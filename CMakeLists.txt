@@ -49,8 +49,6 @@ set(TALTOS_SOURCES
 	src/perft.c
 	src/polyglot_book.c
 	src/position.c
-	src/command_loop.c
-	src/search.c
 	src/str_util.c
 	src/util.c)
 
@@ -61,7 +59,7 @@ endif()
 
 add_library(taltos_code STATIC move_gen_const.inc ${TALTOS_SOURCES})
 
-add_executable(taltos src/main.c src/engine.c)
+add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
 
 set_property(TARGET taltos PROPERTY C_STANDARD 11)
