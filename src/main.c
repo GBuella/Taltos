@@ -49,6 +49,8 @@ main(int argc, char **argv)
 static void
 setup_defaults(void)
 {
+	const char *env;
+
 	/*
 	 * default move notation for printing move
 	 *  it is reset to coordination notation in xboard mode
@@ -72,8 +74,11 @@ setup_defaults(void)
 	conf.book_type = bt_builtin;  // use the builtin book by default
 	conf.use_unicode = false;
 
-	conf.search.use_lmr = false;
-	conf.search.use_null_moves = false;
+	env = getenv("TALTOS_USE_LMR");
+	conf.search.use_lmr = (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_NULLM");
+	conf.search.use_null_moves = (env != NULL && env[0] != '0');
 
 	conf.display_name = "Taltos";
 }
