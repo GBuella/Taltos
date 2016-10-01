@@ -1,4 +1,7 @@
 
+# vim: set filetype=cmake :
+# vim: set noet ts=8 sw=8 cinoptions=+4,(4:
+#
 # extensions in GCC-like compilers
 # https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html
 
@@ -12,7 +15,7 @@ int main() {}
 "
  TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
 
-if (TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
+if(TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
 CHECK_C_SOURCE_RUNS("
 static int x;
 static __attribute__((constructor)) void some(void) {
@@ -25,7 +28,7 @@ int main() {
  TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE)
 endif()
 
-if (NOT TALTOS_FORCE_NO_BUILTINS)
+if(NOT TALTOS_FORCE_NO_BUILTINS)
 
 CHECK_C_SOURCE_COMPILES("
 void *something(const char*p)
@@ -126,7 +129,7 @@ void something(void) {
 int main() { return 0; }"
   TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
 
-if (TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
+if(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
 
 CHECK_C_SOURCE_COMPILES("
 void something(void) {

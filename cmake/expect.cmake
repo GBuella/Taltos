@@ -1,3 +1,6 @@
+# vim: set filetype=cmake :
+# vim: set noet ts=8 sw=8 cinoptions=+4,(4:
+#
 # Run a program with input piped into, and compare the output
 # with the expected output.
 

@@ -1,6 +1,9 @@
 
-if (NOT TALTOS_FORCE_NO_BUILTINS)
+if(NOT TALTOS_FORCE_NO_BUILTINS)
 
+# vim: set filetype=cmake :
+# vim: set noet ts=8 sw=8 cinoptions=+4,(4:
+#
 # Intel intrinsics
 # https://software.intel.com/sites/landingpage/IntrinsicsGuide
 
@@ -9,7 +12,7 @@ include(CheckIncludeFiles)
 
 CHECK_INCLUDE_FILES(immintrin.h TALTOS_CAN_USE_IMMINTRIN_H)
 
-if (TALTOS_CAN_USE_IMMINTRIN_H)
+if(TALTOS_CAN_USE_IMMINTRIN_H)
 
 CHECK_C_SOURCE_COMPILES("
 #include <stdint.h>
@@ -22,7 +25,7 @@ int main() {}
 "
  TALTOS_CAN_USE_INTEL_BSWAP64)
 
-if (NOT TALTOS_CAN_USE_BUILTIN_CTZL_64
+if(NOT TALTOS_CAN_USE_BUILTIN_CTZL_64
         AND NOT TALTOS_CAN_USE_BUILTIN_CTZLL_64)
 CHECK_C_SOURCE_COMPILES("
 #include <stdint.h>
@@ -39,7 +42,7 @@ int main() {}
  TALTOS_CAN_USE_INTEL_BITSCANFORWARD64)
 endif()
 
-if (NOT TALTOS_CAN_USE_BUILTIN_CLZL_64
+if(NOT TALTOS_CAN_USE_BUILTIN_CLZL_64
         AND NOT TALTOS_CAN_USE_BUILTIN_CLZLL_64)
 CHECK_C_SOURCE_COMPILES("
 #include <stdint.h>
@@ -122,10 +125,10 @@ int main() {}
 "
  TALTOS_CAN_USE_INTEL_SHUFFLE_EPI32)
 
-if (TALTOS_FORCE_AVX)
-    set(TALTOS_CAN_USE_INTEL_AVX ON)
+if(TALTOS_FORCE_AVX)
+	set(TALTOS_CAN_USE_INTEL_AVX ON)
 else()
-if (NOT TALTOS_FORCE_NO_AVX)
+if(NOT TALTOS_FORCE_NO_AVX)
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256d something(__m256d x) { return _mm256_permute_pd(x, 6); }
@@ -136,10 +139,10 @@ int main() {}
 endif()
 endif()
 
-if (TALTOS_FORCE_AVX2)
-    set(TALTOS_CAN_USE_INTEL_AVX2 ON)
+if(TALTOS_FORCE_AVX2)
+	set(TALTOS_CAN_USE_INTEL_AVX2 ON)
 else()
-if (NOT TALTOS_FORCE_NO_AVX2)
+if(NOT TALTOS_FORCE_NO_AVX2)
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256i something(__m256i x) { return _mm256_shuffle_epi8(x, x); }
