@@ -198,7 +198,7 @@ add_move(move m)
 			if (is_checkmate() && turn() == white)
 				puts("0-1 {Black mates}");
 			else if (is_checkmate() && turn() == black)
-				puts("0-1 {White mates}");
+				puts("1-0 {White mates}");
 			else if (is_stalemate())
 				puts("1/2-1/2 {Stalemate}");
 			else if (is_draw_by_insufficient_material())
