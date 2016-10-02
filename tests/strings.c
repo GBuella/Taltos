@@ -179,11 +179,55 @@ static const struct {
 	"        "
 	" P      "
 	"P PPP PP"
-	"RNBQK  R"}
+	"RNBQK  R"},
+	{"rnbqkbnr/ppPppppp/8/8/8/8/PPPPPP1P/RNBQKBNR w KQkq -",
+	"rnbqkbnr"
+	"ppPppppp"
+	"        "
+	"        "
+	"        "
+	"        "
+	"PPPPPP P"
+	"RNBQKBNR"}
 };
 
-void
-run_tests(void)
+static void
+test_fen_basic(void)
+{
+	struct position *position;
+	struct position *next;
+	move move;
+	char str[FEN_BUFFER_LENGTH + MOVE_STR_BUFFER_LENGTH];
+	static const char *empty_fen = "8/8/8/8/8/8/8/8 w - - 0 1";
+	unsigned hm, fm;
+	int ep_index;
+	enum player turn;
+
+	position = position_allocate();
+	next = position_allocate();
+	assert(position_print_fen_full(position, str, 0, 1, 0, white)
+	    == str + strlen(empty_fen));
+	assert(strcmp(empty_fen, str) == 0);
+	assert(NULL != position_read_fen_full(position, start_position_fen,
+	    &ep_index, &fm, &hm, &turn));
+	assert(ep_index == 0);
+	assert(hm == 0 && fm == 1 && turn == white);
+	assert(position_print_fen_full(position, str, 0, 1, 0, white)
+	    == str + strlen(start_position_fen));
+	assert(strcmp(str, start_position_fen) == 0);
+	move = create_move_t(str_to_index("e2", white),
+	    str_to_index("e4", white),
+	    mt_pawn_double_push, pawn, 0);
+	setup_registers();
+	make_move(next, position, move);
+	assert(position_piece_at(next, str_to_index("e2", black)) == nonpiece);
+	assert(position_piece_at(next, str_to_index("e4", black)) == pawn);
+	position_destroy(position);
+	position_destroy(next);
+}
+
+static void
+test_move_str(void)
 {
 	struct position pos;
 	enum player turn;
@@ -191,10 +235,6 @@ run_tests(void)
 	char str[1024];
 	const char *end;
 	move m;
-
-	test_chars();
-	test_coordinates();
-	test_invalid_fens();
 
 	end = position_read_fen(&pos, positions[0].FEN, &ep_index, &turn);
 	assert(end != NULL);
@@ -303,6 +343,35 @@ run_tests(void)
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "Bb2+") == 0);
 
+	end = position_read_fen(&pos, positions[4].FEN, &ep_index, &turn);
+	assert(end != NULL);
+	assert(ep_index == 0);
+	assert(turn == white);
+	assert(end == (positions[4].FEN + strlen(positions[4].FEN)));
+	end = position_print_fen(&pos, str, 0, white);
+	assert(strcmp(str, positions[4].FEN) == 0);
+	assert(end == (str + strlen(positions[4].FEN)));
+	assert(read_move(&pos, "c7b8q", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_b8, mt_promotion, queen, knight));
+	assert(read_move(&pos, "c7b8Q", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_b8, mt_promotion, queen, knight));
+	assert(read_move(&pos, "c7b8n", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_b8, mt_promotion, knight, knight));
+	assert(read_move(&pos, "c7b8r", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_b8, mt_promotion, rook, knight));
+	assert(read_move(&pos, "c7b8b", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_b8, mt_promotion, bishop, knight));
+	assert(read_move(&pos, "c7d8q", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen));
+	assert(read_move(&pos, "c7d8Q", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen));
+	assert(read_move(&pos, "cxd8=Q", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen));
+	assert(read_move(&pos, "cxd8=Q+", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen));
+	assert(read_move(&pos, "cxd8=R+", &m, white) == 0);
+	assert(m == create_move_t(sq_c7, sq_d8, mt_promotion, rook, queen));
+
 	end = position_read_fen(&pos,
 	    "rnbqkbnr/ppppp2p/5p2/6p1/8/4P3/PPPP1PPP/RNBQKBNR w KQkq -",
 	    NULL, NULL);
@@ -317,4 +386,14 @@ run_tests(void)
 	assert(m == create_move_g(sq_d1, sq_h5, queen, 0));
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "Qh5#") == 0);
+}
+
+void
+run_tests(void)
+{
+	test_chars();
+	test_coordinates();
+	test_invalid_fens();
+	test_fen_basic();
+	test_move_str();
 }

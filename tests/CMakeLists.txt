@@ -14,10 +14,6 @@ add_executable(test_strings tests/strings.c)
 target_link_libraries(test_strings taltos_code tests_main)
 add_test(NAME strings COMMAND $<TARGET_FILE:test_strings>)
 
-add_executable(test_move tests/move.c)
-target_link_libraries(test_move taltos_code tests_main)
-add_test(NAME move COMMAND $<TARGET_FILE:test_move>)
-
 add_executable(test_polyglot_key tests/polyglot_key.c)
 target_link_libraries(test_polyglot_key taltos_code tests_main)
 add_test(NAME polyglot_key COMMAND $<TARGET_FILE:test_polyglot_key>)
