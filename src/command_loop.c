@@ -1173,7 +1173,7 @@ cmd_hash_value(void)
 static void
 cmd_hash_value_exact_min(void)
 {
-	int minimum = get_int(-mate_value, mate_value);
+	int minimum = get_int(-max_value, max_value);
 
 	ht_entry entry = engine_current_entry();
 	if (ht_is_set(entry) && ht_value_type(entry) == vt_exact
@@ -1186,7 +1186,7 @@ cmd_hash_value_exact_min(void)
 static void
 cmd_hash_value_exact_max(void)
 {
-	int maximum = get_int(-mate_value, mate_value);
+	int maximum = get_int(-max_value, max_value);
 
 	ht_entry entry = engine_current_entry();
 	if (ht_is_set(entry) && ht_value_type(entry) == vt_exact
