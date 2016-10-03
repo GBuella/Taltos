@@ -58,7 +58,6 @@ struct node {
 	bool search_reached;
 	bool any_search_reached;
 	struct nodes_common_data *common;
-	struct search_settings settings;
 	struct move_fsm move_fsm;
 };
 
@@ -242,9 +241,11 @@ try_null_move_prune(struct node *node)
 	if (!node->common->sd.settings.use_null_moves)
 		return 0;
 
+	int advantage = node->pos->material_value - node->beta;
+
 	if ((node->expected_type != cut_node)
-	    || (node->pos->material_value <= node->beta + rook_value)
-	    || (node->depth < PLY)
+	    || (advantage <= rook_value)
+	    || (node->depth <= 0)
 	    || is_in_check(node->pos)
 	    || (node->move_fsm.count < 18))
 		return 0;
@@ -253,19 +254,51 @@ try_null_move_prune(struct node *node)
 	    (node->pos->map[king] | node->pos->map[pawn]))
 		return 0;
 
+	if (is_nonempty(node->pos->rpin_map)
+	    || is_nonempty(node->pos->bpin_map))
+		return 0;
+
+	unsigned non_pawn_moves = 0;
+	unsigned non_pawn_moving = 0;
+
+	bool moving_piece[PIECE_ARRAY_SIZE] = {0};
+
+	for (unsigned i = 0; i < node->move_fsm.count; ++i) {
+		int from = mfrom(node->move_fsm.moves[i]);
+		int p = pos_piece_at(node->pos, from);
+
+		if (p != pawn) {
+			++non_pawn_moves;
+			if (!moving_piece[p]) {
+				++non_pawn_moving;
+				moving_piece[p] = true;
+			}
+		}
+	}
+
+	if (non_pawn_moves < 18 || non_pawn_moving < 2)
+		return 0;
+
 	struct node *child = node + 1;
 
 	position_flip(child->pos, node->pos);
 
+	if (is_nonempty(child->pos->rpin_map)
+	    || is_nonempty(child->pos->bpin_map))
+		return 0;
+
 	child->expected_type = all_node;
+	child->alpha = -node->beta - pawn_value - 1;
+	child->beta = -node->beta - pawn_value;
+
 	child->depth = node->depth - PLY - nmr_factor;
-	child->alpha = -node->beta;
-	child->beta = -node->beta + 1;
-	child->settings.use_null_moves = false;
+	child->depth -= ((advantage - rook_value) / pawn_value) * (PLY / 2);
 
 	negamax(child);
 
-	if (-child->value >= node->beta && -child->value < mate_value) {
+	int value = -child->value;
+
+	if (value > node->beta + pawn_value && value <= mate_value) {
 		node->value = -child->value;
 		return prune_successfull;
 	}
@@ -497,8 +530,6 @@ negamax(struct node *node)
 
 	struct node *child = node + 1;
 
-	child->settings.use_null_moves = node->settings.use_null_moves;
-
 	do {
 		handle_node_types(node);
 		move m = select_next_move(node->pos, &node->move_fsm);
@@ -550,7 +581,6 @@ setup_node_array(size_t count, struct node nodes[count],
 		nodes[i].root_distance = i - 1;
 		nodes[i].tt = sd.tt;
 		nodes[i].common = common;
-		nodes[i].settings = common->sd.settings;
 	}
 	nodes[count - 1].root_distance = 0xffff;
 }
