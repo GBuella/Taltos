@@ -543,7 +543,7 @@ negamax(struct node *node)
 		child->beta = -node->alpha;
 		child->alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
 		negamax(node + 1);
-		if (-child->value > node->alpha && lmr_factor != 0) {
+		if (-child->value > node->value && lmr_factor != 0) {
 			child->depth = node->depth - PLY;
 			child->alpha = -node->beta;
 			child->beta = -node->alpha;
