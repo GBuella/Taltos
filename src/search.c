@@ -534,7 +534,9 @@ negamax(struct node *node)
 		handle_node_types(node);
 		move m = select_next_move(node->pos, &node->move_fsm);
 		make_move(child->pos, node->pos, m);
+#ifdef SEARCH_CHECK_REPETITIONS
 		child->is_GHI_barrier = is_move_irreversible(node->pos, m);
+#endif
 		int lmr_factor = get_lmr_factor(node);
 
 		child->depth = node->depth - PLY - lmr_factor;
