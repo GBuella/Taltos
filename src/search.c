@@ -208,29 +208,48 @@ fail_high(struct node *node)
  * negamax helper functions
  */
 
+static void
+check_node_count_limit(struct nodes_common_data *data)
+{
+	if (data->result.node_count == data->sd.node_count_limit)
+		longjmp(data->terminate_jmp_buf, 1);
+}
 
 static void
-house_keeping(struct node *node)
+check_time_limit(struct nodes_common_data *data)
+{
+	if (data->sd.time_limit == 0)
+		return; // zero means no limit
+
+	if (xseconds_since(data->sd.thinking_started) >= data->sd.time_limit)
+		longjmp(data->terminate_jmp_buf, 1);
+}
+
+static void
+check_run_flag(struct nodes_common_data *data)
+{
+	if (!atomic_flag_test_and_set(data->run_flag))
+		longjmp(data->terminate_jmp_buf, 1);
+}
+
+static void
+node_init(struct node *node)
 {
 	node->common->result.node_count++;
 
-	if (node->common->result.node_count
-	    == node->common->sd.node_count_limit)
-		longjmp(node->common->terminate_jmp_buf, 1);
+	check_node_count_limit(node->common);
+
 	if (node->common->result.node_count % NODES_PER_CANCEL_TEST == 0) {
-		if (node->common->sd.time_limit != 0) {
-			unsigned long time =
-			    xseconds_since(node->common->sd.thinking_started);
-			if (time >= node->common->sd.time_limit)
-				longjmp(node->common->terminate_jmp_buf, 1);
-		}
-		if (!atomic_flag_test_and_set(node->common->run_flag))
-			longjmp(node->common->terminate_jmp_buf, 1);
+		check_time_limit(node->common);
+		check_run_flag(node->common);
 	}
 
 	node->any_search_reached = true;
 	if (!is_qsearch(node))
 		node->search_reached = true;
+
+	node->value = NON_VALUE;
+	node->best_move = 0;
 }
 
 enum { prune_successfull = 1 };
@@ -306,7 +325,7 @@ try_null_move_prune(struct node *node)
 	return 0;
 }
 
-enum { cutoff = 1 };
+enum { hash_cutoff = 1 };
 
 static int
 check_hash_value(struct node *node, ht_entry entry)
@@ -317,7 +336,7 @@ check_hash_value(struct node *node, ht_entry entry)
 			if (ht_value(entry) >= mate_value) {
 				node->value = ht_value(entry);
 				node->best_move = ht_move(entry);
-				return cutoff;
+				return hash_cutoff;
 			}
 		}
 		if (ht_value_type(entry) == vt_upper_bound
@@ -326,7 +345,7 @@ check_hash_value(struct node *node, ht_entry entry)
 				node->value = ht_value(entry);
 				if (node->best_move == 0)
 					node->best_move = ht_move(entry);
-				return cutoff;
+				return hash_cutoff;
 			}
 		}
 		return 0;
@@ -339,7 +358,7 @@ check_hash_value(struct node *node, ht_entry entry)
 			if (node->lower_bound >= node->beta) {
 				node->best_move = ht_move(entry);
 				node->value = node->lower_bound;
-				return cutoff;
+				return hash_cutoff;
 			}
 		}
 		break;
@@ -348,20 +367,20 @@ check_hash_value(struct node *node, ht_entry entry)
 			node->upper_bound = ht_value(entry);
 			if (node->upper_bound <= node->alpha) {
 				node->value = node->upper_bound;
-				return cutoff;
+				return hash_cutoff;
 			}
 		}
 		break;
 	case vt_exact:
 		node->value = ht_value(entry);
 		node->best_move = ht_move(entry);
-		return cutoff;
+		return hash_cutoff;
 	default:
 		break;
 	}
 	if (node->lower_bound >= node->upper_bound) {
 		node->value = node->lower_bound;
-		return cutoff;
+		return hash_cutoff;
 	}
 	return 0;
 }
@@ -371,6 +390,7 @@ enum { too_deep = 1 };
 static int
 adjust_depth(struct node *node)
 {
+	// Don't touch the depth of the root node!
 	if (node->root_distance == 0)
 		return 0;
 
@@ -380,10 +400,14 @@ adjust_depth(struct node *node)
 		node->value = eval(node->pos);
 		return too_deep;
 	}
+
+	// todo: is this useful?
 	if (is_in_check(node->pos))
 		node->depth++;
-	else if (node->depth < PLY && node->depth > 0)
+
+	if (node->depth < PLY && node->depth > 0)
 		node->depth = PLY;
+
 	return 0;
 }
 
@@ -398,8 +422,8 @@ fetch_hash_value(struct node *node)
 	if (ht_is_set(entry)
 	    && (move_fsm_add_hash_move(&node->move_fsm, ht_move(entry)) == 0)) {
 		node->deep_entry = entry;
-		if (check_hash_value(node, entry) == cutoff)
-			return cutoff;
+		if (check_hash_value(node, entry) == hash_cutoff)
+			return hash_cutoff;
 	}
 	entry = ht_lookup_fresh(node->tt, node->pos);
 	if (!ht_is_set(entry))
@@ -416,9 +440,9 @@ fetch_hash_value(struct node *node)
 	else if (move_fsm_add_hash_move(&node->move_fsm, ht_move(entry)) != 0)
 		return 0;
 	node->fresh_entry = entry;
-	if (check_hash_value(node, entry) == cutoff) {
+	if (check_hash_value(node, entry) == hash_cutoff) {
 		ht_pos_insert(node->tt, node->pos, entry);
-		return cutoff;
+		return hash_cutoff;
 	}
 
 	return 0;
@@ -443,15 +467,6 @@ setup_moves(struct node *node)
 	return 0;
 }
 
-static int
-mate_adjust(int value)
-{
-	if (value > mate_value)
-		return value - 1;
-	else
-		return value;
-}
-
 static bool
 search_more_moves(const struct node *node)
 {
@@ -473,84 +488,156 @@ search_more_moves(const struct node *node)
 		    || !node->move_fsm.is_in_late_move_phase;
 }
 
-static void
-negamax(struct node *node)
-{
-	assert(node->alpha < node->beta);
+enum { stand_pat_cutoff = 1 };
 
-	house_keeping(node);
-	node->value = NON_VALUE;
-	node->best_move = 0;
-	if (has_insufficient_material(node->pos) || is_repetition(node)) {
-		node->value = 0;
-		return;
-	}
-	ht_prefetch(node->tt, pos_hash(node->pos));
-	if (adjust_depth(node) == too_deep)
-		return;
+static int
+setup_bounds(struct node *node)
+{
 	node->upper_bound = max_value;
+
 	if (is_qsearch(node)) {
 		node->lower_bound = eval(node->pos);
 		if (node->lower_bound >= node->beta) {
 			node->value = node->lower_bound;
-			return;
+			return stand_pat_cutoff;
 		}
 	}
 	else {
 		node->lower_bound = -max_value;
 	}
+
+	// if a side has only a king left, the best value it can get is zero
+	if (node->root_distance > 0) {
+		if (is_singular(node->pos->map[1]))
+			node->lower_bound = max(0, node->lower_bound);
+
+		// no need to use "min(0, node->upper_bound)",
+		// upper_bound is not affected before this
+		if (is_singular(node->pos->map[0]))
+			node->upper_bound = 0;
+	}
+
+	return 0;
+}
+
+enum { alpha_not_less_than_beta = 1 };
+
+static int
+recheck_bounds(struct node *node)
+{
+	if (node->lower_bound > node->alpha)
+		node->alpha = node->lower_bound;
+
+	if (node->upper_bound < node->beta)
+		node->beta = node->upper_bound;
+
+	if (node->alpha >= node->beta) {
+		node->value = node->lower_bound;
+		return alpha_not_less_than_beta;
+	}
+
+	return 0;
+}
+
+enum { is_trivial_draw = 1 };
+
+static int
+check_trivial_draw(struct node *node)
+{
+	if (has_insufficient_material(node->pos) || is_repetition(node)) {
+		node->value = 0;
+		return is_trivial_draw;
+	}
+
+	return 0;
+}
+
+static void
+setup_child_node(struct node *node, move m, int lmr_factor)
+{
+	struct node *child = node + 1;
+
+	handle_node_types(node);
+	make_move(child->pos, node->pos, m);
+
+#ifdef SEARCH_CHECK_REPETITIONS
+	child->is_GHI_barrier = is_move_irreversible(node->pos, m);
+#endif
+
+	child->depth = node->depth - PLY - lmr_factor;
+	child->beta = -node->alpha;
+	child->alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
+}
+
+static void
+reset_child_after_lmr(struct node *node)
+{
+	node[1].depth = node->depth - PLY;
+	node[1].alpha = -node->beta;
+	node[1].beta = -node->alpha;
+}
+
+static int
+negamax_child(struct node *node)
+{
+	negamax(node + 1);
+
+	int value = -node[1].value;
+
+	/*
+	 * Decrement a mate value each time it is passed down towards root,
+	 * so represent that "mate in 5" is better than "mate in 6" --> the
+	 * closer to the root the checkmate is, the better is is.
+	 */
+	if (value > mate_value)
+		return value - 1;
+	else
+		return value;
+}
+
+static void
+negamax(struct node *node)
+{
+	assert(node->alpha < node->beta);
+
+	node_init(node);
+
+	if (check_trivial_draw(node) == is_trivial_draw)
+		return;
+
+	ht_prefetch(node->tt, pos_hash(node->pos));
+
+	if (adjust_depth(node) == too_deep)
+		return;
+
+	if (setup_bounds(node) == stand_pat_cutoff)
+		return;
+
 	if (setup_moves(node) == no_legal_moves)
 		return;
 
 	if (try_null_move_prune(node) == prune_successfull)
 		return;
 
-	if (node->root_distance > 0) {
-		if (is_singular(node->pos->map[1]))
-			node->lower_bound = max(0, node->lower_bound);
-		if (is_singular(node->pos->map[0]))
-			node->upper_bound = 0;
-	}
-
-	if (fetch_hash_value(node) == cutoff) {
+	if (fetch_hash_value(node) == hash_cutoff)
 		return;
-	}
 
-	if (node->lower_bound > node->alpha)
-		node->alpha = node->lower_bound;
-	if (node->upper_bound < node->beta)
-		node->beta = node->upper_bound;
-
-	if (node->alpha >= node->beta) {
-		node->value = node->lower_bound;
+	if (recheck_bounds(node) == alpha_not_less_than_beta)
 		return;
-	}
-	assert(node->alpha < node->beta);
-
-
-	struct node *child = node + 1;
 
 	do {
-		handle_node_types(node);
 		move m = select_next_move(node->pos, &node->move_fsm);
-		make_move(child->pos, node->pos, m);
-#ifdef SEARCH_CHECK_REPETITIONS
-		child->is_GHI_barrier = is_move_irreversible(node->pos, m);
-#endif
 		int lmr_factor = get_lmr_factor(node);
 
-		child->depth = node->depth - PLY - lmr_factor;
-		child->beta = -node->alpha;
-		child->alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
-		negamax(node + 1);
-		if (-child->value > node->value && lmr_factor != 0) {
-			child->depth = node->depth - PLY;
-			child->alpha = -node->beta;
-			child->beta = -node->alpha;
-			negamax(node + 1);
+		setup_child_node(node, m, lmr_factor);
+		int value = negamax_child(node);
+		if (value > node->value && lmr_factor != 0) {
+			reset_child_after_lmr(node);
+			value = negamax_child(node);
 		}
-		if (-child->value > node->value) {
-			node->value = mate_adjust(-child->value);
+
+		if (value > node->value) {
+			node->value = value;
 			if (node->value > node->alpha) {
 				node->alpha = node->value;
 				node->best_move = m;
