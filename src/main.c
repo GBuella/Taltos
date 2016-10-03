@@ -74,11 +74,11 @@ setup_defaults(void)
 	conf.book_type = bt_builtin;  // use the builtin book by default
 	conf.use_unicode = false;
 
-	env = getenv("TALTOS_USE_LMR");
-	conf.search.use_lmr = (env != NULL && env[0] != '0');
+	env = getenv("TALTOS_USE_NO_LMR");
+	conf.search.use_lmr = (env == NULL || env[0] == '0');
 
-	env = getenv("TALTOS_USE_NULLM");
-	conf.search.use_null_moves = (env != NULL && env[0] != '0');
+	env = getenv("TALTOS_USE_NO_NULLM");
+	conf.search.use_null_moves = (env == NULL || env[0] == '0');
 
 	conf.display_name = "Taltos";
 }
@@ -161,11 +161,11 @@ process_args(char **arg)
 		    || strcmp(*arg, "-h") == 0) {
 			usage(EXIT_SUCCESS);
 		}
-		else if (strcmp(*arg, "--lmr") == 0) {
-			conf.search.use_lmr = true;
+		else if (strcmp(*arg, "--nolmr") == 0) {
+			conf.search.use_lmr = false;
 		}
-		else if (strcmp(*arg, "--nullm") == 0) {
-			conf.search.use_null_moves = true;
+		else if (strcmp(*arg, "--nonullm") == 0) {
+			conf.search.use_null_moves = false;
 		}
 		else {
 			usage(EXIT_FAILURE);
@@ -185,8 +185,8 @@ usage(int status)
 	    "  --book path         load polyglot book at path\n"
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
-	    "  --lmr               use LMR heuristics\n"
-	    "  --nullm             use null move heuristics\n",
+	    "  --nolmr             do not use LMR heuristics\n"
+	    "  --nonullm           do not use null move heuristics\n",
 	    progname);
 	exit(status);
 }
