@@ -96,7 +96,7 @@ static const unsigned time_safety = 3;
  * with nps. Thus a time limit of T seconds, is essentially converted to
  * a maximum node count of T*nps available for search.
  */
-static unsigned nps = 0;
+static uintmax_t nps = 0;
 
 /*
  * If depth_limit is non-zero, the thinking stops upon reaching the specified
@@ -523,6 +523,8 @@ think(bool infinite, bool single_thread)
 {
 	(void) single_thread; // ignored, no paralell search implemented yet
 
+	trace(__func__);
+
 	mtx_lock(&engine_mutex);
 
 	stop_thinking();
@@ -543,10 +545,19 @@ think(bool infinite, bool single_thread)
 		threads[0].sd.node_count_limit = 0;
 	}
 	else {
-		threads[0].sd.time_limit = get_time_for_move();
-		threads[0].sd.node_count_limit =
-		    (nps * get_time_for_move()) / 100;
+		if (nps == 0) {
+			threads[0].sd.time_limit = get_time_for_move();
+			threads[0].sd.node_count_limit = 0;
+		}
+		else {
+			threads[0].sd.time_limit = 0;
+			threads[0].sd.node_count_limit =
+			    (nps * get_time_for_move()) / 100;
+		}
 	}
+
+	tracef("%s time_limit: %" PRIuMAX " node_count_limit: %" PRIuMAX,
+	    __func__, threads[0].sd.time_limit, threads[0].sd.node_count_limit);
 
 	threads[0].thinking_cb = &thinking_done;
 	threads[0].show_thinking_cb = show_thinking_cb;
