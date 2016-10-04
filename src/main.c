@@ -86,14 +86,14 @@ setup_defaults(void)
 static void
 setup_display_name(void)
 {
-	if (conf.search.use_lmr) {
-		if (conf.search.use_null_moves)
-			conf.display_name = "Taltos-lmr-nullm";
+	if (!conf.search.use_lmr) {
+		if (!conf.search.use_null_moves)
+			conf.display_name = "Taltos-nolmr-nonullm";
 		else
-			conf.display_name = "Taltos-lmr";
+			conf.display_name = "Taltos-nolmr";
 	}
-	else if (conf.search.use_null_moves) {
-		conf.display_name = "Taltos-nullm";
+	else if (!conf.search.use_null_moves) {
+		conf.display_name = "Taltos-nonullm";
 	}
 }
 
