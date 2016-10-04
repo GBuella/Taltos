@@ -160,9 +160,9 @@ handle_node_types(struct node *node)
 }
 
 static int
-get_lmr_factor(const struct node *node)
+get_LMR_factor(const struct node *node)
 {
-	if (!node->common->sd.settings.use_lmr)
+	if (!node->common->sd.settings.use_LMR)
 		return 0;
 
 	int reduction;
@@ -553,7 +553,7 @@ check_trivial_draw(struct node *node)
 }
 
 static void
-setup_child_node(struct node *node, move m, int lmr_factor)
+setup_child_node(struct node *node, move m, int LMR_factor)
 {
 	struct node *child = node + 1;
 
@@ -564,9 +564,9 @@ setup_child_node(struct node *node, move m, int lmr_factor)
 	child->is_GHI_barrier = is_move_irreversible(node->pos, m);
 #endif
 
-	child->depth = node->depth - PLY - lmr_factor;
+	child->depth = node->depth - PLY - LMR_factor;
 	child->beta = -node->alpha;
-	child->alpha = (lmr_factor ? (-node->alpha - 1) : -node->beta);
+	child->alpha = (LMR_factor ? (-node->alpha - 1) : -node->beta);
 }
 
 static void
@@ -627,11 +627,11 @@ negamax(struct node *node)
 
 	do {
 		move m = select_next_move(node->pos, &node->move_fsm);
-		int lmr_factor = get_lmr_factor(node);
+		int LMR_factor = get_LMR_factor(node);
 
-		setup_child_node(node, m, lmr_factor);
+		setup_child_node(node, m, LMR_factor);
 		int value = negamax_child(node);
-		if (value > node->value && lmr_factor != 0) {
+		if (value > node->value && LMR_factor != 0) {
 			reset_child_after_lmr(node);
 			value = negamax_child(node);
 		}

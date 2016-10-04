@@ -14,7 +14,7 @@
 #include "book.h"
 
 struct search_settings {
-	bool use_lmr;
+	bool use_LMR;
 	bool use_null_moves;
 };
 

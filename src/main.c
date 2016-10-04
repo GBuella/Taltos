@@ -75,7 +75,7 @@ setup_defaults(void)
 	conf.use_unicode = false;
 
 	env = getenv("TALTOS_USE_NO_LMR");
-	conf.search.use_lmr = (env == NULL || env[0] == '0');
+	conf.search.use_LMR = (env == NULL || env[0] == '0');
 
 	env = getenv("TALTOS_USE_NO_NULLM");
 	conf.search.use_null_moves = (env == NULL || env[0] == '0');
@@ -86,7 +86,7 @@ setup_defaults(void)
 static void
 setup_display_name(void)
 {
-	if (!conf.search.use_lmr) {
+	if (!conf.search.use_LMR) {
 		if (!conf.search.use_null_moves)
 			conf.display_name = "Taltos-nolmr-nonullm";
 		else
@@ -162,7 +162,7 @@ process_args(char **arg)
 			usage(EXIT_SUCCESS);
 		}
 		else if (strcmp(*arg, "--nolmr") == 0) {
-			conf.search.use_lmr = false;
+			conf.search.use_LMR = false;
 		}
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;
