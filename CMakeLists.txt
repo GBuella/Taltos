@@ -36,7 +36,7 @@ add_custom_command(
 	COMMAND gen_constants > move_gen_const.inc
 	DEPENDS gen_constants)
 
-set(TALTOS_SOURCES 
+set(TALTOS_SOURCES
 	src/book.c
 	src/eval.c
 	src/fen.c
