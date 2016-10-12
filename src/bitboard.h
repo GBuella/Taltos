@@ -2,8 +2,8 @@
 /* vim: set filetype=c : */
 /* vim: set noet ts=8 sw=8 cinoptions=(4: */
 
-#ifndef TALTOS_BITMANIPULATE_H
-#define TALTOS_BITMANIPULATE_H
+#ifndef TALTOS_BITBOARD_H
+#define TALTOS_BITBOARD_H
 
 #include <assert.h>
 #include <stdbool.h>
