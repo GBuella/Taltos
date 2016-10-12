@@ -140,12 +140,6 @@ fen_read_move(const char *fen, const char *str, move *m)
 	return read_move(position, str, m, turn);
 }
 
-static bool
-is_promotion_target(char c)
-{
-	return strchr("QNRBqnrb", c) != NULL;
-}
-
 static void
 cleanup_move(char str[])
 {
@@ -169,7 +163,7 @@ cleanup_move(char str[])
 	// remove extra characters
 	src = dst = str;
 	do {
-		if (is_promotion_target(*src))
+		if (strchr("KQNRBkqnrb", *src) != NULL)
 			*dst++ = tolower(*src);
 		else if (is_rank(*src) || is_file(*src))
 			*dst++ = *src;
