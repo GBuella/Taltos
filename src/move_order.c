@@ -27,6 +27,7 @@ move_fsm_setup(struct move_fsm *fsm, const struct position *pos,
 	fsm->hash_moves[1] = 0;
 	fsm->hash_move_count = 0;
 	fsm->has_hashmove = false;
+	fsm->already_ordered = false;
 }
 
 static void
@@ -189,12 +190,26 @@ prepare_tacticals(const struct position *pos, struct move_fsm *fsm)
 move
 select_next_move(const struct position *pos, struct move_fsm *fsm)
 {
-	if (fsm->index == (fsm->has_hashmove ? 1 : 0))
-		prepare_tacticals(pos, fsm);
-	if (fsm->index == fsm->tacticals_end)
-		prepare_killers_and_vlates(pos, fsm);
+	if (!fsm->already_ordered) {
+		if (fsm->index == (fsm->has_hashmove ? 1 : 0))
+			prepare_tacticals(pos, fsm);
+		if (fsm->index == fsm->tacticals_end)
+			prepare_killers_and_vlates(pos, fsm);
+	}
+
 	if (fsm->index == fsm->killerm_end)
 		fsm->is_in_late_move_phase = true;
 
 	return fsm->moves[fsm->index++];
+}
+
+void
+move_fsm_reset(const struct position *pos, struct move_fsm *fsm, unsigned i)
+{
+	while (!move_fsm_done(fsm))
+		(void) select_next_move(pos, fsm);
+
+	fsm->index = i;
+	fsm->already_ordered = true;
+	fsm->is_in_late_move_phase = (i >= fsm->killerm_end);
 }

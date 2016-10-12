@@ -20,6 +20,7 @@ struct move_fsm {
 	move hash_moves[2];
 	move killers[2];
 	bool is_in_late_move_phase;
+	bool already_ordered;
 };
 
 
@@ -69,11 +70,13 @@ move_fsm_remaining(const struct move_fsm *fsm)
 	return fsm->count - fsm->index;
 }
 
-
 static inline bool
 move_fsm_done(const struct move_fsm *fsm)
 {
 	return fsm->index == fsm->count;
 }
+
+void move_fsm_reset(const struct position*, struct move_fsm*, unsigned i)
+	attribute(nonnull);
 
 #endif
