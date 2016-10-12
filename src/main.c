@@ -80,21 +80,30 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_NO_NULLM");
 	conf.search.use_null_moves = (env == NULL || env[0] == '0');
 
+	env = getenv("TALTOS_USE_SE");
+	conf.search.use_SE = (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_NO_FP");
+	conf.search.use_FP = (env == NULL || env[0] == '0');
+
 	conf.display_name = "Taltos";
 }
 
 static void
 setup_display_name(void)
 {
-	if (!conf.search.use_LMR) {
-		if (!conf.search.use_null_moves)
-			conf.display_name = "Taltos-nolmr-nonullm";
-		else
-			conf.display_name = "Taltos-nolmr";
-	}
-	else if (!conf.search.use_null_moves) {
-		conf.display_name = "Taltos-nonullm";
-	}
+	static char name[0x100] = "Taltos";
+
+	if (!conf.search.use_LMR)
+		strcat(name, "-noLMR");
+	if (!conf.search.use_null_moves)
+		strcat(name, "-nonullm");
+	if (conf.search.use_SE)
+		strcat(name, "-SE");
+	if (!conf.search.use_FP)
+		strcat(name, "-noFP");
+
+	conf.display_name = name;
 }
 
 static void
@@ -167,6 +176,12 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;
 		}
+		else if (strcmp(*arg, "--SE") == 0) {
+			conf.search.use_SE = true;
+		}
+		else if (strcmp(*arg, "--noFP") == 0) {
+			conf.search.use_FP = false;
+		}
 		else {
 			usage(EXIT_FAILURE);
 		}
@@ -186,7 +201,9 @@ usage(int status)
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
-	    "  --nonullm           do not use null move heuristics\n",
+	    "  --nonullm           do not use null move heuristics\n"
+	    "  --SE                use singular extension heuristics\n"
+	    "  --noF               do not use futility pruning\n",
 	    progname);
 	exit(status);
 }

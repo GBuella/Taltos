@@ -14,8 +14,20 @@
 #include "book.h"
 
 struct search_settings {
-	bool use_LMR;
-	bool use_null_moves;
+	bool use_LMR; // Late Move Reductions
+	bool use_null_moves; // Recursive null move pruning
+	bool use_SE; // Singular Extension -- does not work well
+	bool use_FP; // Futility Pruning -- at frontier nodes, and in qsearch
+	/*
+	 * TODO: try these
+	 *
+	 * bool use_advanced_move_order;
+	 * -- move ordering using full static evaluation at depth > PLY
+	 *
+	 * bool use_almost_mate_score;
+	 * -- store in has with infinite depth, when one side has only king left
+	 *
+	 */
 };
 
 struct taltos_conf {

@@ -20,10 +20,10 @@
 
 #define NON_VALUE INT_MIN
 
-enum {
-	node_array_length = MAX_PLY + MAX_Q_PLY + 32,
-	nmr_factor = PLY + 1
-};
+enum { node_array_length = MAX_PLY + MAX_Q_PLY + 32 };
+enum { nmr_factor = PLY };
+enum { SE_extension = PLY };
+enum { futility_margin = (4 * pawn_value) / 3 };
 
 enum node_type {
 	unknown = 0,
@@ -37,6 +37,10 @@ struct nodes_common_data {
 	jmp_buf terminate_jmp_buf;
 	volatile atomic_flag *run_flag;
 	struct search_description sd;
+
+	enum player debug_root_player_to_move;
+	char debug_move_stack[0x10000];
+	char *debug_move_stack_end;
 };
 
 struct node {
@@ -59,7 +63,77 @@ struct node {
 	bool any_search_reached;
 	struct nodes_common_data *common;
 	struct move_fsm move_fsm;
+	int static_value;
+	bool static_value_computed;
+	uint64_t opp_king_sliding_reach;
+	uint64_t opp_king_knight_reach;
+	uint64_t opp_king_pawn_reach;
+	bool king_reach_maps_computed;
+
+	enum player debug_player_to_move;
 };
+
+static void
+debug_trace_tree_init(struct node *node)
+{
+#ifdef NDEBUG
+	(void) node;
+#else
+	if (node->root_distance == 0) {
+		node->debug_player_to_move =
+		    node->common->debug_root_player_to_move;
+		node->common->debug_move_stack_end =
+		    node->common->debug_move_stack;
+		node->common->debug_move_stack[0] = '\0';
+	}
+	else {
+		node->debug_player_to_move =
+		    opponent_of(node[-1].debug_player_to_move);
+	}
+#endif
+}
+
+static void
+debug_trace_tree_push_move(struct node *node, move m)
+{
+#ifdef NDEBUG
+	(void) node;
+	(void) m;
+#else
+	assert(node->common->debug_move_stack_end[0] == '\0');
+
+	*(node->common->debug_move_stack_end++) = ' ';
+
+	if (m != 0) {
+		node->common->debug_move_stack_end = print_coor_move(
+		    m, node->common->debug_move_stack_end,
+		    node->debug_player_to_move);
+	}
+	else {
+		strcpy(node->common->debug_move_stack_end, "null");
+		node->common->debug_move_stack_end += 4;
+	}
+
+#endif
+}
+
+static void
+debug_trace_tree_pop_move(struct node *node)
+{
+#ifdef NDEBUG
+	(void) node;
+#else
+	assert(node->common->debug_move_stack_end
+	    > node->common->debug_move_stack);
+
+	assert(node->common->debug_move_stack_end[0] == '\0');
+
+	while (*(node->common->debug_move_stack_end) != ' ')
+		node->common->debug_move_stack_end--;
+
+	node->common->debug_move_stack_end[0] = '\0';
+#endif
+}
 
 static bool
 is_qsearch(const struct node *node)
@@ -104,14 +178,10 @@ hash_current_node_value(const struct node *node)
 
 	entry = ht_set_depth(HT_NULL, node->depth);
 
-	if (node->value <= node->lower_bound)
-		entry = ht_set_value(entry, vt_exact, node->lower_bound);
-	else if (node->best_move == 0)
-		entry = ht_set_value(entry, vt_upper_bound, node->value);
-	else if (node->value >= node->upper_bound)
-		entry = ht_set_value(entry, vt_exact, node->upper_bound);
+	if (node->best_move == 0)
+		entry = ht_set_value(entry, vt_upper_bound, node->alpha);
 	else if (node->value >= node->beta)
-		entry = ht_set_value(entry, vt_lower_bound, node->value);
+		entry = ht_set_value(entry, vt_lower_bound, node->beta);
 	else
 		entry = ht_set_value(entry, vt_exact, node->value);
 
@@ -160,6 +230,48 @@ handle_node_types(struct node *node)
 }
 
 static int
+get_static_value(struct node *node)
+{
+	if (!node->static_value_computed) {
+		node->static_value = eval(node->pos);
+		node->static_value_computed = true;
+	}
+
+	return node->static_value;
+}
+
+static bool
+possibly_gives_check(struct node *node, move m)
+{
+	// TODO: this misses checks by castling
+	// TODO: this misses some revealed checks by en-passant
+
+	if (!node->king_reach_maps_computed) {
+		int ki = bsf(node->pos->map[opponent_king]);
+
+		node->opp_king_sliding_reach = rook_pattern_table[ki];
+		node->opp_king_sliding_reach |= bishop_pattern_table[ki];
+		node->opp_king_knight_reach = knight_pattern(ki);
+		node->opp_king_pawn_reach =
+		    pawn_attacks_opponent(node->pos->map[opponent_king]);
+
+		node->king_reach_maps_computed = true;
+	}
+
+	if (is_nonempty(mfrom64(m) & node->opp_king_sliding_reach))
+		return true;
+
+	if (mresultp(m) == king)
+		return false;
+	else if (mresultp(m) == pawn)
+		return is_nonempty(mto64(m) & node->opp_king_pawn_reach);
+	else if (mresultp(m) == knight)
+		return is_nonempty(mto64(m) & node->opp_king_knight_reach);
+	else
+		return is_nonempty(mto64(m) & node->opp_king_sliding_reach);
+}
+
+static int
 get_LMR_factor(const struct node *node)
 {
 	if (!node->common->sd.settings.use_LMR)
@@ -170,10 +282,14 @@ get_LMR_factor(const struct node *node)
 	if ((node->root_distance == 0)
 	    || is_in_check(node[0].pos)
 	    || is_in_check(node[1].pos)
-	    || (node->depth <= PLY * 2)
+	    || (node->depth <= PLY)
 	    || !node->move_fsm.is_in_late_move_phase
 	    || node->move_fsm.count < 16
 	    || (node->move_fsm.index < 2))
+		return 0;
+
+	if (node->pos->map[0] ==
+	    (node->pos->map[king] | node->pos->map[pawn]))
 		return 0;
 
 	if (node->depth > 6 * PLY)
@@ -181,11 +297,8 @@ get_LMR_factor(const struct node *node)
 	else
 		reduction = PLY + PLY / 2;
 
-	if (node->move_fsm.index > node->move_fsm.very_late_moves_begin)
+	if (node->move_fsm.index >= node->move_fsm.very_late_moves_begin)
 		reduction += PLY / 2;
-
-	if (node->depth - reduction < PLY * 2)
-		reduction = node->depth - PLY * 2;
 
 	return reduction;
 }
@@ -237,6 +350,8 @@ node_init(struct node *node)
 {
 	node->common->result.node_count++;
 
+	debug_trace_tree_init(node);
+
 	check_node_count_limit(node->common);
 
 	if (node->common->result.node_count % NODES_PER_CANCEL_TEST == 0) {
@@ -250,6 +365,8 @@ node_init(struct node *node)
 
 	node->value = NON_VALUE;
 	node->best_move = 0;
+	node->static_value_computed = false;
+	node->king_reach_maps_computed = false;
 }
 
 enum { prune_successfull = 1 };
@@ -264,7 +381,7 @@ try_null_move_prune(struct node *node)
 
 	if ((node->expected_type != cut_node)
 	    || (advantage <= rook_value)
-	    || (node->depth <= 0)
+	    || (node->depth <= PLY)
 	    || is_in_check(node->pos)
 	    || (node->move_fsm.count < 18))
 		return 0;
@@ -303,8 +420,9 @@ try_null_move_prune(struct node *node)
 	position_flip(child->pos, node->pos);
 
 	if (is_nonempty(child->pos->rpin_map)
-	    || is_nonempty(child->pos->bpin_map))
+	    || is_nonempty(child->pos->bpin_map)) {
 		return 0;
+	}
 
 	child->expected_type = all_node;
 	child->alpha = -node->beta - pawn_value - 1;
@@ -313,7 +431,9 @@ try_null_move_prune(struct node *node)
 	child->depth = node->depth - PLY - nmr_factor;
 	child->depth -= ((advantage - rook_value) / pawn_value) * (PLY / 2);
 
+	debug_trace_tree_push_move(node, 0);
 	negamax(child);
+	debug_trace_tree_pop_move(node);
 
 	int value = -child->value;
 
@@ -323,6 +443,47 @@ try_null_move_prune(struct node *node)
 	}
 
 	return 0;
+}
+
+static int
+futility_prune(struct node *node, move m)
+{
+	if (!node->common->sd.settings.use_FP)
+		return 0;
+
+	if (node->root_distance < 3)
+		return 0;
+
+	if (is_in_check(node->pos))
+		return 0;
+
+	if (node->depth > PLY)
+		return 0;
+
+	if (node->value <= -mate_value
+	    || node->alpha >= mate_value
+	    || node->move_fsm.count < 3
+	    || is_promotion(m)
+	    || possibly_gives_check(node, m))
+		return 0;
+
+	int value_guess = get_static_value(node)
+	    + ((3 * piece_value[mcapturedp(m)]) / 2);
+
+	int margin = futility_margin;
+
+	if (node->expected_type == PV_node)
+		margin *= 2;
+
+	if (mresultp(m) == queen || mcapturedp(m) == queen)
+		margin *= 2;
+	else if (mresultp(m) == pawn && mcapturedp(m) == 0)
+		margin /= 2;
+
+	if (value_guess >= node->alpha - margin)
+		return 0;
+
+	return prune_successfull;
 }
 
 enum { hash_cutoff = 1 };
@@ -397,13 +558,9 @@ adjust_depth(struct node *node)
 	if (node->root_distance >= node_array_length - 1) {
 		// search space exploding exponentially?
 		// forced static eval, cut tree at this depth
-		node->value = eval(node->pos);
+		node->value = get_static_value(node);
 		return too_deep;
 	}
-
-	// todo: is this useful?
-	if (is_in_check(node->pos))
-		node->depth++;
 
 	if (node->depth < PLY && node->depth > 0)
 		node->depth = PLY;
@@ -496,7 +653,7 @@ setup_bounds(struct node *node)
 	node->upper_bound = max_value;
 
 	if (is_qsearch(node)) {
-		node->lower_bound = eval(node->pos);
+		node->lower_bound = get_static_value(node);
 		if (node->lower_bound >= node->beta) {
 			node->value = node->lower_bound;
 			return stand_pat_cutoff;
@@ -552,21 +709,139 @@ check_trivial_draw(struct node *node)
 	return 0;
 }
 
+static bool
+should_do_singular_extension(struct node *node, move best_move)
+{
+	if (!node->common->sd.settings.use_SE || node->root_distance == 0)
+		return false;
+
+	// Need to have entries in TT already
+	if (node->depth < 7 * PLY)
+		return false;
+
+	// Only consider the first move, and only if it is a move from TT
+	if (node->move_fsm.index != 1)
+		return false;
+
+	// Don't lose a deeper entry
+	if (ht_depth(node->fresh_entry) >= node->depth)
+		return false;
+
+	// Too few moves, it might be too easy to find a singular move
+	if (node->move_fsm.count < 6)
+		return false;
+
+	if (!node->move_fsm.has_hashmove)
+		return false;
+
+	// Suppose a capture can too easily be considered singular
+	if (mcapturedp(best_move) == queen
+	    || mcapturedp(best_move) == rook
+	    || mcapturedp(best_move) == knight
+	    || mcapturedp(best_move) == bishop
+	    || is_promotion(best_move))
+		return false;
+
+	int value;
+
+	int min_depth = node->depth / 2;
+
+	if (ht_is_set(node->deep_entry)
+	    && (ht_value_type(node->deep_entry) & vt_lower_bound) != 0
+	    && ht_has_move(node->deep_entry)
+	    && ht_move(node->deep_entry) == best_move
+	    && ht_depth(node->deep_entry) >= min_depth) {
+		value = ht_value(node->deep_entry);
+	}
+	else if (ht_is_set(node->fresh_entry)
+	    && (ht_value_type(node->fresh_entry) & vt_lower_bound) != 0
+	    && ht_has_move(node->fresh_entry)
+	    && ht_move(node->fresh_entry) == best_move
+	    && ht_depth(node->fresh_entry) >= min_depth) {
+		value = ht_value(node->fresh_entry);
+	}
+	else {
+		return false;
+	}
+
+	// TODO: probably there is no need to check this
+	if (value <= -mate_value || value >= mate_value)
+		return false;
+
+	value -= pawn_value / 2;
+
+	if (mcapturedp(best_move) == pawn)
+		value -= pawn_value / 2;
+
+	value -= ((node->depth * (pawn_value / 10)) / PLY);
+
+	struct node *child = node + 1;
+	int child_value;
+
+	/*
+	 * The first move is already fetch from the move_fsm.
+	 * Loop over all other moves, and if they all are that much worse
+	 * than the best move, return true.
+	 */
+	do {
+		move m = select_next_move(node->pos, &node->move_fsm);
+
+		make_move(child->pos, node->pos, m);
+		debug_trace_tree_push_move(node, m);
+
+		child->expected_type = all_node;
+		child->depth = node->depth / 2 - PLY;
+		child->alpha = -value;
+		child->beta = -value + 1;
+
+		negamax(child);
+		child_value = -child->value;
+
+		debug_trace_tree_pop_move(node);
+
+	} while (child_value < value && !move_fsm_done(&node->move_fsm));
+
+	move_fsm_reset(node->pos, &node->move_fsm, 1);
+
+	return child_value < value;
+}
+
 static void
-setup_child_node(struct node *node, move m, int LMR_factor)
+setup_child_node(struct node *node, move m, int *LMR_factor)
 {
 	struct node *child = node + 1;
-
-	handle_node_types(node);
-	make_move(child->pos, node->pos, m);
 
 #ifdef SEARCH_CHECK_REPETITIONS
 	child->is_GHI_barrier = is_move_irreversible(node->pos, m);
 #endif
 
-	child->depth = node->depth - PLY - LMR_factor;
+	bool use_SE = should_do_singular_extension(node, m);
+
+	make_move(child->pos, node->pos, m);
+	debug_trace_tree_push_move(node, m);
+	handle_node_types(node);
+
+	child->depth = node->depth - PLY;
 	child->beta = -node->alpha;
-	child->alpha = (LMR_factor ? (-node->alpha - 1) : -node->beta);
+	child->alpha = -node->beta;
+
+	if (use_SE) {
+		child->depth += SE_extension;
+		*LMR_factor = 0;
+	}
+	else if (is_in_check(child->pos)) {
+		if (node->depth > PLY)
+			child->depth += PLY / 2;
+		*LMR_factor = 0;
+	}
+	else {
+		*LMR_factor = get_LMR_factor(node);
+
+		if (*LMR_factor != 0) {
+			child->depth -= *LMR_factor;
+			child->alpha = -node->alpha - 1;
+		}
+	}
 }
 
 static void
@@ -627,34 +902,49 @@ negamax(struct node *node)
 
 	do {
 		move m = select_next_move(node->pos, &node->move_fsm);
-		int LMR_factor = get_LMR_factor(node);
 
-		setup_child_node(node, m, LMR_factor);
+		if (futility_prune(node, m) == prune_successfull)
+			continue;
+
+		int LMR_factor;
+
+		setup_child_node(node, m, &LMR_factor);
+
 		int value = negamax_child(node);
-		if (value > node->value && LMR_factor != 0) {
-			reset_child_after_lmr(node);
-			value = negamax_child(node);
+		if (LMR_factor != 0) {
+			if (value > node->alpha) {
+				reset_child_after_lmr(node);
+				value = negamax_child(node);
+			}
+			else {
+				debug_trace_tree_pop_move(node);
+				continue;
+			}
 		}
 
 		if (value > node->value) {
 			node->value = value;
-			if (node->value > node->alpha) {
-				node->alpha = node->value;
+			if (value > node->alpha) {
+				node->alpha = value;
 				node->best_move = m;
 				if (node->alpha >= node->beta) {
 					fail_high(node);
+					debug_trace_tree_pop_move(node);
 					break;
 				}
 				node->expected_type = PV_node;
 			}
 		}
+		debug_trace_tree_pop_move(node);
 	} while (search_more_moves(node));
 
 	ht_entry entry = hash_current_node_value(node);
 	setup_best_move(node);
-	if (node->best_move != 0)
-		entry = ht_set_move(entry, node->best_move);
-	ht_pos_insert(node->tt, node->pos, entry);
+	if (node->depth > 0) {
+		if (node->best_move != 0)
+			entry = ht_set_move(entry, node->best_move);
+		ht_pos_insert(node->tt, node->pos, entry);
+	}
 	if (node->value < node->lower_bound)
 		node->value = node->lower_bound;
 }
@@ -716,6 +1006,7 @@ find_qdepth(const struct node nodes[])
 
 struct search_result
 search(const struct position *root_pos,
+	enum player debug_player_to_move,
 	struct search_description sd,
 	volatile atomic_flag *run_flag)
 {
@@ -728,6 +1019,7 @@ search(const struct position *root_pos,
 	memset(&common, 0, sizeof common);
 	common.run_flag = run_flag;
 	common.sd = sd;
+	common.debug_root_player_to_move = debug_player_to_move;
 	setup_node_array(node_array_length, nodes, sd, &common);
 	root_node = setup_root_node(nodes, root_pos);
 

@@ -191,6 +191,7 @@ add_move(move m)
 
 	if (game_append(game, m) == 0) {
 		engine_process_move(m);
+		debug_engine_set_player_to_move(turn());
 
 		if (is_end()) {
 			game_started = false;
@@ -707,6 +708,7 @@ cmd_setboard(void)
 	game_destroy(game);
 	game = g;
 	reset_engine(current_position());
+	debug_engine_set_player_to_move(turn());
 
 	mtx_unlock(&game_mutex);
 }
@@ -755,6 +757,7 @@ cmd_new(void)
 	if ((game = game_create()) == NULL)
 		INTERNAL_ERROR();
 	reset_engine(current_position());
+	debug_engine_set_player_to_move(turn());
 	computer_side = black;
 	set_thinking_done_cb(computer_move, ++callback_key);
 	unset_search_depth_limit();
@@ -1043,6 +1046,7 @@ cmd_undo(void)
 		if (revert() != 0)
 			general_error();
 		reset_engine(current_position());
+		debug_engine_set_player_to_move(turn());
 	}
 }
 
@@ -1055,6 +1059,7 @@ cmd_redo(void)
 		if (forward() != 0)
 			general_error();
 		reset_engine(current_position());
+		debug_engine_set_player_to_move(turn());
 	}
 
 	mtx_unlock(&game_mutex);
@@ -1127,6 +1132,8 @@ cmd_eval(void)
 	print_centipawns(ef.rook_placement);
 	printf("\n knight_placement:    ");
 	print_centipawns(ef.knight_placement);
+	printf("\n bishop_placement:    ");
+	print_centipawns(ef.bishop_placement);
 	printf("\n value:               ");
 	print_centipawns(eval(current_position()));
 	putchar('\n');
@@ -1294,6 +1301,7 @@ init_settings(void)
 	    (int (*)(const void*, const void*))strcmp);
 	game = game_create();
 	reset_engine(current_position());
+	debug_engine_set_player_to_move(turn());
 	set_thinking_done_cb(computer_move, callback_key);
 	set_show_thinking(print_current_result);
 	set_computer_clock(30000);

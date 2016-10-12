@@ -291,8 +291,6 @@ ht_pos_insert(struct hash_table *ht,
 	bucket = ht->table + (hash[0] % ht->bucket_count);
 
 	write_fresh_slot(ht, bucket, hash, entry);
-	if (ht_depth(entry) < PLY)
-		return;
 
 	unsigned depth_min_index = 0;
 	int depth_min = 0x10000;

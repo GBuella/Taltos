@@ -48,5 +48,6 @@ void wait_thinking(void);
 void init_engine(const struct taltos_conf*);
 void reset_engine(const struct position*);
 void engine_process_move(move);
+void debug_engine_set_player_to_move(enum player);
 
 #endif

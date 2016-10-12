@@ -22,6 +22,14 @@
 // global config
 static const struct taltos_conf *horse;
 
+enum player debug_player_to_move;
+
+void
+debug_engine_set_player_to_move(enum player p)
+{
+	debug_player_to_move = p;
+}
+
 static mtx_t engine_mutex;
 
 
@@ -467,7 +475,8 @@ iterative_deepening(void *arg)
 
 		mtx_unlock(&(data->mutex));
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
-		result = search(&data->root, data->sd, &data->run_flag);
+		result = search(&data->root, debug_player_to_move,
+		    data->sd, &data->run_flag);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&(data->mutex));
 		if (result.is_terminated)
@@ -485,13 +494,12 @@ iterative_deepening(void *arg)
 		if (abs(result.value) >= mate_value)
 			break;
 		data->sd.depth++;
-		// data->sd.depth += PLY;
 	}
 	if (data->thinking_cb != NULL)
 		data->thinking_cb();
 	mtx_unlock(&(data->mutex));
 	tracef("%s -- done", __func__);
-	// data->is_started_flag = false;
+	// data->is_started_flag = false; ??
 
 	return 0;
 }
