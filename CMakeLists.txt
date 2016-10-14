@@ -8,6 +8,7 @@ FIND_PACKAGE(Threads)
 include_directories(src tests "${PROJECT_BINARY_DIR}")
 
 add_executable(gen_constants util/gen_constants.c)
+add_executable(epd_runner util/epd_runner.c)
 
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
