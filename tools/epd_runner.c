@@ -59,7 +59,7 @@ parse_acn(const char *token)
 	unsigned long long n = strtoull(token, &endptr, 0);
 
 	if (*endptr == '\0' && n != ULLONG_MAX && n != 0)
-		return 0;
+		return n;
 
 	if (line_no > 0)
 		fprintf(stderr, "Invalid node count on line %u\n", line_no);
