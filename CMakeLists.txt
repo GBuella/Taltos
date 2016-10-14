@@ -7,8 +7,8 @@ FIND_PACKAGE(Threads)
 
 include_directories(src tests "${PROJECT_BINARY_DIR}")
 
-add_executable(gen_constants util/gen_constants.c)
-add_executable(epd_runner util/epd_runner.c)
+add_executable(gen_constants tools/gen_constants.c)
+add_executable(epd_runner tools/epd_runner.c)
 
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
@@ -99,7 +99,7 @@ configure_file(cmake/config.h.in taltos_config.h)
 TARGET_LINK_LIBRARIES(taltos ${CMAKE_THREAD_LIBS_INIT})
 
 add_custom_target(cstyle
-	COMMAND perl ${PROJECT_SOURCE_DIR}/util/cstyle.pl
+	COMMAND perl ${PROJECT_SOURCE_DIR}/tools/cstyle.pl
 	-pc ${PROJECT_SOURCE_DIR}/src/*
 	${PROJECT_SOURCE_DIR}/tests/*.{h,c})
 
