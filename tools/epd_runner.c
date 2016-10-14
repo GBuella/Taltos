@@ -126,23 +126,6 @@ parse_line(char *line)
 	enum token_type next = t_opcode;
 
 	while ((token = strtok(NULL, " \n")) != NULL && semicolon == NULL) {
-		/*
-		if (next == t_id) {
-			if ((token = strchr(token, '\"')) == NULL)
-				epd_error();
-			next = t_id_end;
-			continue;
-		}
-		else if (next == t_id_end) {
-			if ((token = strchr(token, '\"')) == NULL)
-				continue;
-			++token;
-			next = t_opcode;
-			if (*token == '\0')
-				continue;
-		}
-		*/
-
 		char *semicolon = strchr(token, ';');
 		if (semicolon != NULL) {
 			*semicolon = '\0';
