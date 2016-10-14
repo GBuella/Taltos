@@ -1,7 +1,0 @@
-force
-nopost
-setboard 3rr1k1/pp3pp1/1qn2np1/8/3p4/PP1R1P2/2P1NQPP/R1B3K1 b - -
-nps 100000
-st 200
-search_sync
-hash_value_min 1

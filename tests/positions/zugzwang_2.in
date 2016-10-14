@@ -4,4 +4,4 @@ setboard 1q1k4/2Rr4/8/2Q3K1/8/8/8/8 w - -
 nps 100000
 st 200
 search_sync
-hash_value_min 400
+hash_value_min 300

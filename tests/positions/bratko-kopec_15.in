@@ -1,6 +1,0 @@
-force
-nopost
-setboard 2r3k1/1p2q1pp/2b1pr2/p1pp4/6Q1/1P1PP1R1/P1PN2PP/5RK1 w - -
-nps 100000
-st 24
-search_sync
