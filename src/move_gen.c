@@ -91,7 +91,7 @@ gen_en_passant(const struct position *pos, move *moves, uint64_t dst_mask)
 		uint64_t sq_pawn = east_of(sq_dst);
 		uint64_t move_mask = north_of(sq_dst) | sq_pawn;
 		uint64_t masked = pos->bpin_map & move_mask;
-		if (is_empty(masked) || (masked == move_mask))
+		if (masked != sq_pawn)
 			*moves++ = create_move_t(pos->ep_index + EAST,
 			    pos->ep_index + NORTH,
 			    mt_en_passant, pawn, pawn);
@@ -100,7 +100,7 @@ gen_en_passant(const struct position *pos, move *moves, uint64_t dst_mask)
 		uint64_t sq_pawn = west_of(sq_dst);
 		uint64_t move_mask = north_of(sq_dst) | sq_pawn;
 		uint64_t masked = pos->bpin_map & move_mask;
-		if (is_empty(masked) || (masked == move_mask))
+		if (masked != sq_pawn)
 			*moves++ = create_move_t(pos->ep_index + WEST,
 			    pos->ep_index + NORTH,
 			    mt_en_passant, pawn, pawn);

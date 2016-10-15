@@ -756,3 +756,9 @@ add_test(NAME "perft_125"
 	-DTEST_PROG=$<TARGET_FILE:taltos>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_125
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
+
+add_test(NAME "perft_126"
+	COMMAND ${CMAKE_COMMAND}
+	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_126
+	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)

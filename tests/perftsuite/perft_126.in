@@ -1,0 +1,7 @@
+setboard 1r4k1/2pbbppp/1r6/n7/p2PNp1q/P1P2P1P/BP3RP1/2Q2KNR w - -
+echo 1r4k1/2pbbppp/1r6/n7/p2PNp1q/P1P2P1P/BP3RP1/2Q2KNR w - -
+qperft 1
+qperft 2
+qperft 3
+qperft 4
+qperft 5
