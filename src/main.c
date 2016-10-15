@@ -203,7 +203,7 @@ usage(int status)
 	    "  --nolmr             do not use LMR heuristics\n"
 	    "  --nonullm           do not use null move heuristics\n"
 	    "  --SE                use singular extension heuristics\n"
-	    "  --noF               do not use futility pruning\n",
+	    "  --noFP              do not use futility pruning\n",
 	    progname);
 	exit(status);
 }
