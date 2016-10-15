@@ -78,7 +78,7 @@ move
 book_get_move(const struct book *book, const struct position *position)
 {
 	if (book->type == bt_empty)
-		return 0;
+		return none_move;
 	move moves[MOVE_ARRAY_LENGTH];
 
 	switch (book->type) {
