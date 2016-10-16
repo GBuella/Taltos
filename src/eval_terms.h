@@ -7,6 +7,7 @@
 
 #include "position.h"
 #include "constants.h"
+#include "eval.h"
 
 static inline uint64_t
 pawn_chains(const struct position *pos)
@@ -301,28 +302,105 @@ opponent_bishops_on_black(const struct position *pos)
 }
 
 static inline uint64_t
-squares_reachable_bnrq(const struct position *pos)
+free_squares(const struct position *pos)
 {
-	return pos->sliding_attacks[0] | pos->attack[knight];
+	return ~(pos->map[0] | pos->attack[1]);
 }
 
 static inline uint64_t
-opponent_squares_reachable_bnrq(const struct position *pos)
+opponent_free_squares(const struct position *pos)
 {
-	return pos->sliding_attacks[1] | pos->attack[opponent_knight];
+	return ~(pos->map[1] | pos->attack[0]);
 }
 
-static inline uint64_t
-free_squares_reachable_bnrq(const struct position *pos)
+static inline int
+non_pawn_material(const struct position *pos)
 {
-	return squares_reachable_bnrq(pos) & ~(pos->map[0] | pos->attack[1]);
+	return pos->material_value -
+	    pawn_value * popcnt(pos->map[pawn]);
 }
 
-static inline uint64_t
-opponent_free_squares_reachable_bnrq(const struct position *pos)
+static inline int
+opponent_non_pawn_material(const struct position *pos)
 {
-	return opponent_squares_reachable_bnrq(pos)
-	    & ~(pos->map[1] | pos->attack[0]);
+	return pos->opponent_material_value -
+	    pawn_value * popcnt(pos->map[opponent_pawn]);
+}
+
+static inline bool
+bishop_c1_is_trapped(const struct position *pos)
+{
+	return (pos->map[pawn] & (SQ_B1 | SQ_D1)) == (SQ_B1 | SQ_D1);
+}
+
+static inline bool
+bishop_f1_is_trapped(const struct position *pos)
+{
+	return (pos->map[pawn] & (SQ_E1 | SQ_G1)) == (SQ_E1 | SQ_G1);
+}
+
+static inline bool
+bishop_c8_is_trapped(const struct position *pos)
+{
+	return (pos->map[opponent_pawn] & (SQ_B8 | SQ_D8)) == (SQ_B8 | SQ_D8);
+}
+
+static inline bool
+bishop_f8_is_trapped(const struct position *pos)
+{
+	return (pos->map[opponent_pawn] & (SQ_E8 | SQ_G8)) == (SQ_E8 | SQ_G8);
+}
+
+static inline bool
+rook_a1_is_trapped(const struct position *pos)
+{
+	if (pos->cr_queen_side || pos->cr_king_side)
+		return false;
+
+	uint64_t r = pos->map[rook] & (SQ_A1 | SQ_B1 | SQ_C1);
+	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D1;
+	return is_nonempty(r)
+	    && is_empty(r & pos->half_open_files[0])
+	    && is_nonempty(trap & pos->map[king]);
+}
+
+static inline bool
+rook_h1_is_trapped(const struct position *pos)
+{
+	if (pos->cr_king_side || pos->cr_queen_side)
+		return false;
+
+	uint64_t r = pos->map[rook] & (SQ_F1 | SQ_G1 | SQ_H1);
+	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E1;
+	return is_nonempty(r)
+	    && is_empty(r & pos->half_open_files[0])
+	    && is_nonempty(trap & pos->map[king]);
+}
+
+static inline bool
+rook_a8_is_trapped(const struct position *pos)
+{
+	if (pos->cr_opponent_king_side || pos->cr_opponent_queen_side)
+		return false;
+
+	uint64_t r = pos->map[opponent_rook] & (SQ_A8 | SQ_B8 | SQ_C8);
+	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D8;
+	return is_nonempty(r)
+	    && is_empty(r & pos->half_open_files[1])
+	    && is_nonempty(trap & pos->map[opponent_king]);
+}
+
+static inline bool
+rook_h8_is_trapped(const struct position *pos)
+{
+	if (pos->cr_opponent_king_side || pos->cr_opponent_queen_side)
+		return false;
+
+	uint64_t r = pos->map[opponent_rook] & (SQ_F8 | SQ_G8 | SQ_H8);
+	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E8;
+	return is_nonempty(r)
+	    && is_empty(r & pos->half_open_files[1])
+	    && is_nonempty(trap & pos->map[opponent_king]);
 }
 
 #endif

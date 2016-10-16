@@ -1116,8 +1116,6 @@ cmd_eval(void)
 	struct eval_factors ef = compute_eval_factors(current_position());
 	printf(" material:            ");
 	print_centipawns(ef.material);
-	printf("\n middle_game factor:  %d", ef.middle_game);
-	printf("\n end_game factor:     %d", ef.end_game);
 	printf("\n basic_mobility:      ");
 	print_centipawns(ef.basic_mobility);
 	printf("\n center_control:      ");
@@ -1126,12 +1124,14 @@ cmd_eval(void)
 	print_centipawns(ef.pawn_structure);
 	printf("\n passed_pawns:        ");
 	print_centipawns(ef.passed_pawns);
-	printf("\n king_fortress:       ");
-	print_centipawns(ef.king_fortress);
+	printf("\n king_safety:         ");
+	print_centipawns(ef.king_safety);
 	printf("\n rook_placement:      ");
 	print_centipawns(ef.rook_placement);
 	printf("\n knight_placement:    ");
 	print_centipawns(ef.knight_placement);
+	printf("\n queen_placement:     ");
+	print_centipawns(ef.queen_placement);
 	printf("\n bishop_placement:    ");
 	print_centipawns(ef.bishop_placement);
 	printf("\n value:               ");

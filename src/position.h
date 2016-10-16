@@ -207,20 +207,6 @@ static_assert(offsetof(struct position, opponent_material_value) +
 
 
 
-static inline void
-pos_add_piece(struct position *p, int i, int piece)
-{
-	extern const int piece_value[PIECE_ARRAY_SIZE];
-
-	invariant(ivalid(i));
-	p->board[i] = piece & ~1;
-	p->occupied |= bit64(i);
-	p->map[piece & 1] |= bit64(i);
-	p->map[piece] |= bit64(i);
-	p->material_value += piece_value[piece];
-	p->opponent_material_value -= piece_value[piece];
-}
-
 static inline attribute(artificial) enum piece
 pos_piece_at(const struct position *p, int i)
 {

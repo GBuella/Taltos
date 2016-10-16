@@ -377,7 +377,7 @@ try_null_move_prune(struct node *node)
 	if (!node->common->sd.settings.use_null_moves)
 		return 0;
 
-	int advantage = node->pos->material_value - node->beta;
+	int advantage = get_static_value(node) - node->beta;
 
 	if ((node->expected_type != cut_node)
 	    || (advantage <= rook_value)

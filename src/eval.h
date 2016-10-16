@@ -12,9 +12,9 @@ enum {
 	mate_value = (max_value - MAX_PLY),
 	pawn_value = 100,
 	knight_value = 300,
-	bishop_value = 301,
+	bishop_value = 326,
 	rook_value = 500,
-	queen_value = 900
+	queen_value = 930
 };
 
 static inline bool
@@ -31,16 +31,15 @@ int eval(const struct position*) attribute(nonnull);
 
 struct eval_factors {
 	int material;
-	int middle_game;
-	int end_game;
 	int basic_mobility;
 	int pawn_structure;
 	int rook_placement;
 	int bishop_placement;
 	int knight_placement;
+	int queen_placement;
 	int passed_pawns;
 	int center_control;
-	int king_fortress;
+	int king_safety;
 };
 
 struct eval_factors compute_eval_factors(const struct position*)

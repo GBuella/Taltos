@@ -708,6 +708,25 @@ castle_rights_valid(const struct position *pos)
 	return true;
 }
 
+static void
+pos_add_piece(struct position *pos, int i, int piece)
+{
+	extern const int piece_value[PIECE_ARRAY_SIZE];
+
+	invariant(ivalid(i));
+	pos->board[i] = piece & ~1;
+	pos->occupied |= bit64(i);
+	pos->map[piece & 1] |= bit64(i);
+	pos->map[piece] |= bit64(i);
+
+	if ((piece & ~1) != king) {
+		if ((piece & 1) == 0)
+			pos->material_value += piece_value[piece & ~1];
+		else
+			pos->opponent_material_value += piece_value[piece & ~1];
+	}
+}
+
 static int
 board_reset(struct position *pos, const char board[static 64])
 {
@@ -1161,6 +1180,7 @@ clear_to_square(struct position *pos, int i)
 {
 	if (pos->board[i] != 0) {
 		pos->material_value -= piece_value[(unsigned)(pos->board[i])];
+		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
 		z2_toggle_sq(pos->zhash, i, pos->board[i], 0);
 		pos->map[(unsigned char)(pos->board[i])] &= ~bit64(i);
@@ -1183,6 +1203,7 @@ move_pawn(struct position *pos, move m)
 		pos->map[0] &= ~bit64(mto(m) + NORTH);
 		z2_toggle_sq(pos->zhash, mto(m) + NORTH, pawn, 0);
 		pos->material_value -= pawn_value;
+		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
 
 	}
@@ -1226,8 +1247,9 @@ move_piece(struct position *pos, move m)
 		uint64_t to = mto64(m);
 
 		if (mtype(m) == mt_promotion)
-			pos->material_value
-			    -= piece_value[mresultp(m)] - pawn_value;
+			pos->opponent_material_value +=
+			    piece_value[mresultp(m)] - pawn_value;
+
 		invariant(value_bounds(pos->material_value));
 		enum piece porig = pos_piece_at(pos, mfrom(m));
 		z2_toggle_sq(pos->zhash, mfrom(m), porig, 1);
@@ -1253,6 +1275,7 @@ make_move(struct position *restrict dst,
 	flip_tail(dst, src);
 
 	invariant(value_bounds(dst->material_value));
+	invariant(value_bounds(dst->opponent_material_value));
 	clear_to_square(dst, mto(m));
 	if (mresultp(m) == pawn) {
 		dst->king_index = bsf(dst->map[king]);
@@ -1271,7 +1294,6 @@ make_move(struct position *restrict dst,
 	if (mcapturedp(m) == pawn)
 		generate_pawn_reach_maps(dst);
 	dst->occupied = dst->map[0] | dst->map[1];
-	dst->opponent_material_value = -dst->material_value;
 	search_bishop_king_attacks(dst);
 	search_rook_king_attacks(dst);
 	generate_attacks_move(dst, src, m);
