@@ -29,26 +29,26 @@ enum {
 	knight_attack_center = 4,
 	bishop_attack_center = 4,
 
-	isolated_pawn_value = -13,
-	blocked_pawn_value = -8,
-	double_pawn_value = -17,
-	backward_pawn_value = -24,
+	isolated_pawn_value = -8,
+	blocked_pawn_value = -7,
+	double_pawn_value = -10,
+	backward_pawn_value = -10,
 	pawn_chain_value = 3,
 
 	knight_outpost_value = 24,
-	knight_outpost_reach_value = 12,
+	knight_outpost_reach_value = 10,
 
-	bishop_pair_value = 12,
+	bishop_pair_value = 10,
 	bishop_wrong_color_value = -3,
 
 	lonely_queen_value = -10,
 
 	kings_pawn_value = 9,
-	catled_king_value = 23,
+	castled_king_value = 23,
 	king_ring_sliding_attacked_value = -5,
 	castle_right_value = 10,
 
-	passed_pawn_value = 15,
+	passed_pawn_value = 20,
 
 	bishop_trapped_value = -10,
 	rook_trapped_value = -18,
@@ -129,10 +129,10 @@ king_safety_side(uint64_t king_map, uint64_t pawns,
 	 */
 	if (is_nonempty(king_map & (SQ_G1|SQ_H1))
 	    && is_empty(rooks & SQ_H1))
-		value += catled_king_value;
+		value += castled_king_value;
 	else if (is_nonempty(king_map & (SQ_A1|SQ_C1|SQ_B1))
 	    && is_empty(rooks & SQ_A1))
-		value += catled_king_value;
+		value += castled_king_value;
 
 	/* Count pawns around the king */
 	uint64_t p = king_reach & pawns;
@@ -261,8 +261,13 @@ eval_pawn_structure(const struct position *pos)
 
 	value += pawn_chain_value * popcnt(pawn_chains(pos));
 	value -= pawn_chain_value * popcnt(opponent_pawn_chains(pos));
-	value += isolated_pawn_value * popcnt(isolated_pawns(pos));
-	value -= isolated_pawn_value * popcnt(opponent_isolated_pawns(pos));
+
+	/*
+	 * TODO: is this needed?
+	 * isolated pawns are counted as backward pawns anyways
+	 * value += isolated_pawn_value * popcnt(isolated_pawns(pos));
+	 * value -= isolated_pawn_value * popcnt(opponent_isolated_pawns(pos));
+	 */
 	value += blocked_pawn_value * popcnt(blocked_pawns(pos));
 	value -= blocked_pawn_value * popcnt(opponent_blocked_pawns(pos));
 	value += double_pawn_value * popcnt(double_pawns(pos));
