@@ -353,10 +353,12 @@ static void
 slot_swap(struct hash_table *ht, volatile struct slot *slot)
 {
 	if (slot->hash_key != 0) {
-		ht->usage--;
 		slot[DEEP_SLOT_COUNT / 2] = *slot;
-		slot->hash_key = 0;
-		slot->entry = 0;
+		if (ht_depth(slot->entry) < 99) {
+			ht->usage--;
+			slot->hash_key = 0;
+			slot->entry = 0;
+		}
 	}
 }
 

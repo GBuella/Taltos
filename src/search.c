@@ -585,17 +585,22 @@ fetch_hash_value(struct node *node)
 	entry = ht_lookup_fresh(node->tt, node->pos);
 	if (!ht_is_set(entry))
 		return 0;
-	if (node->move_fsm.has_hashmove) {
-		size_t i = 0;
-		while (i < node->move_fsm.count) {
-			if (node->move_fsm.moves[i++] == ht_move(entry))
-				break;
+	if (ht_has_move(entry)) {
+		if (node->move_fsm.has_hashmove) {
+			size_t i = 0;
+			while (i < node->move_fsm.count) {
+				if (node->move_fsm.moves[i++] == ht_move(entry))
+					break;
+			}
+			if (i == node->move_fsm.count)
+				return 0;
 		}
-		if (i == node->move_fsm.count)
-			return 0;
+		else {
+			if (move_fsm_add_hash_move(&node->move_fsm,
+			    ht_move(entry)) != 0)
+				return 0;
+		}
 	}
-	else if (move_fsm_add_hash_move(&node->move_fsm, ht_move(entry)) != 0)
-		return 0;
 	node->fresh_entry = entry;
 	if (check_hash_value(node, entry) == hash_cutoff) {
 		ht_pos_insert(node->tt, node->pos, entry);
