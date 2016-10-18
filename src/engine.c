@@ -265,14 +265,28 @@ board_cmp(const struct position *a, const struct position *b)
 static size_t
 filter_duplicates(struct position duplicates[])
 {
+	trace(__func__);
+
 	size_t count = 0;
+	enum player turn = debug_player_to_move;
+
+	if ((history_length % 2) != 0)
+		turn = opponent_of(turn);
+
 	for (unsigned i = 0; i < history_length - 1; ++i) {
 		for (unsigned j = i + 1; j < history_length; ++j) {
-			if (board_cmp(history + i, history + j) == 0) {
-				duplicates[count] = history[i];
+			if ((i - j) % 2 == 0
+			    && board_cmp(history + i, history + j) == 0) {
+
+				char fen[0x1000];
+				position_print_fen(history + i, fen, 0, turn);
+				tracef("Duplicate found: %s", fen);
+
+				duplicates[count++] = history[i];
 				break;
 			}
 		}
+		turn = opponent_of(turn);
 	}
 	return count;
 }
@@ -280,6 +294,8 @@ filter_duplicates(struct position duplicates[])
 static void
 add_history_as_repetition(void)
 {
+	trace(__func__);
+
 	struct position duplicates[ARRAY_LENGTH(history)];
 	size_t duplicate_count;
 	ht_entry entry = ht_set_depth(HT_NULL, 99);
@@ -438,19 +454,28 @@ engine_current_entry(void)
 	    history + history_length - 1, 1, max_value);
 }
 
+ht_entry
+engine_get_entry(const struct position *pos)
+{
+	if (threads[0].sd.tt == NULL)
+		return HT_NULL;
+	return ht_lookup_deep(threads[0].sd.tt, pos, 1, max_value);
+}
+
 static void
 setup_search(struct search_thread_data *thread)
 {
 	ht_entry entry;
 
+	thread->sd.depth = 1;
 	entry = ht_lookup_deep(thread->sd.tt, &thread->root, 1, max_value);
 	if (ht_value_type(entry) == vt_exact && ht_depth(entry) > 0) {
+		if (ht_value(entry) == 0 && ht_depth(entry) == 99)
+			return;
+
 		thread->sd.depth = ht_depth(entry) + 1;
 		if (thread->export_best_move && ht_has_move(entry))
 			engine_best_move = ht_move(entry);
-	}
-	else {
-		thread->sd.depth = 1;
 	}
 }
 
