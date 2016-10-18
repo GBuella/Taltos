@@ -1155,13 +1155,33 @@ cmd_polyglotkey(void)
 }
 
 static void
-cmd_hash_value(void)
+cmd_hash_entry(void)
 {
-	ht_entry entry = engine_current_entry();
+	ht_entry entry;
+	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
+
+	if (fen != NULL) {
+		struct game *g = game_create_fen(fen);
+		if (g == NULL) {
+			(void) fprintf(stderr, "Unable to parse FEN\n");
+			return;
+		}
+		entry = engine_get_entry(game_current_position(g));
+		game_destroy(g);
+	}
+	else {
+		entry = engine_current_entry();
+	}
+
 	if (!ht_is_set(entry)) {
 		puts("hash_value: none");
 		return;
 	}
+
+	mtx_lock(&stdout_mutex);
+
+	printf("hash_depth: %d\n", ht_depth(entry));
+
 	printf("hash_value: ");
 	if (ht_value_type(entry) == vt_none) {
 		puts("none");
@@ -1175,6 +1195,8 @@ cmd_hash_value(void)
 		printf("upper bound ");
 	print_centipawns(ht_value(entry));
 	putchar('\n');
+
+	mtx_unlock(&stdout_mutex);
 }
 
 static void
@@ -1282,7 +1304,7 @@ static struct cmd_entry cmd_list[] = {
 	{"eval",         cmd_eval,               NULL},
 	{"poskey",       cmd_poskey,             NULL},
 	{"polyglot_key", cmd_polyglotkey,        NULL},
-	{"hash_value",   cmd_hash_value,         NULL},
+	{"hash_entry",   cmd_hash_entry,         NULL},
 	{"hash_value_min",
 		cmd_hash_value_exact_min,        NULL},
 	{"hash_value_max",

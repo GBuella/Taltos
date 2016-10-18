@@ -37,6 +37,7 @@ void set_computer_clock(unsigned);
 void set_search_depth_limit(unsigned);
 void set_search_nps(unsigned);
 ht_entry engine_current_entry(void);
+ht_entry engine_get_entry(const struct position*);
 void unset_search_depth_limit(void);
 void set_show_thinking(void (*cb)(const struct engine_result));
 void set_no_show_thinking(void);
