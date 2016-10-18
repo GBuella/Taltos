@@ -491,6 +491,9 @@ enum { hash_cutoff = 1 };
 static int
 check_hash_value(struct node *node, ht_entry entry)
 {
+	if (node->root_distance == 0)
+		return 0;
+
 	if (node->depth > ht_depth(entry)) {
 		if (ht_value_type(entry) == vt_lower_bound
 		    || ht_value_type(entry) == vt_exact) {
