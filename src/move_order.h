@@ -34,6 +34,9 @@ move select_next_move(const struct position*, struct move_fsm*)
 static inline int
 move_fsm_add_hash_move(struct move_fsm *fsm, move hash_move)
 {
+	if (hash_move == 0)
+		return 0;
+
 	for (unsigned i = 0; i < fsm->count; ++i) {
 		if (fsm->moves[i] == hash_move) {
 			fsm->moves[i] = fsm->moves[0];
