@@ -43,7 +43,7 @@ enum {
 
 	lonely_queen_value = -10,
 
-	kings_pawn_value = 9,
+	kings_pawn_value = 8,
 	castled_king_value = 23,
 	king_ring_sliding_attacked_value = -5,
 	castle_right_value = 10,
@@ -185,7 +185,7 @@ king_safety_wrapper(const struct position *pos)
 static int
 opponent_king_safety_wrapper(const struct position *pos)
 {
-	if (is_nonempty(pos->map[opponent_king] & (RANK_8|RANK_7)))
+	if (is_empty(pos->map[opponent_king] & (RANK_8|RANK_7)))
 		return 0;
 
 	return king_safety_side(bswap(pos->map[opponent_king]),
