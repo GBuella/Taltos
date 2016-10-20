@@ -309,6 +309,8 @@ print_computer_move(move m)
 
 	mtx_lock(&stdout_mutex);
 
+	tracef("%s %s", __func__, str);
+
 	if (is_xboard) {
 		printf("move %s\n", str);
 	}
@@ -517,6 +519,9 @@ try_read_move(const char *cmd)
 {
 	move move;
 
+	if (is_end())
+		return 1;
+
 	switch (read_move(current_position(), cmd, &move, turn())) {
 		case none_move:
 			return 1;
@@ -541,6 +546,8 @@ static void init_settings(void);
 void
 loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 {
+	trace(__func__);
+
 	char line[1024];
 	char *cmd;
 
