@@ -51,7 +51,8 @@ set(TALTOS_SOURCES
 	src/polyglot_book.c
 	src/position.c
 	src/str_util.c
-	src/util.c)
+	src/util.c
+	src/trace.c)
 
 if(NOT TALTOS_CAN_USE_ISO_THREADS)
 	set(TALTOS_SOURCES tinycthread/tinycthread.c ${TALTOS_SOURCES})

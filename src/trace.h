@@ -8,9 +8,9 @@
 #include "macros.h"
 
 #include <stdio.h>
-#include <stdarg.h>
 
-extern FILE *trace_file;
+void trace_init(const char *path)
+	attribute(nonnull);
 
 void trace(const char *str)
 	attribute(nonnull);

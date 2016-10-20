@@ -16,8 +16,6 @@
 #include "taltos.h"
 #include "trace.h"
 
-FILE *trace_file;
-
 static const char *progname;
 static struct taltos_conf conf;
 static void exit_routine(void);
@@ -116,23 +114,6 @@ exit_routine(void)
 }
 
 static void
-trace_init(const char *path)
-{
-	errno = 0;
-
-	trace_file = fopen(path, "w");
-
-	if (trace_file == NULL) {
-		perror(path);
-		exit(EXIT_FAILURE);
-	}
-
-	(void) setvbuf(trace_file, NULL, _IONBF, 0);
-
-	trace("Taltos debug log start");
-}
-
-static void
 process_args(char **arg)
 {
 	progname = *arg;
@@ -211,6 +192,8 @@ usage(int status)
 static void
 init_book(struct book **book)
 {
+	trace(__func__);
+
 	errno = 0;
 
 	*book = book_open(conf.book_type, conf.book_path);
@@ -220,56 +203,4 @@ init_book(struct book **book)
 			perror(conf.book_path);
 		exit(EXIT_FAILURE);
 	}
-}
-
-static char*
-trace_stamp(char *buf)
-{
-	time_t now = time(NULL);
-
-	char *t = ctime(&now);
-
-	while (*t != '\0' && *t != '\n' && *t != '\r')
-		*buf++ = *t++;
-
-	*buf++ = ' ';
-
-	return buf;
-}
-
-void
-trace(const char *str)
-{
-	if (trace_file == NULL)
-		return;
-
-	char buffer[0x400];
-	char *b = trace_stamp(buffer);
-
-	while (*str != '\0' && b + 1 < buffer + sizeof(buffer))
-		*b++ = *str++;
-
-	*b++ = '\n';
-
-	fwrite(buffer, b - buffer, 1, trace_file);
-}
-
-void
-tracef(const char *format, ...)
-{
-	if (trace_file == NULL)
-		return;
-
-	char buffer[0x400];
-	char *b = trace_stamp(buffer);
-
-	va_list ap;
-
-	va_start(ap, format);
-	b += vsnprintf(b, buffer + sizeof(buffer) - b - 1, format, ap);
-	va_end(ap);
-
-	*b++ = '\n';
-
-	fwrite(buffer, b - buffer, 1, trace_file);
 }
