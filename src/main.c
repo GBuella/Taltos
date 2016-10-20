@@ -117,7 +117,7 @@ static void
 process_args(char **arg)
 {
 	progname = *arg;
-	for (++arg; *arg != NULL; ++arg) {
+	for (++arg; *arg != NULL && **arg != '\0'; ++arg) {
 		if (strcmp(*arg, "-t") == 0) {
 			conf.timing = true;
 			conf.start_time = xnow();
@@ -164,6 +164,7 @@ process_args(char **arg)
 			conf.search.use_FP = false;
 		}
 		else {
+			fprintf(stderr, "Uknown option: \"%s\"\n", *arg);
 			usage(EXIT_FAILURE);
 		}
 	}
@@ -175,7 +176,7 @@ usage(int status)
 	fprintf((status == EXIT_SUCCESS) ? stdout : stderr,
 	    "taltos chess engine\n"
 	    "usage: %s [options]\n"
-	    "OPTIONS:"
+	    "OPTIONS:\n"
 	    "  -t                  print time after quitting\n"
 	    "  --trace path        log debug information to file at path\n"
 	    "  --book path         load polyglot book at path\n"
