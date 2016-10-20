@@ -14,6 +14,7 @@
 #include "search.h"
 #include "util.h"
 #include "eval.h"
+#include "trace.h"
 
 #include "str_util.h"
 
@@ -100,6 +101,8 @@ ht_size(const struct hash_table *ht)
 struct hash_table*
 ht_create(unsigned log2_size)
 {
+	tracef("%s %u", __func__, log2_size);
+
 	struct hash_table *ht;
 
 	if (log2_size < HT_MIN_SIZE || log2_size > HT_MAX_SIZE) {
@@ -120,6 +123,8 @@ ht_create(unsigned log2_size)
 struct hash_table*
 ht_resize(struct hash_table *ht, unsigned log2_size)
 {
+	tracef("%s %u", __func__, log2_size);
+
 	unsigned long bucket_count = (1lu << log2_size);
 
 	if (ht == NULL)
@@ -145,6 +150,8 @@ ht_resize(struct hash_table *ht, unsigned log2_size)
 void
 ht_clear(struct hash_table *ht)
 {
+	trace(__func__);
+
 	memset((void*)(ht->table), 0, ht_size(ht));
 	ht->usage = 0;
 }
@@ -365,6 +372,8 @@ slot_swap(struct hash_table *ht, volatile struct slot *slot)
 void
 ht_swap(struct hash_table *ht)
 {
+	trace(__func__);
+
 	for (unsigned i = 0; i != ht->bucket_count; ++i) {
 		volatile struct bucket *bucket = ht->table + i;
 		for (unsigned si = 0; si < DEEP_SLOT_COUNT / 2; ++si)
