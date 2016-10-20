@@ -263,20 +263,23 @@ board_cmp(const struct position *a, const struct position *b)
 }
 
 static size_t
-filter_duplicates(struct position duplicates[])
+filter_duplicates(struct position duplicates[], bool *is_root_duplicate)
 {
 	trace(__func__);
 
 	size_t count = 0;
 	enum player turn = debug_player_to_move;
+	*is_root_duplicate = false;
 
-	if ((history_length % 2) != 0)
+	if ((history_length % 2) == 0)
 		turn = opponent_of(turn);
 
 	for (unsigned i = 0; i < history_length - 1; ++i) {
 		for (unsigned j = i + 1; j < history_length; ++j) {
 			if ((i - j) % 2 == 0
 			    && board_cmp(history + i, history + j) == 0) {
+				if (j == history_length - 1)
+					*is_root_duplicate = true;
 
 				char fen[0x1000];
 				position_print_fen(history + i, fen, 0, turn);
@@ -300,13 +303,17 @@ add_history_as_repetition(void)
 	size_t duplicate_count;
 	ht_entry entry = ht_set_depth(HT_NULL, 99);
 	entry = ht_set_value(entry, vt_exact, 0);
+	bool is_root_duplicate;
 
-	duplicate_count = filter_duplicates(duplicates);
+	duplicate_count = filter_duplicates(duplicates, &is_root_duplicate);
 	for (unsigned ti = 0; ti < MAX_THREAD_COUNT; ++ti) {
 		struct hash_table *tt = threads[ti].sd.tt;
-		if (tt != NULL)
+		if (tt != NULL) {
+			if (is_root_duplicate)
+				ht_clear(tt);
 			for (size_t i = 0; i < duplicate_count; ++i)
 				ht_pos_insert(tt, duplicates + i, entry);
+		}
 	}
 }
 
@@ -739,6 +746,8 @@ reset_engine(const struct position *pos)
 void
 init_engine(const struct taltos_conf *h)
 {
+	trace(__func__);
+
 	struct position pos;
 	xmtx_init(&engine_mutex, mtx_plain | mtx_recursive);
 	for (size_t i = 0; i < sizeof(threads) / sizeof(threads[0]); ++i)
