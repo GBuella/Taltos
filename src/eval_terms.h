@@ -52,7 +52,7 @@ blocked_pawns(const struct position *pos)
 static inline uint64_t
 opponent_blocked_pawns(const struct position *pos)
 {
-	return north_of(pos->map[opponent_pawn]) & pos->map[0];
+	return south_of(pos->map[opponent_pawn]) & pos->map[0];
 }
 
 static inline uint64_t
