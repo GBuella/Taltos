@@ -160,7 +160,7 @@ eval_capture(const struct position *pos, move m)
 static void
 capture_bubble_down(struct move_fsm *fsm, move m, unsigned i, int value)
 {
-	while ((i > fsm->index) && (fsm->values[i - 1] > value)) {
+	while ((i > fsm->index) && (fsm->values[i - 1] < value)) {
 		fsm->moves[i] = fsm->moves[i - 1];
 		fsm->values[i] = fsm->moves[i - 1];
 		--i;
