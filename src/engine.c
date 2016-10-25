@@ -207,7 +207,7 @@ set_opponent_clock(unsigned t)
  * All positions since the last irreversible move.
  * Needed for three-fold repetition detection.
  */
-static struct position history[51];
+static struct position history[1024];
 static unsigned history_length;
 
 /*
