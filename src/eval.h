@@ -12,7 +12,7 @@ enum {
 	mate_value = (max_value - MAX_PLY),
 	pawn_value = 100,
 	knight_value = 300,
-	bishop_value = 326,
+	bishop_value = 320,
 	rook_value = 500,
 	queen_value = 930
 };

@@ -403,4 +403,36 @@ rook_h8_is_trapped(const struct position *pos)
 	    && is_nonempty(trap & pos->map[opponent_king]);
 }
 
+static inline bool
+knight_cornered_a8(const struct position *pos)
+{
+	return is_nonempty(pos->map[knight] & SQ_A8)
+	    && is_nonempty(pos->attack[opponent_pawn] & SQ_B6)
+	    && is_nonempty(pos->attack[1] & SQ_C7);
+}
+
+static inline bool
+knight_cornered_h8(const struct position *pos)
+{
+	return is_nonempty(pos->map[knight] & SQ_H8)
+	    && is_nonempty(pos->attack[opponent_pawn] & SQ_G6)
+	    && is_nonempty(pos->attack[1] & SQ_F7);
+}
+
+static inline bool
+opponent_knight_cornered_a1(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_knight] & SQ_A1)
+	    && is_nonempty(pos->attack[pawn] & SQ_B5)
+	    && is_nonempty(pos->attack[0] & SQ_C6);
+}
+
+static inline bool
+opponent_knight_cornered_h1(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_knight] & SQ_H1)
+	    && is_nonempty(pos->attack[pawn] & SQ_G5)
+	    && is_nonempty(pos->attack[0] & SQ_F6);
+}
+
 #endif

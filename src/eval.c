@@ -29,8 +29,8 @@ enum {
 	knight_attack_center = 4,
 	bishop_attack_center = 4,
 
-	isolated_pawn_value = -8,
-	blocked_pawn_value = -7,
+	isolated_pawn_value = -10,
+	blocked_pawn_value = -10,
 	double_pawn_value = -10,
 	backward_pawn_value = -10,
 	pawn_chain_value = 3,
@@ -38,22 +38,24 @@ enum {
 	knight_outpost_value = 24,
 	knight_outpost_reach_value = 10,
 
-	bishop_pair_value = 10,
+	bishop_pair_value = 3,
 	bishop_wrong_color_value = -3,
 
 	lonely_queen_value = -10,
 
-	kings_pawn_value = 8,
-	castled_king_value = 23,
-	king_ring_sliding_attacked_value = -5,
+	kings_pawn_value = 12,
+	castled_king_value = 24,
+	king_ring_sliding_attacked_value = -10,
 	castle_right_value = 10,
+	king_open_file_value = -11,
 
-	passed_pawn_value = 20,
+	passed_pawn_value = 22,
 
 	bishop_trapped_value = -10,
 	rook_trapped_value = -18,
+	knight_cornered_value = -15,
 
-	tempo = 3
+	tempo_value = 0
 };
 
 enum {
@@ -88,31 +90,7 @@ eval_basic_mobility(const struct position *pos)
 	value -= popcnt(pos->attack[opponent_rook] & free_sq);
 	value -= popcnt(pos->attack[opponent_queen] & free_sq) / 2;
 
-	if (bishop_c1_is_trapped(pos))
-		value += bishop_trapped_value;
-
-	if (bishop_f1_is_trapped(pos))
-		value += bishop_trapped_value;
-
-	if (bishop_c8_is_trapped(pos))
-		value -= bishop_trapped_value;
-
-	if (bishop_f8_is_trapped(pos))
-		value -= bishop_trapped_value;
-
-	if (rook_a1_is_trapped(pos))
-		value += rook_trapped_value;
-
-	if (rook_h1_is_trapped(pos))
-		value += rook_trapped_value;
-
-	if (rook_a8_is_trapped(pos))
-		value -= rook_trapped_value;
-
-	if (rook_h8_is_trapped(pos))
-		value -= rook_trapped_value;
-
-	return value;
+	return (value * (popcnt(pos->occupied) + 4)) / 32;
 }
 
 static int
@@ -121,6 +99,8 @@ king_safety_side(uint64_t king_map, uint64_t pawns,
 		uint64_t rooks, uint64_t king_reach,
 		uint64_t opp_attacks, uint64_t opp_sattacks)
 {
+	// TODO: pawn storms
+
 	int value = 0;
 
 	/*
@@ -152,10 +132,10 @@ king_safety_side(uint64_t king_map, uint64_t pawns,
 	    | north_of(east_of(king_map & ~FILE_A));
 
 	// Penalty for not having any pawn on a file around the king
-	value -= popcnt(shield & half_open_files);
+	value += king_open_file_value * popcnt(shield & half_open_files);
 
 	// More Penalty for the king itself residing on an open file
-	value -= kings_pawn_value * popcnt(king_map & half_open_files);
+	value -= king_open_file_value * popcnt(king_map & half_open_files);
 
 	/*
 	 * Even more bonus for having a pawn in front of the king,
@@ -251,7 +231,26 @@ eval_rook_placement(const struct position *pos)
 	value += rook_battery_value * popcnt(rook_batteries(pos));
 	value -= rook_battery_value * popcnt(opponent_rook_batteries(pos));
 
+	if (rook_a1_is_trapped(pos))
+		value += rook_trapped_value;
+
+	if (rook_h1_is_trapped(pos))
+		value += rook_trapped_value;
+
+	if (rook_a8_is_trapped(pos))
+		value -= rook_trapped_value;
+
+	if (rook_h8_is_trapped(pos))
+		value -= rook_trapped_value;
+
+
 	return value;
+}
+
+static int
+filecnt(uint64_t bitboard)
+{
+	return popcnt(kogge_stone_north(bitboard) & RANK_7);
 }
 
 static int
@@ -262,18 +261,14 @@ eval_pawn_structure(const struct position *pos)
 	value += pawn_chain_value * popcnt(pawn_chains(pos));
 	value -= pawn_chain_value * popcnt(opponent_pawn_chains(pos));
 
-	/*
-	 * TODO: is this needed?
-	 * isolated pawns are counted as backward pawns anyways
-	 * value += isolated_pawn_value * popcnt(isolated_pawns(pos));
-	 * value -= isolated_pawn_value * popcnt(opponent_isolated_pawns(pos));
-	 */
-	value += blocked_pawn_value * popcnt(blocked_pawns(pos));
-	value -= blocked_pawn_value * popcnt(opponent_blocked_pawns(pos));
+	value += isolated_pawn_value * filecnt(isolated_pawns(pos));
+	value -= isolated_pawn_value * filecnt(opponent_isolated_pawns(pos));
+	value += blocked_pawn_value * filecnt(blocked_pawns(pos));
+	value -= blocked_pawn_value * filecnt(opponent_blocked_pawns(pos));
 	value += double_pawn_value * popcnt(double_pawns(pos));
 	value -= double_pawn_value * popcnt(opponent_double_pawns(pos));
-	value += backward_pawn_value * popcnt(backward_pawns(pos));
-	value -= backward_pawn_value * popcnt(opponent_backward_pawns(pos));
+	value += backward_pawn_value * filecnt(backward_pawns(pos));
+	value -= backward_pawn_value * filecnt(opponent_backward_pawns(pos));
 
 	return value;
 }
@@ -290,6 +285,19 @@ eval_knight_placement(const struct position *pos)
 	value -= knight_outpost_reach_value
 	    * popcnt(opponent_knight_reach_outposts(pos));
 
+	if (knight_cornered_a8(pos))
+		value += knight_cornered_value;
+
+	if (knight_cornered_h8(pos))
+		value += knight_cornered_value;
+
+	if (opponent_knight_cornered_a1(pos))
+		value -= knight_cornered_value;
+
+	if (opponent_knight_cornered_h1(pos))
+		value -= knight_cornered_value;
+
+
 	return value;
 }
 
@@ -299,10 +307,10 @@ eval_bishop_placement(const struct position *pos)
 	int value = 0;
 
 	if (has_bishop_pair(pos))
-		value += bishop_pair_value * (17 - popcnt(all_pawns(pos)));
+		value += bishop_pair_value * (16 - popcnt(all_pawns(pos)));
 
 	if (opponent_has_bishop_pair(pos))
-		value -= bishop_pair_value * (17 - popcnt(all_pawns(pos)));
+		value -= bishop_pair_value * (16 - popcnt(all_pawns(pos)));
 
 	value += bishop_wrong_color_value
 	    * popcnt(bishops_on_white(pos)) * popcnt(pawns_on_white(pos));
@@ -314,6 +322,18 @@ eval_bishop_placement(const struct position *pos)
 	value -= bishop_wrong_color_value
 	    * popcnt(opponent_bishops_on_black(pos))
 	    * popcnt(pawns_on_black(pos));
+
+	if (bishop_c1_is_trapped(pos))
+		value += bishop_trapped_value;
+
+	if (bishop_f1_is_trapped(pos))
+		value += bishop_trapped_value;
+
+	if (bishop_c8_is_trapped(pos))
+		value -= bishop_trapped_value;
+
+	if (bishop_f8_is_trapped(pos))
+		value -= bishop_trapped_value;
 
 	return value;
 }
@@ -351,20 +371,18 @@ eval_passed_pawns(const struct position *pos)
 
 	value += passed_pawn_value * popcnt(pawns);
 	value -= passed_pawn_value * popcnt(opp_pawns);
-	value += passed_pawn_value * popcnt(pawns & RANK_6);
-	value -= passed_pawn_value * popcnt(opp_pawns & RANK_3);
-	value += 2 * passed_pawn_value * popcnt(pawns & RANK_7);
-	value -= 2 * passed_pawn_value * popcnt(opp_pawns & RANK_2);
+	value += (passed_pawn_value / 2) * popcnt(pawns & RANK_6);
+	value -= (passed_pawn_value / 2)* popcnt(opp_pawns & RANK_3);
+	value += passed_pawn_value * popcnt(pawns & RANK_7);
+	value -= passed_pawn_value * popcnt(opp_pawns & RANK_2);
 
 	pawns &= pos->attack[pawn];
 	opp_pawns &= pos->attack[opponent_pawn];
 
-	value += passed_pawn_value * popcnt(pawns);
-	value -= passed_pawn_value * popcnt(opp_pawns);
-	value += passed_pawn_value * popcnt(pawns & RANK_6);
-	value -= passed_pawn_value * popcnt(opp_pawns & RANK_3);
-	value += 2 * passed_pawn_value * popcnt(pawns & RANK_7);
-	value -= 2 * passed_pawn_value * popcnt(opp_pawns & RANK_2);
+	value += (passed_pawn_value / 3) * popcnt(pawns & RANK_6);
+	value -= (passed_pawn_value / 3) * popcnt(opp_pawns & RANK_3);
+	value += (passed_pawn_value / 2) * popcnt(pawns & RANK_7);
+	value -= (passed_pawn_value / 2) * popcnt(opp_pawns & RANK_2);
 
 	return value;
 }
@@ -376,18 +394,20 @@ eval(const struct position *pos)
 
 	value = pos->material_value - pos->opponent_material_value;
 	value += eval_basic_mobility(pos);
-	value += eval_rook_placement(pos);
 	value += eval_pawn_structure(pos);
-	value += eval_knight_placement(pos);
-	value += eval_bishop_placement(pos);
-	value += eval_queen_placement(pos);
-	value += eval_king_safety(pos);
-	value += eval_center_control(pos);
 	value += eval_passed_pawns(pos);
+	value += eval_knight_placement(pos);
+	if (is_nonempty(pos->sliding_attacks[0] | pos->sliding_attacks[1])) {
+		value += eval_rook_placement(pos);
+		value += eval_bishop_placement(pos);
+		value += eval_queen_placement(pos);
+		value += eval_king_safety(pos);
+		value += eval_center_control(pos);
+	}
 
 	invariant(value_bounds(value));
 
-	return value + tempo;
+	return value + tempo_value;
 }
 
 
@@ -406,6 +426,5 @@ compute_eval_factors(const struct position *pos)
 	ef.knight_placement = eval_knight_placement(pos);
 	ef.bishop_placement = eval_bishop_placement(pos);
 	ef.queen_placement = eval_queen_placement(pos);
-	ef.center_control = eval_center_control(pos);
 	return ef;
 }
