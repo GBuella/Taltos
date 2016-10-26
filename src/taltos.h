@@ -18,6 +18,10 @@ struct search_settings {
 	bool use_null_moves; // Recursive null move pruning
 	bool use_SE; // Singular Extension -- does not work well
 	bool use_FP; // Futility Pruning -- at frontier nodes, and in qsearch
+	bool use_pv_cleanup;
+	bool use_repetition_check;
+	bool use_strict_repetition_check;
+
 	/*
 	 * TODO: try these
 	 *

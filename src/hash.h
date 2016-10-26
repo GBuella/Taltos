@@ -119,6 +119,18 @@ ht_value_type(ht_entry e)
 	return (int)(e & VALUE_TYPE_MASK);
 }
 
+static inline attribute(artificial) bool
+ht_value_is_lower_bound(ht_entry e)
+{
+	return (e & vt_lower_bound) != 0;
+}
+
+static inline attribute(artificial) bool
+ht_value_is_upper_bound(ht_entry e)
+{
+	return (e & vt_upper_bound) != 0;
+}
+
 static inline attribute(artificial) int
 ht_value(ht_entry e)
 {

@@ -84,6 +84,18 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_NO_FP");
 	conf.search.use_FP = (env == NULL || env[0] == '0');
 
+	env = getenv("TALTOS_USE_PVC");
+	conf.search.use_pv_cleanup = (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_SRC");
+	conf.search.use_strict_repetition_check =
+	    (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_RC");
+	conf.search.use_repetition_check =
+	    conf.search.use_strict_repetition_check
+	    || (env != NULL && env[0] != '0');
+
 	conf.display_name = "Taltos";
 }
 
@@ -163,6 +175,16 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--noFP") == 0) {
 			conf.search.use_FP = false;
 		}
+		else if (strcmp(*arg, "--RC") == 0) {
+			conf.search.use_repetition_check = true;
+		}
+		else if (strcmp(*arg, "--SRC") == 0) {
+			conf.search.use_repetition_check = true;
+			conf.search.use_strict_repetition_check = true;
+		}
+		else if (strcmp(*arg, "--PVC") == 0) {
+			conf.search.use_pv_cleanup = true;
+		}
 		else {
 			fprintf(stderr, "Uknown option: \"%s\"\n", *arg);
 			usage(EXIT_FAILURE);
@@ -185,7 +207,10 @@ usage(int status)
 	    "  --nolmr             do not use LMR heuristics\n"
 	    "  --nonullm           do not use null move heuristics\n"
 	    "  --SE                use singular extension heuristics\n"
-	    "  --noFP              do not use futility pruning\n",
+	    "  --noFP              do not use futility pruning\n"
+	    "  --RC                repetition checking during search\n"
+	    "  --SRC               strict repetition checking during search\n"
+	    "  --PVC               PV cleanup - attempt to report cleaner PV\n",
 	    progname);
 	exit(status);
 }

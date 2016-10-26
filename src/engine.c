@@ -443,13 +443,9 @@ update_engine_result(const struct search_thread_data *data,
 	dst->time_spent = xseconds_since(data->sd.thinking_started);
 	dst->ht_usage =
 	    (int)(ht_usage(data->sd.tt) * 1000 / ht_slot_count(data->sd.tt));
-	dst->pv[0] = dst->sresult.best_move = src->best_move;
 
-	struct position child;
-	position_make_move(&child, &data->root, dst->pv[0]);
-	ht_extract_pv(data->sd.tt, &child,
-	    data->sd.depth - PLY,
-	    &dst->pv[1], -src->value);
+	memcpy(dst->pv, src->pv, sizeof(dst->pv));
+	dst->pv[data->sd.depth / PLY + 1] = 0;
 }
 
 ht_entry
@@ -474,7 +470,7 @@ setup_search(struct search_thread_data *thread)
 {
 	ht_entry entry;
 
-	thread->sd.depth = 1;
+	thread->sd.depth = PLY;
 	entry = ht_lookup_deep(thread->sd.tt, &thread->root, 1, max_value);
 	if (ht_value_type(entry) == vt_exact && ht_depth(entry) > 0) {
 		if (ht_value(entry) == 0 && ht_depth(entry) == 99)
