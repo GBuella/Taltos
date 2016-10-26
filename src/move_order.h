@@ -42,6 +42,7 @@ move_fsm_add_hash_move(struct move_fsm *fsm, move hash_move)
 			fsm->moves[i] = fsm->moves[0];
 			fsm->moves[0] = hash_move;
 			fsm->has_hashmove = true;
+			fsm->tacticals_end = 1;
 			return 0;
 		}
 	}
