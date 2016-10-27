@@ -1263,11 +1263,6 @@ cmd_position(void)
 }
 
 static void
-cmd_getpv(void)
-{
-}
-
-static void
 cmd_memory(void)
 {
 	unsigned value = get_uint(ht_min_size_mb(), ht_max_size_mb());
@@ -1304,7 +1299,6 @@ static struct cmd_entry cmd_list[] = {
 	{"printfen",     cmd_printfen,           NULL},
 	{"echo",         cmd_echo,               NULL},
 	{"print",        cmd_echo,               NULL},
-	{"getpv",        cmd_getpv,              NULL},
 	{"xboard",       set_xboard,             NULL},
 	{"new",          cmd_new,                NULL},
 	{"protover",     cmd_protover,           NULL},
