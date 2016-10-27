@@ -5,6 +5,7 @@
 #ifndef TALTOS_ENGINE_H
 #define TALTOS_ENGINE_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "search.h"
@@ -50,5 +51,7 @@ void init_engine(const struct taltos_conf*);
 void reset_engine(const struct position*);
 void engine_process_move(move);
 void debug_engine_set_player_to_move(enum player);
+size_t engine_ht_size(void);
+void engine_conf_change(void);
 
 #endif

@@ -19,11 +19,11 @@
 #include "str_util.h"
 
 #ifndef HT_MIN_SIZE
-#define HT_MIN_SIZE 6
+#define HT_MIN_SIZE 5
 #endif
 
 #ifndef HT_MAX_SIZE
-#define HT_MAX_SIZE 29
+#define HT_MAX_SIZE 26
 #endif
 
 
@@ -98,6 +98,20 @@ ht_size(const struct hash_table *ht)
 	return ht->bucket_count * sizeof(ht->table[0]);
 }
 
+unsigned
+ht_min_size_mb(void)
+{
+	return 1;
+}
+
+unsigned
+ht_max_size_mb(void)
+{
+	return (((size_t)1 << HT_MAX_SIZE) * sizeof(struct bucket))
+	    / (1024 * 1024);
+}
+
+
 struct hash_table*
 ht_create(unsigned log2_size)
 {
@@ -105,9 +119,9 @@ ht_create(unsigned log2_size)
 
 	struct hash_table *ht;
 
-	if (log2_size < HT_MIN_SIZE || log2_size > HT_MAX_SIZE) {
+	if (log2_size < HT_MIN_SIZE || log2_size > HT_MAX_SIZE)
 		return NULL;
-	}
+
 	ht = xmalloc(sizeof *ht);
 	ht->bucket_count = (((size_t)1) << log2_size);
 	ht->log2_size = log2_size;
@@ -118,6 +132,46 @@ ht_create(unsigned log2_size)
 	}
 	ht_clear(ht);
 	return ht;
+}
+
+static unsigned
+get_log2_size(uintmax_t megabytes)
+{
+	static const size_t multiplier = 1024 * 1024 / sizeof(struct bucket);
+
+	if (megabytes == 0)
+		return 0;
+
+	if ((megabytes & (megabytes - 1)) != 0)
+		return 0;
+
+	if (megabytes * multiplier < megabytes)
+		return 0;
+
+	megabytes *= multiplier;
+
+	unsigned result = 0;
+
+	while (megabytes != (1u << result))
+		++result;
+
+	return result;
+}
+
+bool
+ht_is_mb_size_valid(unsigned megabytes)
+{
+	return megabytes >= ht_min_size_mb()
+	    && megabytes <= ht_max_size_mb()
+	    && get_log2_size(megabytes) != 0;
+}
+
+struct hash_table*
+ht_create_mb(unsigned megabytes)
+{
+	tracef("%s %umb", __func__, megabytes);
+
+	return ht_create(get_log2_size(megabytes));
 }
 
 struct hash_table*
@@ -145,6 +199,14 @@ ht_resize(struct hash_table *ht, unsigned log2_size)
 	ht->bucket_count = bucket_count;
 	ht_clear(ht);
 	return ht;
+}
+
+struct hash_table*
+ht_resize_mb(struct hash_table *ht, unsigned megabytes)
+{
+	tracef("%s %umb", __func__, megabytes);
+
+	return ht_resize(ht, get_log2_size(megabytes));
 }
 
 void

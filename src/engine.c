@@ -595,6 +595,16 @@ think(bool infinite, bool single_thread)
 	tracef("%s time_limit: %" PRIuMAX " node_count_limit: %" PRIuMAX,
 	    __func__, threads[0].sd.time_limit, threads[0].sd.node_count_limit);
 
+	mtx_lock(horse->mutex);
+
+	struct hash_table *new_tt =
+	    ht_resize_mb(threads[0].sd.tt, horse->hash_table_size_mb);
+
+	mtx_unlock(horse->mutex);
+
+	if (new_tt != NULL)
+		threads[0].sd.tt = new_tt;
+
 	threads[0].thinking_cb = &thinking_done;
 	threads[0].show_thinking_cb = show_thinking_cb;
 	threads[0].root = history[history_length - 1];
@@ -704,6 +714,27 @@ engine_process_move(move m)
 	mtx_unlock(&engine_mutex);
 }
 
+size_t
+engine_ht_size(void)
+{
+	trace(__func__);
+
+	size_t size;
+
+	mtx_lock(&engine_mutex);
+
+	struct hash_table *tt = threads[0].sd.tt;
+
+	if (tt == NULL)
+		size = 0;
+	else
+		size = ht_size(tt);
+
+	mtx_unlock(&engine_mutex);
+
+	return size;
+}
+
 void
 reset_engine(const struct position *pos)
 {
@@ -717,12 +748,12 @@ reset_engine(const struct position *pos)
 			ht_clear(threads[i].sd.tt);
 			continue;
 		}
-		threads[i].sd.tt = ht_create(horse->main_hash_size);
+		threads[i].sd.tt = ht_create_mb(horse->hash_table_size_mb);
 		if (threads[i].sd.tt == NULL) {
 			fprintf(stderr,
 			    "Unable to allocate transposition "
-			    "table - with 2^%u buckets",
-			    horse->main_hash_size);
+			    "table - with size %umb",
+			    horse->hash_table_size_mb);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -738,6 +769,29 @@ reset_engine(const struct position *pos)
 
 	mtx_unlock(&engine_mutex);
 }
+
+void
+engine_conf_change(void)
+{
+	unsigned new_hash_size;
+
+	mtx_lock(horse->mutex);
+	new_hash_size = horse->hash_table_size_mb;
+	mtx_unlock(horse->mutex);
+
+	for (unsigned i = 0; i < MAX_THREAD_COUNT; ++i) {
+		struct search_thread_data *thread = threads + i;
+		mtx_lock(&(thread->mutex));
+		if (!thread->is_started_flag) {
+			struct hash_table *new_tt =
+			    ht_resize_mb(threads[0].sd.tt, new_hash_size);
+			if (new_tt != NULL)
+				thread->sd.tt = new_tt;
+		}
+		mtx_unlock(&(thread->mutex));
+	}
+}
+
 
 void
 init_engine(const struct taltos_conf *h)

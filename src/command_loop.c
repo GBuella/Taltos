@@ -86,6 +86,7 @@ static const char *features[] = {
 	"setboard=1",
 	"sigint=1",
 	"reuse=1",
+	"memory=1",
 	NULL
 };
 
@@ -1162,6 +1163,20 @@ cmd_polyglotkey(void)
 }
 
 static void
+cmd_hash_size(void)
+{
+	mtx_lock(&stdout_mutex);
+
+	/* BEGIN CSTYLED */ /* cstyle does not know about this syntax yet */
+	print_nice_number(engine_ht_size(),
+	    (const char *[]) {"b", "kb", "mb", "gb", NULL},
+	    (const uintmax_t[]) {1, 1024, 1024 * 1024, 1024 * 1024 * 1024, 0});
+	/* END CSTYLED */
+
+	mtx_unlock(&stdout_mutex);
+}
+
+static void
 cmd_hash_entry(void)
 {
 	ht_entry entry;
@@ -1252,6 +1267,25 @@ cmd_getpv(void)
 {
 }
 
+static void
+cmd_memory(void)
+{
+	unsigned value = get_uint(ht_min_size_mb(), ht_max_size_mb());
+
+	value |= value >> 1;
+	value |= value >> 2;
+	value |= value >> 4;
+	value |= value >> 8;
+	value |= value >> 16;
+	value = (value + 1) >> 1;
+
+	mtx_lock(conf->mutex);
+	conf->hash_table_size_mb = value;
+	mtx_unlock(conf->mutex);
+	engine_conf_change();
+}
+
+
 static void nop(void) {}
 
 static struct cmd_entry cmd_list[] = {
@@ -1311,12 +1345,14 @@ static struct cmd_entry cmd_list[] = {
 	{"eval",         cmd_eval,               NULL},
 	{"poskey",       cmd_poskey,             NULL},
 	{"polyglot_key", cmd_polyglotkey,        NULL},
+	{"hash_size",    cmd_hash_size,          NULL},
 	{"hash_entry",   cmd_hash_entry,         NULL},
 	{"hash_value_min",
 		cmd_hash_value_exact_min,        NULL},
 	{"hash_value_max",
 		cmd_hash_value_exact_max,        NULL},
-	{"position",     cmd_position,           NULL}
+	{"position",     cmd_position,           NULL},
+	{"memory",       cmd_memory,             NULL}
 /* END CSTYLED */
 };
 

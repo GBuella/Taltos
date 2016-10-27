@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stdnoreturn.h>
+#include <threads.h>
 #include "util.h"
 
 #include "chess.h"
@@ -35,10 +36,11 @@ struct search_settings {
 };
 
 struct taltos_conf {
+	mtx_t *mutex;
 	enum move_notation_type move_not;
 	bool timing;
 	taltos_systime start_time;
-	unsigned main_hash_size;
+	unsigned hash_table_size_mb;
 	char *book_path;
 	enum book_type book_type;
 	bool use_unicode;

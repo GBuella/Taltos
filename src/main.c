@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <threads.h>
 
 #include "macros.h"
 #include "chess.h"
@@ -29,7 +30,12 @@ int
 main(int argc, char **argv)
 {
 	struct book *book;
+	mtx_t conf_mutex;
 
+	if (mtx_init(&conf_mutex, mtx_plain | mtx_recursive) != thrd_success)
+		abort();
+
+	conf.mutex = &conf_mutex;
 	(void) argc;
 	setup_defaults();
 	init_move_gen();
@@ -61,12 +67,8 @@ setup_defaults(void)
 	 */
 	conf.timing = false;
 
-	/*
-	 * default main hash table size ( 2^20 buckets )
-	 * - entries overwritten only with
-	 * entries with greater depth
-	 */
-	conf.main_hash_size = 20;
+	// Default main hash table size in megabytes
+	conf.hash_table_size_mb = 256;
 
 	conf.book_path = NULL;   // book path, none by default
 	conf.book_type = bt_builtin;  // use the builtin book by default
@@ -123,6 +125,26 @@ exit_routine(void)
 		uintmax_t t = xseconds_since(conf.start_time);
 		(void) fprintf(stderr, "%ju.%ju\n", t / 100, t % 100);
 	}
+}
+
+static void
+set_default_hash_size(const char *arg)
+{
+	char *endptr;
+	unsigned long n = strtoul(arg, &endptr, 10);
+
+	if (n == 0 || *endptr != '\0')
+		usage(EXIT_FAILURE);
+
+	if (!ht_is_mb_size_valid(n)) {
+		(void) fprintf(stderr,
+		    "Invalid hash table size \"%s\".\n"
+		    "Must be a power of two, minimum %u, maximum %u.\n",
+		    arg, ht_min_size_mb(), ht_max_size_mb());
+		exit(EXIT_FAILURE);
+	}
+
+	conf.hash_table_size_mb = n;
 }
 
 static void
@@ -185,6 +207,9 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--PVC") == 0) {
 			conf.search.use_pv_cleanup = true;
 		}
+		else if (strcmp(*arg, "--hash") == 0) {
+			set_default_hash_size(*++arg);
+		}
 		else {
 			fprintf(stderr, "Uknown option: \"%s\"\n", *arg);
 			usage(EXIT_FAILURE);
@@ -202,6 +227,7 @@ usage(int status)
 	    "  -t                  print time after quitting\n"
 	    "  --trace path        log debug information to file at path\n"
 	    "  --book path         load polyglot book at path\n"
+	    "  --hash             hash table size in megabytes\n"
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"

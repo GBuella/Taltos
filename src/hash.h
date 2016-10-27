@@ -259,11 +259,13 @@ z2_toggle_castle_king_side(uint64_t attribute(align_value(16)) hash[2])
 
 
 
-struct hash_table*
-ht_create(unsigned log2_size);
+struct hash_table *ht_create(unsigned log2_size);
 
-struct hash_table*
-ht_resize(struct hash_table*, unsigned log2_size);
+struct hash_table *ht_create_mb(unsigned megabytes);
+
+struct hash_table *ht_resize(struct hash_table*, unsigned log2_size);
+
+struct hash_table *ht_resize_mb(struct hash_table*, unsigned megabytes);
 
 void ht_destroy(struct hash_table*);
 
@@ -293,6 +295,12 @@ void ht_extract_pv(const struct hash_table*, const struct position*,
 
 size_t ht_size(const struct hash_table*)
 	attribute(nonnull);
+
+bool ht_is_mb_size_valid(unsigned megabytes);
+
+unsigned ht_min_size_mb(void);
+
+unsigned ht_max_size_mb(void);
 
 void ht_clear(struct hash_table*)
 	attribute(nonnull);
