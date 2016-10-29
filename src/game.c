@@ -45,24 +45,16 @@ struct game {
 struct game*
 game_create(void)
 {
-	const char *c;
 	struct game *g = xmalloc(sizeof *g);
-	g->head.pos = position_allocate();
-
-	c = position_read_fen_full(g->head.pos,
-	    start_position_fen,
-	    &g->head.ep_target_index,
-	    &g->head.full_move,
-	    &g->head.half_move,
-	    &g->head.turn);
-	assert(c != NULL);
-	(void) c; // the starting position FEN is assumed to be valid...
+	g->head.pos = NULL;
 	g->head.next = NULL;
-	g->head.prev = NULL;
-	g->item_count = 1;
-	g->current_index = 0;
 	g->current = &g->head;
-	g->tail = &g->head;
+	int r;
+
+	r = game_reset_fen(g, start_position_fen);
+	(void) r;
+	assert(r == 0);
+
 	return g;
 }
 
@@ -80,15 +72,11 @@ game_create_fen(const char *str)
 {
 	struct game *g = game_create();
 
-	if (NULL == position_read_fen_full(g->head.pos,
-	    str,
-	    &g->head.ep_target_index,
-	    &g->head.full_move,
-	    &g->head.half_move,
-	    &g->head.turn)) {
+	if (game_reset_fen(g, str) != 0) {
 		game_destroy(g);
 		return NULL;
 	}
+
 	return g;
 }
 
@@ -163,6 +151,12 @@ game_history_forward(struct game *g)
 	g->current = g->current->next;
 	g->current_index++;
 	return 0;
+}
+
+move
+game_move_to_next(const struct game *g)
+{
+	return g->current->move_to_next;
 }
 
 void
@@ -345,4 +339,63 @@ game_has_single_response(const struct game *g)
 
 	(void) gen_moves(g->current->pos, moves);
 	return moves[0] != 0 && moves[1] == 0;
+}
+
+int
+game_reset_fen(struct game *g, const char *fen)
+{
+	struct game new;
+
+	new.head.next = NULL;
+	new.head.prev = NULL;
+	new.item_count = 1;
+	new.current_index = 0;
+	new.current = &g->head;
+	new.tail = &g->head;
+	new.head.pos = position_allocate();
+
+	if (NULL == position_read_fen_full(new.head.pos,
+	    fen,
+	    &new.head.ep_target_index,
+	    &new.head.full_move,
+	    &new.head.half_move,
+	    &new.head.turn)) {
+		position_destroy(new.head.pos);
+		return -1;
+	}
+
+	g->current_index = 0;
+	game_truncate(g);
+	history_destroy(g->head.next);
+	position_destroy(g->head.pos);
+
+	*g = new;
+
+	return 0;
+}
+
+bool
+game_continues(const struct game *a, const struct game *b)
+{
+	const struct history_item *ha = &a->head;
+	const struct history_item *hb = &b->head;
+
+	if (!pos_equal(ha->pos, hb->pos))
+		return false;
+
+	if (ha->ep_target_index != hb->ep_target_index)
+		return false;
+
+	while (ha->move_to_next == hb->move_to_next && ha->next != NULL) {
+		ha = ha->next;
+		hb = hb->next;
+	}
+
+	return hb->move_to_next == 0;
+}
+
+size_t
+game_length(const struct game *g)
+{
+	return g->item_count;
 }

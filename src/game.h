@@ -20,6 +20,12 @@ struct game *game_create_position(const struct position*)
 struct game *game_create_fen(const char*)
 	attribute(nonnull);
 
+int game_reset_fen(struct game*, const char *fen)
+	attribute(nonnull, warn_unused_result);
+
+bool game_continues(const struct game *a, const struct game *b)
+	attribute(nonnull);
+
 struct game *game_copy(const struct game*)
 	attribute(nonnull, returns_nonnull, malloc);
 
@@ -44,6 +50,9 @@ int game_history_revert(struct game*)
 	attribute(nonnull);
 
 int game_history_forward(struct game*)
+	attribute(nonnull);
+
+move game_move_to_next(const struct game *g)
 	attribute(nonnull);
 
 enum player game_turn(const struct game*)
@@ -77,6 +86,9 @@ move game_get_single_response(const struct game*)
 	attribute(nonnull);
 
 bool game_has_single_response(const struct game*)
+	attribute(nonnull);
+
+size_t game_length(const struct game*)
 	attribute(nonnull);
 
 #endif

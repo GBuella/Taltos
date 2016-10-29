@@ -93,6 +93,7 @@ static const char *features[] = {
 static bool is_force_mode;
 static enum player computer_side;
 static bool is_xboard;
+static bool is_uci;
 static bool can_ponder;
 static const char *whose_turn[] = {"whites", "blacks"};
 static bool game_started;
@@ -230,6 +231,17 @@ set_xboard(void)
 #endif
 }
 
+static void
+set_uci(void)
+{
+	is_uci = true;
+	puts("id name Taltos");
+	puts("id author Gabor Buella");
+	printf("option name Hash type spin default %u min %u max %u\n",
+	    conf->hash_table_size_mb, ht_min_size_mb(), ht_max_size_mb());
+	puts("uciok");
+}
+
 static char*
 get_str_arg_opt(void)
 {
@@ -295,7 +307,7 @@ print_computer_move(move m)
 	unsigned move_counter;
 	bool is_black;
 
-	if (is_xboard)
+	if (is_xboard || is_uci)
 		mn = mn_coordinate;
 	else
 		mn = conf->move_not;
@@ -314,6 +326,9 @@ print_computer_move(move m)
 
 	if (is_xboard) {
 		printf("move %s\n", str);
+	}
+	else if (is_uci) {
+		printf("bestmove %s\n", str);
 	}
 	else {
 		printf("%u. ", move_counter);
@@ -493,6 +508,11 @@ print_current_result(struct engine_result res)
 		    res.depth, res.sresult.value,
 		    res.time_spent, res.sresult.node_count);
 	}
+	else if (is_uci) {
+		printf("info depth %u seldepth %u score cp %d nodes %ju ",
+		    res.depth, res.sresult.selective_depth,
+		    res.sresult.value, res.sresult.node_count);
+	}
 	else {
 		if (res.first)
 			print_result_header();
@@ -592,6 +612,7 @@ loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 static void
 cmd_quit(void)
 {
+	callback_key++;
 	stop_thinking();
 	exit(EXIT_SUCCESS);
 }
@@ -769,7 +790,7 @@ cmd_new(void)
 	computer_side = black;
 	set_thinking_done_cb(computer_move, ++callback_key);
 	unset_search_depth_limit();
-	if (!is_xboard)
+	if (!(is_xboard || is_uci))
 		puts("New game - computer black");
 	game_started = false;
 	is_force_mode = false;
@@ -923,19 +944,8 @@ cmd_force(void)
 {
 	callback_key++;
 	is_force_mode = true;
+	game_started = false;
 	stop_thinking();
-}
-
-static void
-cmd_go(void)
-{
-	if (game_started && is_comp_turn())
-		return;
-	if (!is_comp_turn())
-		computer_side = opponent_of(computer_side);
-	is_force_mode = false;
-	game_started = true;
-	decide_move();
 }
 
 static void
@@ -1112,10 +1122,24 @@ cmd_ping(void)
 {
 	char *str;
 
+	mtx_lock(&stdout_mutex);
+
 	if ((str = get_str_arg_opt()) == NULL)
 		puts("pong");
 	else
 		printf("pong %s\n", str);
+
+	mtx_unlock(&stdout_mutex);
+}
+
+static void
+cmd_isready(void)
+{
+	mtx_lock(&stdout_mutex);
+
+	puts("readyok");
+
+	mtx_unlock(&stdout_mutex);
 }
 
 static void
@@ -1248,8 +1272,10 @@ cmd_hash_value_exact_max(void)
 }
 
 static void
-cmd_position(void)
+display_position_info(void)
 {
+	mtx_lock(&stdout_mutex);
+
 	puts("board:");
 	cmd_printboard();
 	printf("\nFEN: ");
@@ -1260,6 +1286,132 @@ cmd_position(void)
 	cmd_polyglotkey();
 	puts("static evaluation:");
 	cmd_eval();
+
+	mtx_unlock(&stdout_mutex);
+}
+
+static int
+process_uci_move_list(struct game *g)
+{
+	const char *next;
+
+	while ((next = xstrtok_r(NULL, " \t\n\r", &line_lasts)) != NULL) {
+		move m;
+
+		if (read_move(game_current_position(g),
+		    next, &m, game_turn(g)) != 0)
+			return -1;
+
+		if (game_append(g, m) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int
+process_uci_starting_position(const char *next_token, struct game *g)
+{
+	if (strcmp(next_token, "fen") == 0) {
+		char *fen_start;
+		char *fen_last;
+
+		fen_start = xstrtok_r(NULL, " \t\n\r", &line_lasts); // board
+		xstrtok_r(NULL, " \t\n\r", &line_lasts); // turn
+		xstrtok_r(NULL, " \t\n\r", &line_lasts); // castle rights
+		fen_last = xstrtok_r(NULL, " \t\n\r", &line_lasts); // ep
+		if (fen_last == NULL) {
+			fprintf(stderr, "Invalid FEN\n");
+			return -1;
+		}
+		next_token = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+		if (strcmp(next_token, "moves") != 0) {
+			fen_last = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+			next_token = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+			if (fen_last == NULL) {
+				fprintf(stderr, "Invalid FEN\n");
+				return -1;
+			}
+		}
+		for (char *c = fen_start; c != fen_last; ++c) {
+			if (*c == '\0')
+				*c = ' ';
+		}
+		if (game_reset_fen(g, fen_start) != 0) {
+			fprintf(stderr, "Invalid FEN\n");
+			return -1;
+		}
+	}
+	else if (strcmp(next_token, "startpos") != 0) {
+		return -1;
+	}
+	else {
+		next_token = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+	}
+
+	if (next_token != NULL) {
+		if (strcmp(next_token, "moves") == 0) {
+			if (process_uci_move_list(g) != 0)
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void
+replay_new_moves(struct game *g)
+{
+	size_t delta_count;
+
+	game_truncate(game);
+	delta_count = game_length(g) - game_length(game);
+
+	while (delta_count-- != 0)
+		game_history_revert(g);
+
+	while (game_move_to_next(g) != 0) {
+		add_move(game_move_to_next(g));
+		game_history_forward(g);
+	}
+}
+
+static void
+cmd_position(void)
+{
+	const char *arg;
+
+	arg = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+
+	if (arg == NULL) {
+		display_position_info();
+	}
+	else {
+		cmd_force();
+
+		mtx_lock(&stdout_mutex);
+		mtx_lock(&game_mutex);
+
+		struct game *g = game_create();
+
+		if (process_uci_starting_position(arg, g) == 0) {
+			if (game_continues(g, game)) {
+				replay_new_moves(g);
+			}
+			else {
+				struct game *t = game;
+				game = g;
+				g = t;
+				reset_engine(current_position());
+				debug_engine_set_player_to_move(turn());
+			}
+		}
+
+		game_destroy(g);
+
+		mtx_unlock(&game_mutex);
+		mtx_unlock(&stdout_mutex);
+	}
 }
 
 static void
@@ -1278,6 +1430,75 @@ cmd_memory(void)
 	conf->hash_table_size_mb = value;
 	mtx_unlock(conf->mutex);
 	engine_conf_change();
+}
+
+static void
+cmd_setoption(void)
+{
+	const char *token;
+	const char *name;
+
+	token = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+	if (token == NULL || strcmp(token, "name") != 0)
+		return;
+
+	name = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+	if (name == NULL)
+		return;
+
+	token = xstrtok_r(NULL, " \t\n\r", &line_lasts);
+	if (token == NULL || strcmp(token, "value") != 0)
+		return;
+
+	if (strcmp(name, "Hash") == 0) {
+		cmd_memory();
+	}
+	else {
+		return;
+	}
+}
+
+static void
+cmd_go(void)
+{
+	const char *token;
+
+	if (game_started && is_comp_turn())
+		return;
+
+	if (!is_comp_turn())
+		computer_side = opponent_of(computer_side);
+
+	while ((token = xstrtok_r(NULL, " \t\n\r", &line_lasts)) != NULL) {
+		if (strcmp(token, "infinite") == 0)
+			cmd_sti();
+		else if (strcmp(token, "wtime") == 0 && computer_side == white)
+			set_computer_clock(get_uint(0, UINT_MAX) / 10);
+		else if (strcmp(token, "winc") == 0 && computer_side == white)
+			set_time_inc(get_uint(0, UINT_MAX) / 10);
+		else if (strcmp(token, "btime") == 0 && computer_side == black)
+			set_computer_clock(get_uint(0, UINT_MAX) / 10);
+		else if (strcmp(token, "binc") == 0 && computer_side == black)
+			set_time_inc(get_uint(0, UINT_MAX) / 10);
+		else if (strcmp(token, "movestogo") == 0)
+			set_moves_left_in_time(get_uint(0, 1024));
+	}
+
+	is_force_mode = false;
+	game_started = true;
+	decide_move();
+}
+
+static void
+cmd_ucinewgame(void)
+{
+	stop_thinking();
+}
+
+static void
+cmd_stop(void)
+{
+	stop_thinking();
 }
 
 
@@ -1346,7 +1567,12 @@ static struct cmd_entry cmd_list[] = {
 	{"hash_value_max",
 		cmd_hash_value_exact_max,        NULL},
 	{"position",     cmd_position,           NULL},
-	{"memory",       cmd_memory,             NULL}
+	{"memory",       cmd_memory,             NULL},
+	{"uci",          set_uci,                NULL},
+	{"isready",      cmd_isready,            NULL},
+	{"setoption",    cmd_setoption,          NULL},
+	{"ucinewgame",   cmd_ucinewgame,         NULL},
+	{"stop",         cmd_stop,               NULL}
 /* END CSTYLED */
 };
 
@@ -1354,6 +1580,7 @@ static void
 init_settings(void)
 {
 	is_xboard = false;
+	is_uci = false;
 	exit_on_done = false;
 	computer_side = black;
 	qsort(cmd_list, ARRAY_LENGTH(cmd_list), sizeof *cmd_list,
