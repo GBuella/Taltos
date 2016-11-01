@@ -99,6 +99,7 @@ static const char *whose_turn[] = {"whites", "blacks"};
 static bool game_started;
 static bool exit_on_done;
 static bool verbose;
+static char line[0x10000];
 
 static struct game *game = NULL;
 
@@ -569,7 +570,6 @@ loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 {
 	trace(__func__);
 
-	char line[1024];
 	char *cmd;
 
 	assert(arg_conf != NULL && arg_book != NULL);
@@ -588,6 +588,9 @@ loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 
 		if (line[0] == '\0')
 			continue;
+
+		if (strlen(line) == sizeof(line) - 1)
+			abort();
 
 		line[strcspn(line, "\n\r")] = '\0';
 
