@@ -307,8 +307,24 @@ read_fen_move_counters(const char *volatile str,
 	if (*str != '\0') {
 		str = read_move_counter(half_move, str, jb);
 		str = read_move_counter(full_move, skip_space(str), jb);
-		if (*full_move == 0 || ((*full_move * 2) < *half_move))
+
+		/*
+		 * Normally Taltos would check this:
+		 * (*full_move * 2) < *half_move
+		 *
+		 * But apparently some GUIs out there don't care about this,
+		 * and when presented with a FEN such as:
+		 *
+		 * 8/1k6/3p4/p2P1p2/P2P1P2/8/8/1K6 w - - 99 123
+		 *
+		 * They scrap the full move counter, and pass on this to
+		 * the engine:
+		 *
+		 * 8/1k6/3p4/p2P1p2/P2P1P2/8/8/1K6 w - - 99 1
+		 */
+		if (*full_move == 0)
 			longjmp(jb, 1);
+
 		if (!isspace((unsigned char)*str) && *str != '\0')
 			longjmp(jb, 1);
 	}
