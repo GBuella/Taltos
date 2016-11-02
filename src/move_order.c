@@ -137,13 +137,17 @@ prepare_killers_and_vlates(const struct position *pos, struct move_fsm *fsm)
 static int
 eval_capture(const struct position *pos, move m)
 {
-	int value = piece_value[mcapturedp(m)]
-	    + pawn_value - piece_value[mresultp(m)] / 10;
+	int value = 100 + piece_value[mcapturedp(m)];
 
 	if (mtype(m) == mt_promotion)
 		value += queen_value - pawn_value;
-	else if (is_nonempty(mto64(m) & pos->attack[opponent_pawn]))
-		value -= piece_value[mresultp(m)] / 2;
+
+	if (is_nonempty(mto64(m) & pos->attack[1])) {
+		if (is_nonempty(mto64(m) & pos->attack[opponent_pawn]))
+			value -= piece_value[mresultp(m)] - 101;
+		else
+			value -= piece_value[mresultp(m)] / 10;
+	}
 
 	return value;
 }
