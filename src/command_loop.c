@@ -428,10 +428,12 @@ print_move_path(const struct game *original_game,
 	if (g == NULL)
 		INTERNAL_ERROR();
 	for (; *m != 0; ++m) {
-		if (game_turn(g) == white || first)
-			printf("%u. ", game_full_move_count(g));
-		if (first && game_turn(g) == black)
-			printf("... ");
+		if (!is_uci) {
+			if (game_turn(g) == white || first)
+				printf("%u. ", game_full_move_count(g));
+			if (first && game_turn(g) == black)
+				printf("... ");
+		}
 		first = false;
 		(void) print_move(game_current_position(g),
 		    *m, str, mn, game_turn(g));
@@ -529,6 +531,9 @@ print_current_result(struct engine_result res)
 		(void) print_nice_count(res.sresult.node_count);
 		printf("N\t");
 	}
+
+	if (is_uci)
+		printf("pv ");
 	print_move_path(game, res.pv, conf->move_not);
 	putchar('\n');
 
