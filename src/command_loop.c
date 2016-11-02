@@ -461,7 +461,7 @@ static void
 print_result_header(void)
 {
 	if (verbose)
-		printf("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tPV\n");
+		printf("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tqnodes\tPV\n");
 	else
 		printf("  D\ttime\tvalue\tnodes\tPV\n");
 }
@@ -529,6 +529,8 @@ print_current_result(struct engine_result res)
 		if (verbose)
 			print_verbose_search_info(res);
 		(void) print_nice_count(res.sresult.node_count);
+		printf("N\t");
+		(void) print_nice_count(res.sresult.qnode_count);
 		printf("N\t");
 	}
 

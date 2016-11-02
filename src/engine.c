@@ -438,8 +438,10 @@ update_engine_result(const struct search_thread_data *data,
 		const struct search_result *src)
 {
 	uintmax_t node_count_sum = dst->sresult.node_count + src->node_count;
+	uintmax_t qnode_count_sum = dst->sresult.qnode_count + src->qnode_count;
 	dst->sresult = *src;
 	dst->sresult.node_count = node_count_sum;
+	dst->sresult.qnode_count = qnode_count_sum;
 	dst->time_spent = xseconds_since(data->sd.thinking_started);
 	dst->ht_usage =
 	    (int)(ht_usage(data->sd.tt) * 1000 / ht_slot_count(data->sd.tt));

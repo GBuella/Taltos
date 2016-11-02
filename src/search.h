@@ -48,6 +48,7 @@ struct search_result {
 	unsigned selective_depth;
 	unsigned qdepth;
 	uintmax_t node_count;
+	uintmax_t qnode_count;
 	uintmax_t cutoff_count;
 	uintmax_t first_move_cutoff_count;
 	move pv[MAX_PLY];

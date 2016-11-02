@@ -360,6 +360,8 @@ static void
 node_init(struct node *node)
 {
 	node->common->result.node_count++;
+	if (is_qsearch(node))
+		node->common->result.qnode_count++;
 
 	debug_trace_tree_init(node);
 
