@@ -36,7 +36,6 @@ struct eval_factors {
 	int rook_placement;
 	int bishop_placement;
 	int knight_placement;
-	int queen_placement;
 	int passed_pawns;
 	int center_control;
 	int king_safety;

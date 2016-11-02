@@ -1165,8 +1165,6 @@ cmd_eval(void)
 	print_centipawns(ef.rook_placement);
 	printf("\n knight_placement:    ");
 	print_centipawns(ef.knight_placement);
-	printf("\n queen_placement:     ");
-	print_centipawns(ef.queen_placement);
 	printf("\n bishop_placement:    ");
 	print_centipawns(ef.bishop_placement);
 	printf("\n value:               ");

@@ -104,7 +104,7 @@ setup_defaults(void)
 static void
 setup_display_name(void)
 {
-	static char name[0x100] = "Taltos";
+	static char name[0x100] = "Taltos under t2";
 
 	if (!conf.search.use_LMR)
 		strcat(name, "-noLMR");

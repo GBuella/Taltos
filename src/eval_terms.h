@@ -210,13 +210,13 @@ opponent_rook_batteries(const struct position *pos)
 static inline uint64_t
 pawns_on_center(const struct position *pos)
 {
-	return pos->map[pawn] & pos->attack[pawn] & CENTER_SQ;
+	return pos->map[pawn] & CENTER_SQ;
 }
 
 static inline uint64_t
 opponent_pawns_on_center(const struct position *pos)
 {
-	return pos->map[opponent_pawn] & pos->attack[opponent_pawn] & CENTER_SQ;
+	return pos->map[opponent_pawn] & CENTER_SQ;
 }
 
 static inline uint64_t
@@ -340,67 +340,103 @@ bishop_f1_is_trapped(const struct position *pos)
 }
 
 static inline bool
-bishop_c8_is_trapped(const struct position *pos)
+opponent_bishop_c8_is_trapped(const struct position *pos)
 {
 	return (pos->map[opponent_pawn] & (SQ_B8 | SQ_D8)) == (SQ_B8 | SQ_D8);
 }
 
 static inline bool
-bishop_f8_is_trapped(const struct position *pos)
+opponent_bishop_f8_is_trapped(const struct position *pos)
 {
 	return (pos->map[opponent_pawn] & (SQ_E8 | SQ_G8)) == (SQ_E8 | SQ_G8);
 }
 
 static inline bool
+bishop_trapped_at_a7(const struct position *pos)
+{
+	return is_nonempty(pos->map[bishop] & SQ_A7)
+	    && ((pos->map[opponent_pawn] & (SQ_B6 | SQ_C7)) == (SQ_B6 | SQ_C7));
+}
+
+static inline bool
+bishop_trapped_at_h7(const struct position *pos)
+{
+	return is_nonempty(pos->map[bishop] & SQ_H7)
+	    && ((pos->map[opponent_pawn] & (SQ_G6 | SQ_F7)) == (SQ_G6 | SQ_F7));
+}
+
+static inline bool
+opponent_bishop_trapped_at_a2(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_bishop] & SQ_A2)
+	    && ((pos->map[pawn] & (SQ_B3 | SQ_C2)) == (SQ_B3 | SQ_C2));
+}
+
+static inline bool
+opponent_bishop_trapped_at_h2(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_bishop] & SQ_H2)
+	    && ((pos->map[pawn] & (SQ_G3 | SQ_F2)) == (SQ_G3 | SQ_F2));
+}
+
+static inline bool
 rook_a1_is_trapped(const struct position *pos)
 {
-	if (pos->cr_queen_side || pos->cr_king_side)
+	if (pos->cr_queen_side)
 		return false;
 
 	uint64_t r = pos->map[rook] & (SQ_A1 | SQ_B1 | SQ_C1);
 	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D1;
+	uint64_t blockers =
+	    pos->map[king] | pos->map[bishop] | pos->map[knight];
 	return is_nonempty(r)
 	    && is_empty(r & pos->half_open_files[0])
-	    && is_nonempty(trap & pos->map[king]);
+	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
 rook_h1_is_trapped(const struct position *pos)
 {
-	if (pos->cr_king_side || pos->cr_queen_side)
+	if (pos->cr_king_side)
 		return false;
 
 	uint64_t r = pos->map[rook] & (SQ_F1 | SQ_G1 | SQ_H1);
 	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E1;
+	uint64_t blockers =
+	    pos->map[king] | pos->map[bishop] | pos->map[knight];
 	return is_nonempty(r)
 	    && is_empty(r & pos->half_open_files[0])
-	    && is_nonempty(trap & pos->map[king]);
+	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
 rook_a8_is_trapped(const struct position *pos)
 {
-	if (pos->cr_opponent_king_side || pos->cr_opponent_queen_side)
+	if (pos->cr_opponent_king_side)
 		return false;
 
 	uint64_t r = pos->map[opponent_rook] & (SQ_A8 | SQ_B8 | SQ_C8);
 	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D8;
+	uint64_t blockers = pos->map[opponent_king]
+	    | pos->map[opponent_bishop] | pos->map[opponent_knight];
 	return is_nonempty(r)
 	    && is_empty(r & pos->half_open_files[1])
-	    && is_nonempty(trap & pos->map[opponent_king]);
+	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
 rook_h8_is_trapped(const struct position *pos)
 {
-	if (pos->cr_opponent_king_side || pos->cr_opponent_queen_side)
+	if (pos->cr_opponent_king_side)
 		return false;
 
 	uint64_t r = pos->map[opponent_rook] & (SQ_F8 | SQ_G8 | SQ_H8);
 	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E8;
+	uint64_t blockers = pos->map[opponent_king]
+	    | pos->map[opponent_bishop] | pos->map[opponent_knight];
 	return is_nonempty(r)
 	    && is_empty(r & pos->half_open_files[1])
-	    && is_nonempty(trap & pos->map[opponent_king]);
+	    && is_nonempty(trap & blockers);
 }
 
 static inline bool

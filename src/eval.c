@@ -41,21 +41,20 @@ enum {
 	bishop_pair_value = 3,
 	bishop_wrong_color_value = -3,
 
-	lonely_queen_value = -10,
-
-	kings_pawn_value = 12,
+	kings_pawn_value = 13,
 	castled_king_value = 24,
 	king_ring_sliding_attacked_value = -10,
 	castle_right_value = 10,
 	king_open_file_value = -11,
+	king_pawn_storm_value = -6,
 
 	passed_pawn_value = 22,
 
 	bishop_trapped_value = -10,
-	rook_trapped_value = -18,
+	rook_trapped_value = -20,
 	knight_cornered_value = -15,
 
-	tempo_value = 0
+	tempo_value = 4
 };
 
 enum {
@@ -75,6 +74,22 @@ eval_basic_mobility(const struct position *pos)
 	value -= popcnt(pos->attack[opponent_knight]);
 	value -= popcnt(pos->attack[opponent_rook]);
 	value -= popcnt(pos->attack[opponent_queen]) / 2;
+
+	if (non_pawn_material(pos) > rook_value * 3) {
+		uint64_t other_side = RANK_6 | RANK_7 | RANK_8;
+		value += 6 * popcnt(pos->attack[pawn] & other_side);
+		value += 3 * popcnt(pos->attack[bishop] & other_side);
+		value += 3 * popcnt(pos->attack[knight] & other_side);
+		value += 3 * popcnt(pos->attack[rook] & other_side);
+	}
+
+	if (opponent_non_pawn_material(pos) > rook_value * 3) {
+		uint64_t other_side = RANK_3 | RANK_2 | RANK_1;
+		value -= 6 * popcnt(pos->attack[opponent_pawn] & other_side);
+		value -= 3 * popcnt(pos->attack[opponent_bishop] & other_side);
+		value -= 3 * popcnt(pos->attack[opponent_knight] & other_side);
+		value -= 3 * popcnt(pos->attack[opponent_rook] & other_side);
+	}
 
 	uint64_t free_sq = free_squares(pos);
 
@@ -135,7 +150,14 @@ king_safety_side(uint64_t king_map, uint64_t pawns,
 	value += king_open_file_value * popcnt(shield & half_open_files);
 
 	// More Penalty for the king itself residing on an open file
-	value -= king_open_file_value * popcnt(king_map & half_open_files);
+	if (is_nonempty(king_map & half_open_files))
+		value += king_open_file_value;
+
+	// Penalty for opponent pawns advancing towards the king
+	value += king_pawn_storm_value *
+	    popcnt(kogge_stone_north(shield) & (RANK_3 | RANK_4 | RANK_5));
+	value += king_pawn_storm_value *
+	    popcnt(kogge_stone_north(shield) & (RANK_3 | RANK_4));
 
 	/*
 	 * Even more bonus for having a pawn in front of the king,
@@ -151,7 +173,7 @@ static int
 king_safety_wrapper(const struct position *pos)
 {
 	if (is_empty(pos->map[king] & (RANK_1|RANK_2)))
-		return 0;
+		return -50;
 
 	return king_safety_side(pos->map[king],
 	    pos->map[pawn],
@@ -166,7 +188,7 @@ static int
 opponent_king_safety_wrapper(const struct position *pos)
 {
 	if (is_empty(pos->map[opponent_king] & (RANK_8|RANK_7)))
-		return 0;
+		return -50;
 
 	return king_safety_side(bswap(pos->map[opponent_king]),
 	    bswap(pos->map[opponent_pawn]),
@@ -329,35 +351,23 @@ eval_bishop_placement(const struct position *pos)
 	if (bishop_f1_is_trapped(pos))
 		value += bishop_trapped_value;
 
-	if (bishop_c8_is_trapped(pos))
+	if (opponent_bishop_c8_is_trapped(pos))
 		value -= bishop_trapped_value;
 
-	if (bishop_f8_is_trapped(pos))
+	if (opponent_bishop_f8_is_trapped(pos))
 		value -= bishop_trapped_value;
 
-	return value;
-}
+	if (bishop_trapped_at_a7(pos))
+		value += bishop_trapped_value;
 
-static int
-eval_queen_placement(const struct position *pos)
-{
-	int value = 0;
+	if (bishop_trapped_at_h7(pos))
+		value += bishop_trapped_value;
 
-	uint64_t pieces_out = pos->map[0] & ~(RANK_1 | RANK_2);
-	if ((pos->material_value > (32 * pawn_value))
-	    && is_nonempty(pieces_out & pos->map[queen])) {
-		pieces_out &= ~pos->map[pawn];
-		if (popcnt(pieces_out) < 4)
-			value += lonely_queen_value * (4 - popcnt(pieces_out));
-	}
+	if (opponent_bishop_trapped_at_a2(pos))
+		value -= bishop_trapped_value;
 
-	pieces_out = pos->map[1] & ~(RANK_8 | RANK_7);
-	if ((pos->opponent_material_value > (32 * pawn_value))
-	    && is_nonempty(pieces_out & pos->map[opponent_queen])) {
-		pieces_out &= ~pos->map[opponent_pawn];
-		if (popcnt(pieces_out) < 4)
-			value -= lonely_queen_value * (4 - popcnt(pieces_out));
-	}
+	if (opponent_bishop_trapped_at_h2(pos))
+		value -= bishop_trapped_value;
 
 	return value;
 }
@@ -394,13 +404,12 @@ eval(const struct position *pos)
 
 	value = pos->material_value - pos->opponent_material_value;
 	value += eval_basic_mobility(pos);
-	value += eval_pawn_structure(pos);
 	value += eval_passed_pawns(pos);
+	value += eval_pawn_structure(pos);
 	value += eval_knight_placement(pos);
 	if (is_nonempty(pos->sliding_attacks[0] | pos->sliding_attacks[1])) {
 		value += eval_rook_placement(pos);
 		value += eval_bishop_placement(pos);
-		value += eval_queen_placement(pos);
 		value += eval_king_safety(pos);
 		value += eval_center_control(pos);
 	}
@@ -425,6 +434,5 @@ compute_eval_factors(const struct position *pos)
 	ef.rook_placement = eval_rook_placement(pos);
 	ef.knight_placement = eval_knight_placement(pos);
 	ef.bishop_placement = eval_bishop_placement(pos);
-	ef.queen_placement = eval_queen_placement(pos);
 	return ef;
 }
