@@ -401,7 +401,7 @@ gen_queen_moves(const struct position *pos, move *moves, uint64_t dst_mask)
 			dst_map =
 			    sliding_map(pos->occupied, rook_magics + src);
 		if (is_empty(lsb(queens) & pos->rpin_map))
-			dst_map =
+			dst_map |=
 			    sliding_map(pos->occupied, bishop_magics + src);
 
 		dst_map &= dst_mask;
