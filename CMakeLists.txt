@@ -40,6 +40,7 @@ add_custom_command(
 set(TALTOS_SOURCES
 	src/book.c
 	src/eval.c
+	src/exchange.c
 	src/fen.c
 	src/fen_book.c
 	src/game.c

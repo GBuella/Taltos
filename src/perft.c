@@ -86,30 +86,33 @@ qperft(const struct position *pos, unsigned depth)
 static uintmax_t
 do_perft_ordered(const struct position *pos, unsigned depth)
 {
-	struct move_fsm move_order[1];
+	struct move_order move_order[1];
 	uintmax_t n;
 	struct position child[1];
 
 	if (depth == 0)
 		return 1;
 
-	move_fsm_setup(move_order, pos, false);
+	move_order_setup(move_order, pos, false);
 	if (depth == 1)
 		return move_order->count;
 	if (move_order->count == 0)
 		return 0;
-	if (move_order->count > 16)
-		move_fsm_add_hash_move(move_order, move_order->moves[12]);
+	if (move_order->count > 16) {
+		move_order_add_hint(move_order, move_order->moves[12], 1);
+		move_order_add_weak_hint(move_order, move_order->moves[14]);
+	}
 	if (move_order->count > 13)
-		move_fsm_add_killer(move_order, move_order->moves[10]);
+		move_order_add_killer(move_order, move_order->moves[10]);
 	else
 		move_order->killers[0] = 0;
 	move_order->killers[1] = 0;
 	n = 0;
 	do {
-		make_move(child, pos, select_next_move(pos, move_order));
+		move_order_pick_next(move_order, pos);
+		make_move(child, pos, mo_current_move(move_order));
 		n += do_perft_ordered(child, depth - 1);
-	} while (!move_fsm_done(move_order));
+	} while (!move_order_done(move_order));
 	return n;
 }
 

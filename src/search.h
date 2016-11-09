@@ -58,7 +58,8 @@ struct search_result {
 struct search_result search(const struct position*,
 				enum player debug_player_to_move,
 				struct search_description,
-				volatile atomic_flag *run_flag)
+				volatile atomic_flag *run_flag,
+				const move *initial_pv)
 	attribute(nonnull);
 
 #endif

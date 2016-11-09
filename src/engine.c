@@ -497,6 +497,7 @@ iterative_deepening(void *arg)
 
 	memset(&engine_result, 0, sizeof(engine_result));
 	engine_result.first = true;
+	engine_result.pv[0] = 0;
 
 	setup_search(data);
 	while ((data->sd.depth_limit == -1 && data->sd.depth < MAX_PLY)
@@ -506,7 +507,7 @@ iterative_deepening(void *arg)
 		mtx_unlock(&(data->mutex));
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
 		result = search(&data->root, debug_player_to_move,
-		    data->sd, &data->run_flag);
+		    data->sd, &data->run_flag, engine_result.pv);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&(data->mutex));
 		if (result.is_terminated)

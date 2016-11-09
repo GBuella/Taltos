@@ -148,5 +148,6 @@ extern struct magical bitboard_magics[128];
 #define bishop_magics (bitboard_magics + 64)
 
 extern const uint64_t ray_table[64][64];
+extern const uint64_t dir_ray_table[64][64];
 
 #endif

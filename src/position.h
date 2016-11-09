@@ -193,6 +193,11 @@ struct position {
 	int8_t cr_opponent_queen_side;
 	int8_t cr_padding1[2];
 	int32_t opponent_material_value;
+
+	uint64_t opp_king_pawn_reach;
+	uint64_t opp_king_knight_reach;
+	uint64_t opp_king_bishop_reach;
+	uint64_t opp_king_rook_reach;
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
@@ -297,15 +302,27 @@ knight_pattern(int i)
 }
 
 static inline attribute(artificial) uint64_t
+pawn_reach_south(uint64_t map)
+{
+	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
+}
+
+static inline attribute(artificial) uint64_t
+pawn_reach_north(uint64_t map)
+{
+	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
+}
+
+static inline attribute(artificial) uint64_t
 pawn_attacks_opponent(uint64_t pawn_map)
 {
-	return ((pawn_map & ~FILE_H) << 7) | ((pawn_map & ~FILE_A) << 9);
+	return pawn_reach_south(pawn_map);
 }
 
 static inline attribute(artificial) uint64_t
 pawn_attacks_player(uint64_t pawn_map)
 {
-	return ((pawn_map & ~FILE_A) >> 7) | ((pawn_map & ~FILE_H) >> 9);
+	return pawn_reach_north(pawn_map);
 }
 
 static inline attribute(artificial) uint64_t

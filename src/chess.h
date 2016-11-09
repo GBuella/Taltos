@@ -264,6 +264,12 @@ mresultp(move m)
 	return (m >> 19) & 0xf;
 }
 
+static inline attribute(artificial) bool
+is_under_promotion(move m)
+{
+	return is_promotion(m) && mresultp(m) != queen;
+}
+
 static inline attribute(artificial) move
 flip_m(move m)
 {
@@ -467,6 +473,9 @@ bool pos_has_insufficient_material(const struct position*)
 	attribute(nonnull);
 
 bool pos_equal(const struct position*, const struct position*)
+	attribute(nonnull);
+
+bool move_gives_check(const struct position*, move m)
 	attribute(nonnull);
 
 #endif /* TALTOS_CHESS_H */

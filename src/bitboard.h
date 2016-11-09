@@ -5,6 +5,34 @@
 #ifndef TALTOS_BITBOARD_H
 #define TALTOS_BITBOARD_H
 
+/* BEGIN CSTYLED */
+/*
+
+bitbard square index map:
+
+    A  B  C  D  E  F  G  H
+   -- -- -- -- -- -- -- --
+8 | 7| 6| 5| 4| 3| 2| 1| 0| 8
+   -- -- -- -- -- -- -- --   
+7 |15|14|13|12|11|10| 9|10| 7
+   -- -- -- -- -- -- -- --   
+6 |23|22|21|20|19|18|17|16| 6
+   -- -- -- -- -- -- -- --   
+5 |31|30|29|28|27|26|25|24| 5
+   -- -- -- -- -- -- -- --   
+4 |39|38|37|36|35|34|33|32| 4
+   -- -- -- -- -- -- -- --   
+3 |47|46|45|44|43|42|41|40| 3
+   -- -- -- -- -- -- -- --   
+2 |55|54|53|52|51|50|49|48| 2
+   -- -- -- -- -- -- -- --   
+1 |63|62|61|60|59|58|57|56| 1
+   -- -- -- -- -- -- -- --
+    A  B  C  D  E  F  G  H
+ 
+*/
+/* END CSTYLED */
+
 #include <assert.h>
 #include <stdbool.h>
 #include <inttypes.h>
@@ -125,6 +153,23 @@ reset_lsb(uint64_t value)
 	return value & (value - UINT64_C(1));
 }
 #endif
+
+static inline attribute(artificial) uint64_t
+msb(uint64_t value)
+{
+#ifdef TALTOS_CAN_USE_BUILTIN_CLZLL_64
+
+	return bit64(63 - __builtin_clzll(value));
+
+#elif TALTOS_CAN_USE_BUILTIN_CLZL_64
+
+	return bit64(63 - __builtin_clzl(value));
+
+#else
+	// TODO: more effecient way?
+	return bswap(lsb(bswap(value)));
+#endif
+}
 
 #ifdef TALTOS_CAN_USE_INTEL_POPCOUNT64
 #define popcnt _mm_popcnt_u64

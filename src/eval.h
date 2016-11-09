@@ -5,6 +5,7 @@
 #ifndef TALTOS_EVAL_H
 #define TALTOS_EVAL_H
 
+#include <assert.h>
 #include <stdint.h>
 
 enum {
@@ -12,10 +13,23 @@ enum {
 	mate_value = (max_value - MAX_PLY),
 	pawn_value = 100,
 	knight_value = 300,
-	bishop_value = 320,
+	bishop_value = 300,
 	rook_value = 500,
 	queen_value = 930
 };
+
+// values are always expressed in centipans
+static_assert(pawn_value == 100, "pawn_value must be 100 centipawns");
+
+// lot of code assumes these
+static_assert(knight_value > pawn_value,
+	"knight_value must be larger than pawn_value");
+static_assert(knight_value == bishop_value,
+	"knight_value must be equal to bishop_value");
+static_assert(rook_value > knight_value,
+	"rook_value must be larger than knight_value");
+static_assert(queen_value > rook_value,
+	"queen_value must be larger than rook_value");
 
 static inline bool
 value_bounds(int value)

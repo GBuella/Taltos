@@ -203,3 +203,83 @@ read_move(const struct position *pos, const char *move_str,
 	}
 	return none_move;
 }
+
+bool
+move_gives_check(const struct position *pos, move m)
+{
+	int ki = pos_king_index_opponent(pos);
+
+	if (mtype(m) == mt_castle_kingside) {
+		if (is_nonempty(pos->opp_king_rook_reach & SQ_F1))
+			return true;
+
+		if (is_nonempty(pos->map[opponent_king] & RANK_1)) {
+			uint64_t ray = ray_table[sq_g1][ki];
+			if (is_singular(ray & pos->occupied))
+				return true;
+		}
+
+		return false;
+	}
+	else if (mtype(m) == mt_castle_queenside) {
+		if (is_nonempty(pos->opp_king_rook_reach & SQ_D1))
+			return true;
+
+		if (is_nonempty(pos->map[opponent_king] & RANK_1)) {
+			uint64_t ray = ray_table[sq_c1][ki];
+			if (is_singular(ray & pos->occupied))
+				return true;
+		}
+
+		return false;
+	}
+
+
+	uint64_t to = mto64(m);
+
+	if (mresultp(m) == pawn) {
+		if (is_nonempty(to & pos->opp_king_pawn_reach))
+			return true;
+	}
+
+	if (mresultp(m) == knight) {
+		if (is_nonempty(to & pos->opp_king_knight_reach))
+			return true;
+	}
+
+	if (mresultp(m) == bishop || mresultp(m) == queen) {
+		if (is_nonempty(to & pos->opp_king_bishop_reach))
+			return true;
+	}
+
+	if (mresultp(m) == rook || mresultp(m) == queen) {
+		if (is_nonempty(to & pos->opp_king_rook_reach))
+			return true;
+	}
+
+	uint64_t from = mfrom64(m);
+	uint64_t new_occ = (pos->occupied ^ from) | to;
+
+	if (mtype(m) == mt_en_passant)
+		new_occ ^= south_of(to);
+
+	if (is_nonempty(mfrom64(m) & pos->opp_king_bishop_reach)) {
+		uint64_t new_reach = sliding_map(new_occ, bishop_magics + ki);
+
+		if (is_nonempty(new_reach & (pos->map[bishop])))
+			return true;
+		if (is_nonempty(new_reach & (pos->map[queen])))
+			return true;
+	}
+
+	if (is_nonempty(mfrom64(m) & pos->opp_king_rook_reach)) {
+		uint64_t new_reach = sliding_map(new_occ, rook_magics + ki);
+
+		if (is_nonempty(new_reach & (pos->map[rook])))
+			return true;
+		if (is_nonempty(new_reach & (pos->map[queen])))
+			return true;
+	}
+
+	return false;
+}

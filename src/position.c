@@ -510,6 +510,19 @@ generate_opponent_pawn_reach_maps(struct position *pos)
 	    (east_of(reach) & ~FILE_A);
 }
 
+static void
+generate_king_reach_maps(struct position *pos)
+{
+	uint64_t k = pos->map[opponent_king];
+
+	pos->opp_king_pawn_reach = pawn_attacks_opponent(k);
+	pos->opp_king_knight_reach = knight_pattern(bsf(k));
+	pos->opp_king_bishop_reach =
+	    sliding_map(pos->occupied, bishop_magics + bsf(k));
+	pos->opp_king_rook_reach =
+	    sliding_map(pos->occupied, rook_magics + bsf(k));
+}
+
 
 /*
  * Utility functions used in setting up a new position from scratch
@@ -578,6 +591,7 @@ position_reset(struct position *pos,
 	if (!castle_rights_valid(pos))
 		return -1;
 	generate_attack_maps(pos);
+	generate_king_reach_maps(pos);
 	generate_pawn_reach_maps(pos);
 	generate_opponent_pawn_reach_maps(pos);
 	setup_zhash(pos);
@@ -719,12 +733,10 @@ pos_add_piece(struct position *pos, int i, int piece)
 	pos->map[piece & 1] |= bit64(i);
 	pos->map[piece] |= bit64(i);
 
-	if ((piece & ~1) != king) {
-		if ((piece & 1) == 0)
-			pos->material_value += piece_value[piece & ~1];
-		else
-			pos->opponent_material_value += piece_value[piece & ~1];
-	}
+	if ((piece & 1) == 0)
+		pos->material_value += piece_value[piece & ~1];
+	else
+		pos->opponent_material_value += piece_value[piece & ~1];
 }
 
 static int
@@ -1140,6 +1152,7 @@ position_flip(struct position *restrict dst,
 	dst->occupied = bswap(src->occupied);
 	search_bishop_king_attacks(dst);
 	search_rook_king_attacks(dst);
+	generate_king_reach_maps(dst);
 }
 
 bool
@@ -1294,6 +1307,7 @@ make_move(struct position *restrict dst,
 	if (mcapturedp(m) == pawn)
 		generate_pawn_reach_maps(dst);
 	dst->occupied = dst->map[0] | dst->map[1];
+	generate_king_reach_maps(dst);
 	search_bishop_king_attacks(dst);
 	search_rook_king_attacks(dst);
 	generate_attacks_move(dst, src, m);

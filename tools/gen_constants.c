@@ -170,7 +170,7 @@ gen_move_pattern(int src_i,
          | gen_ray(src_i, occ, dirs[3], edges[3]);
 }
 
-static void add_rays(int r, int f, int r_dir, int f_dir)
+static void add_rays(int r, int f, int r_dir, int f_dir, bool dir_ray)
 {
     int src_i = ind(r, f);
     uint64_t ray = EMPTY;
@@ -180,9 +180,24 @@ static void add_rays(int r, int f, int r_dir, int f_dir)
     while (is_valid_rank(dst_r) && is_valid_file(dst_f)) {
         int dst_i = ind(dst_r, dst_f);
 
-        attack_results[src_i*64 + dst_i] = ray;
-        attack_results[dst_i*64 + src_i] = ray;
+	if (!dir_ray)
+		attack_results[src_i*64 + dst_i] = ray;
+
         ray |= bit64(dst_i);
+        dst_r += r_dir;
+        dst_f += f_dir;
+    }
+
+    if (!dir_ray)
+	    return;
+
+    dst_r = r + r_dir;
+    dst_f = f + f_dir;
+
+    while (is_valid_rank(dst_r) && is_valid_file(dst_f)) {
+        int dst_i = ind(dst_r, dst_f);
+
+	attack_results[src_i*64 + dst_i] = ray;
         dst_r += r_dir;
         dst_f += f_dir;
     }
@@ -194,11 +209,34 @@ static void gen_ray_constants(void)
 
     for (int r = rank_8; is_valid_rank(r); r += RSOUTH) {
         for (int f = file_a; is_valid_file(f); f += EAST) {
-            add_rays(r, f, RSOUTH, 0);
-            add_rays(r, f, 0, WEST);
-            add_rays(r, f, RSOUTH, EAST);
-            add_rays(r, f, RSOUTH, WEST);
+            add_rays(r, f, RSOUTH, 0, false);
+            add_rays(r, f, 0, WEST, false);
+            add_rays(r, f, RSOUTH, EAST, false);
+            add_rays(r, f, RSOUTH, WEST, false);
+            add_rays(r, f, RNORTH, 0, false);
+            add_rays(r, f, 0, EAST, false);
+            add_rays(r, f, RNORTH, EAST, false);
+            add_rays(r, f, RNORTH, WEST, false);
         }
+    }
+}
+
+static void
+gen_dir_ray_constants(void)
+{
+    memset(attack_results, 0, 64*64 * sizeof *attack_results);
+
+    for (int r = rank_8; is_valid_rank(r); r += RSOUTH) {
+        for (int f = file_a; is_valid_file(f); f += EAST) {
+            add_rays(r, f, RSOUTH, 0, true);
+            add_rays(r, f, 0, WEST, true);
+            add_rays(r, f, RSOUTH, EAST, true);
+            add_rays(r, f, RSOUTH, WEST, true);
+            add_rays(r, f, RNORTH, 0, true);
+            add_rays(r, f, 0, EAST, true);
+            add_rays(r, f, RNORTH, EAST, true);
+            add_rays(r, f, RNORTH, WEST, true);
+	}
     }
 }
 
@@ -406,6 +444,9 @@ int main(void)
 
     gen_ray_constants();
     print_table_2d(64, 64, attack_results, "ray_table");
+
+    gen_dir_ray_constants();
+    print_table_2d(64, 64, attack_results, "dir_ray_table");
 
     return EXIT_SUCCESS;
 }
