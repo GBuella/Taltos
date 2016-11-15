@@ -297,15 +297,27 @@ knight_pattern(int i)
 }
 
 static inline attribute(artificial) uint64_t
+pawn_reach_south(uint64_t map)
+{
+	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
+}
+
+static inline attribute(artificial) uint64_t
+pawn_reach_north(uint64_t map)
+{
+	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
+}
+
+static inline attribute(artificial) uint64_t
 pawn_attacks_opponent(uint64_t pawn_map)
 {
-	return ((pawn_map & ~FILE_H) << 7) | ((pawn_map & ~FILE_A) << 9);
+	return pawn_reach_south(pawn_map);
 }
 
 static inline attribute(artificial) uint64_t
 pawn_attacks_player(uint64_t pawn_map)
 {
-	return ((pawn_map & ~FILE_A) >> 7) | ((pawn_map & ~FILE_H) >> 9);
+	return pawn_reach_north(pawn_map);
 }
 
 static inline attribute(artificial) uint64_t

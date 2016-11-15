@@ -64,7 +64,7 @@ double_pawns(const struct position *pos)
 static inline uint64_t
 opponent_double_pawns(const struct position *pos)
 {
-	return north_of(kogge_stone_north(pos->map[opponent_pawn]))
+	return south_of(kogge_stone_south(pos->map[opponent_pawn]))
 	    & pos->map[opponent_pawn];
 }
 
@@ -204,7 +204,7 @@ opponent_rook_batteries(const struct position *pos)
 {
 	return pos->map[opponent_rook] & pos->attack[opponent_rook]
 	    & pos->half_open_files[1]
-	    & south_of(kogge_stone_south(pos->map[opponent_rook]));
+	    & north_of(kogge_stone_north(pos->map[opponent_rook]));
 }
 
 static inline uint64_t
@@ -304,13 +304,17 @@ opponent_bishops_on_black(const struct position *pos)
 static inline uint64_t
 free_squares(const struct position *pos)
 {
-	return ~(pos->map[0] | pos->attack[1]);
+	uint64_t map = ~pos->attack[1];
+	map |= pos->attack[pawn] & ~pos->attack[opponent_pawn];
+	return map & ~pos->map[0];
 }
 
 static inline uint64_t
 opponent_free_squares(const struct position *pos)
 {
-	return ~(pos->map[1] | pos->attack[0]);
+	uint64_t map = ~pos->attack[0];
+	map |= pos->attack[opponent_pawn] & ~pos->attack[pawn];
+	return map & ~pos->map[1];
 }
 
 static inline int
@@ -410,9 +414,9 @@ rook_h1_is_trapped(const struct position *pos)
 }
 
 static inline bool
-rook_a8_is_trapped(const struct position *pos)
+opponent_rook_a8_is_trapped(const struct position *pos)
 {
-	if (pos->cr_opponent_king_side)
+	if (pos->cr_opponent_queen_side)
 		return false;
 
 	uint64_t r = pos->map[opponent_rook] & (SQ_A8 | SQ_B8 | SQ_C8);
@@ -425,7 +429,7 @@ rook_a8_is_trapped(const struct position *pos)
 }
 
 static inline bool
-rook_h8_is_trapped(const struct position *pos)
+opponent_rook_h8_is_trapped(const struct position *pos)
 {
 	if (pos->cr_opponent_king_side)
 		return false;
@@ -459,16 +463,16 @@ static inline bool
 opponent_knight_cornered_a1(const struct position *pos)
 {
 	return is_nonempty(pos->map[opponent_knight] & SQ_A1)
-	    && is_nonempty(pos->attack[pawn] & SQ_B5)
-	    && is_nonempty(pos->attack[0] & SQ_C6);
+	    && is_nonempty(pos->attack[pawn] & SQ_B3)
+	    && is_nonempty(pos->attack[0] & SQ_C2);
 }
 
 static inline bool
 opponent_knight_cornered_h1(const struct position *pos)
 {
 	return is_nonempty(pos->map[opponent_knight] & SQ_H1)
-	    && is_nonempty(pos->attack[pawn] & SQ_G5)
-	    && is_nonempty(pos->attack[0] & SQ_F6);
+	    && is_nonempty(pos->attack[pawn] & SQ_G3)
+	    && is_nonempty(pos->attack[0] & SQ_F2);
 }
 
 #endif

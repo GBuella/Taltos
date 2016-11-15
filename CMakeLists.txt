@@ -63,6 +63,7 @@ add_library(taltos_code STATIC move_gen_const.inc ${TALTOS_SOURCES})
 
 add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
+target_link_libraries(taltos m)
 
 set_property(TARGET taltos PROPERTY C_STANDARD 11)
 # set_property(TARGET taltos PROPERTY C_EXTENSIONS OFF)

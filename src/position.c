@@ -1216,7 +1216,7 @@ move_pawn(struct position *pos, move m)
 static void
 move_piece(struct position *pos, move m)
 {
-	if (m == flip_m(mcastle_king_side)) {
+	if (mtype(m) == mt_castle_kingside) {
 		pos->board[sq_e8] = 0;
 		pos->board[sq_g8] = king;
 		pos->board[sq_f8] = rook;
@@ -1229,7 +1229,7 @@ move_piece(struct position *pos, move m)
 		z2_toggle_sq(pos->zhash, sq_e8, king, 1);
 		z2_toggle_sq(pos->zhash, sq_g8, king, 1);
 	}
-	else if (m == flip_m(mcastle_queen_side)) {
+	else if (mtype(m) == mt_castle_queenside) {
 		pos->board[sq_e8] = 0;
 		pos->board[sq_c8] = king;
 		pos->board[sq_d8] = rook;

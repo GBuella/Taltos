@@ -24,7 +24,7 @@ run_tests(void)
 	assert(game_full_move_count(game) == 1);
 	assert(game_half_move_count(game) == 0);
 	move = create_move_t(ind(rank_2, file_e), ind(rank_4, file_e),
-	    mt_pawn_double_push, pawn, 0);
+	    mt_pawn_double_push, pawn, 0, false);
 	assert(game_append(game, move) == 0);
 	other = game_copy(game);
 	if (other == NULL)
@@ -35,7 +35,7 @@ run_tests(void)
 	game_destroy(other);
 	move = create_move_t(str_to_index("e7", black),
 	    str_to_index("e5", black),
-	    mt_pawn_double_push, pawn, 0);
+	    mt_pawn_double_push, pawn, 0, false);
 	assert(game_append(game, move) == 0);
 	assert(game_turn(game) == white);
 	game_destroy(game);

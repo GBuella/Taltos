@@ -69,6 +69,10 @@ is_valid_mt(int t)
 	    || (t == mt_promotion);
 }
 
+enum {
+	move_check_flag = (1 << 23)
+};
+
 enum player {
 	white = 0,
 	black = 1
@@ -96,7 +100,9 @@ enum {
 	mcastle_king_side =
 		sq_e1 | (sq_g1 << 8) | mt_castle_kingside | (king << 19),
 	mcastle_queen_side =
-		sq_e1 | (sq_c1 << 8) | mt_castle_queenside | (king << 19)
+		sq_e1 | (sq_c1 << 8) | mt_castle_queenside | (king << 19),
+	mcastle_king_side_check = mcastle_king_side | move_check_flag,
+	mcastle_queen_side_check = mcastle_queen_side | move_check_flag
 };
 
 enum {
@@ -191,6 +197,32 @@ ivalid(int i)
 
 typedef int32_t move;
 
+/*
+ * move layout:
+ *
+ * from           : bits  0 -  5
+ * to             : bits  8 - 12
+ * type           : bits 16 - 18
+ * result piece   : bits 19 - 22
+ * check flag     : bit  23
+ * captured piece : bits 24 - 28
+ *
+ *
+ *
+ */
+
+#define MOVE_TYPE_MASK ( \
+	mt_general | mt_pawn_double_push \
+	| mt_castle_kingside | mt_castle_queenside \
+	| mt_en_passant | mt_promotion)
+
+#define MOVE_MASK ( \
+	63 | (63 << 8) \
+	| MOVE_TYPE_MASK | (15 << 19) \
+	| move_check_flag | (15 << 24))
+
+static_assert(MOVE_MASK == 0x0fff3f3f, "MOVE_MASK not as expected");
+
 static inline attribute(artificial) int
 mfrom(move m)
 {
@@ -249,7 +281,7 @@ set_resultp(move m, enum piece p)
 static inline attribute(artificial) enum move_type
 mtype(move m)
 {
-	return m & 0x70000;
+	return m & MOVE_TYPE_MASK;
 }
 
 static inline attribute(artificial) bool
@@ -262,6 +294,12 @@ static inline attribute(artificial) enum piece
 mresultp(move m)
 {
 	return (m >> 19) & 0xf;
+}
+
+static inline attribute(artificial) bool
+is_under_promotion(move m)
+{
+	return is_promotion(m) && mresultp(m) != queen;
 }
 
 static inline attribute(artificial) move
@@ -289,20 +327,31 @@ is_capture(move m)
 	return mcapturedp(m) != 0;
 }
 
-#define MOVE_MASK (63 | (63 << 8) | (7 << 16) | (15 << 19) | (15 << 24))
-
-static_assert(MOVE_MASK == 0x0f7f3f3f, "MOVE_MASK not as expected");
-
-static inline attribute(artificial) move
-create_move_t(int from, int to, enum move_type t, int result, int captured)
+static inline attribute(artificial) bool
+move_gives_check(move m)
 {
-	return from | (to << 8) | t | (result << 19) | (captured << 24);
+	return (m & move_check_flag) != 0;
 }
 
 static inline attribute(artificial) move
-create_move_g(int from, int to, int result, int captured)
+create_move_t(int from, int to, enum move_type t, int result, int captured,
+		bool gives_check)
 {
-	return create_move_t(from, to, mt_general, result, captured);
+	invariant(ivalid(from));
+	invariant(ivalid(to));
+	invariant(is_valid_piece(result));
+	invariant(captured == 0 || is_valid_piece(captured));
+	invariant(is_valid_mt(t));
+
+	return from | (to << 8) | t | (result << 19)
+	    | (gives_check ? move_check_flag : 0) | (captured << 24);
+}
+
+static inline attribute(artificial) move
+create_move_g(int from, int to, int result, int captured, bool gives_check)
+{
+	return create_move_t(from, to, mt_general, result, captured,
+	    gives_check);
 }
 
 static inline bool
