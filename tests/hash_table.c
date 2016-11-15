@@ -59,7 +59,7 @@ set_entry3(void)
 
 	entry = ht_set_depth(entry, 59);
 	entry = ht_set_value(entry, vt_exact, 3);
-	entry = ht_set_move(entry, create_move_g(sq_a1, sq_a2, rook, 0));
+	entry = ht_set_move(entry, create_move_g(sq_a1, sq_a2, rook, 0, false));
 
 	return entry;
 }
@@ -72,7 +72,7 @@ verify_entry3(ht_entry entry)
 	assert(ht_value_type(entry) == vt_exact);
 	assert(ht_value(entry) == 3);
 	assert(ht_has_move(entry));
-	assert(ht_move(entry) == create_move_g(sq_a1, sq_a2, rook, 0));
+	assert(ht_move(entry) == create_move_g(sq_a1, sq_a2, rook, 0, false));
 }
 
 static ht_entry
@@ -82,7 +82,8 @@ set_entry4(void)
 
 	entry = ht_set_depth(entry, 99);
 	entry = ht_set_value(entry, vt_lower_bound, -33);
-	entry = ht_set_move(entry, create_move_g(sq_c2, sq_c3, queen, 0));
+	entry = ht_set_move(entry,
+	    create_move_g(sq_c2, sq_c3, queen, 0, false));
 
 	return entry;
 }
@@ -95,7 +96,7 @@ verify_entry4(ht_entry entry)
 	assert(ht_value_type(entry) == vt_lower_bound);
 	assert(ht_value(entry) == -33);
 	assert(ht_has_move(entry));
-	assert(ht_move(entry) == create_move_g(sq_c2, sq_c3, queen, 0));
+	assert(ht_move(entry) == create_move_g(sq_c2, sq_c3, queen, 0, false));
 }
 
 void

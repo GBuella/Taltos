@@ -24,6 +24,7 @@
 #include "eval.h"
 #include "str_util.h"
 #include "trace.h"
+#include "move_order.h"
 
 struct cmd_entry {
 	const char text[16];
@@ -1162,6 +1163,8 @@ cmd_eval(void)
 	print_centipawns(ef.basic_mobility);
 	printf("\n center_control:      ");
 	print_centipawns(ef.center_control);
+	printf("\n threats:             ");
+	print_centipawns(ef.threats);
 	printf("\n pawn_structure:      ");
 	print_centipawns(ef.pawn_structure);
 	printf("\n passed_pawns:        ");
@@ -1509,6 +1512,53 @@ cmd_stop(void)
 	stop_thinking();
 }
 
+static void
+print_move_order(const struct position *pos, enum player player)
+{
+	struct move_order move_order;
+	move_order_setup(&move_order, pos, false,
+	    conf->search.use_advanced_move_order, eval(pos));
+
+	if (move_order.count == 0) {
+		puts("No legal moves");
+		return;
+	}
+
+	ht_entry entry = engine_get_entry(pos);
+	if (ht_is_set(entry) && ht_has_move(entry))
+		move_order_add_hint(&move_order, ht_move(entry), 0);
+
+	do {
+		move_order_pick_next(&move_order);
+
+		char buf[MOVE_STR_BUFFER_LENGTH];
+		move m = mo_current_move(&move_order);
+		int value = mo_current_move_value(&move_order);
+
+		(void) print_move(pos, m, buf, conf->move_not, player);
+
+		printf("#%u %s %d\n", move_order.index, buf, value);
+	} while (!move_order_done(&move_order));
+}
+
+static void
+cmd_mo(void)
+{
+	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
+
+	if (fen != NULL) {
+		struct game *g = game_create_fen(fen);
+		if (g == NULL) {
+			(void) fprintf(stderr, "Unable to parse FEN\n");
+			return;
+		}
+		print_move_order(game_current_position(g), game_turn(g));
+		game_destroy(g);
+	}
+	else {
+		print_move_order(current_position(), turn());
+	}
+}
 
 static void nop(void) {}
 
@@ -1580,7 +1630,8 @@ static struct cmd_entry cmd_list[] = {
 	{"isready",      cmd_isready,            NULL},
 	{"setoption",    cmd_setoption,          NULL},
 	{"ucinewgame",   cmd_ucinewgame,         NULL},
-	{"stop",         cmd_stop,               NULL}
+	{"stop",         cmd_stop,               NULL},
+	{"mo",           cmd_mo,                 NULL}
 /* END CSTYLED */
 };
 

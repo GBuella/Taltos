@@ -34,7 +34,7 @@
 #define COUNTER_MASK ((uint64_t)((uint32_t)~(MOVE_MASK | VALUE_TYPE_MASK)))
 
 static_assert(
-	COUNTER_MASK == UINT64_C(0xf080c000),
+	COUNTER_MASK == UINT64_C(0xf000c000),
 	"COUNTER_MASK not as expected,"
 	" there might be some problem with some values here...");
 

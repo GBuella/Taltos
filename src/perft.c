@@ -15,8 +15,7 @@
 #include "engine.h"
 #include "move_order.h"
 #include "util.h"
-
-
+#include "eval.h"
 #include "str_util.h"
 
 struct divide_info {
@@ -28,6 +27,17 @@ struct divide_info {
 	enum player turn;
 	bool is_ordered;
 };
+
+static void
+perft_make_move(struct position *child, const struct position *pos, move m)
+{
+	make_move(child, pos, m);
+
+	if (move_gives_check(m) != is_in_check(child)) {
+		fprintf(stderr, "move generator error - check flag\n");
+		abort();
+	}
+}
 
 static uintmax_t
 do_qperft(const struct position *pos, unsigned depth)
@@ -42,7 +52,7 @@ do_qperft(const struct position *pos, unsigned depth)
 		return gen_moves(pos, moves);
 	(void) gen_moves(pos, moves);
 	for (move *i = moves; *i != 0; ++i) {
-		make_move(child, pos, *i);
+		perft_make_move(child, pos, *i);
 		n += do_qperft(child, depth - 1);
 	}
 	return n;
@@ -60,7 +70,7 @@ do_perft(const struct position *pos, unsigned depth)
 	(void) gen_moves(pos, moves);
 	n = 0;
 	for (move *i = moves; *i != 0; ++i) {
-		make_move(child, pos, *i);
+		perft_make_move(child, pos, *i);
 		n += do_perft(child, depth - 1);
 	}
 	return n;
@@ -86,30 +96,36 @@ qperft(const struct position *pos, unsigned depth)
 static uintmax_t
 do_perft_ordered(const struct position *pos, unsigned depth)
 {
-	struct move_fsm move_order[1];
+	struct move_order move_order[1];
 	uintmax_t n;
 	struct position child[1];
 
 	if (depth == 0)
 		return 1;
 
-	move_fsm_setup(move_order, pos, false);
+	move_order_setup(move_order, pos, false, false, 0);
+
 	if (depth == 1)
 		return move_order->count;
+
 	if (move_order->count == 0)
 		return 0;
+
 	if (move_order->count > 16)
-		move_fsm_add_hash_move(move_order, move_order->moves[12]);
+		move_order_add_hint(move_order, move_order->moves[12], 1);
+
 	if (move_order->count > 13)
-		move_fsm_add_killer(move_order, move_order->moves[10]);
+		move_order_add_killer(move_order, move_order->moves[10]);
 	else
 		move_order->killers[0] = 0;
+
 	move_order->killers[1] = 0;
 	n = 0;
 	do {
-		make_move(child, pos, select_next_move(pos, move_order));
+		move_order_pick_next(move_order);
+		make_move(child, pos, mo_current_move(move_order));
 		n += do_perft_ordered(child, depth - 1);
-	} while (!move_fsm_done(move_order));
+	} while (!move_order_done(move_order));
 	return n;
 }
 

@@ -506,7 +506,7 @@ iterative_deepening(void *arg)
 		mtx_unlock(&(data->mutex));
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
 		result = search(&data->root, debug_player_to_move,
-		    data->sd, &data->run_flag);
+		    data->sd, &data->run_flag, engine_result.pv);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&(data->mutex));
 		if (result.is_terminated)
@@ -572,6 +572,7 @@ think(bool infinite, bool single_thread)
 	thinking_started = threads[0].sd.thinking_started = xnow();
 
 	ht_swap(threads[0].sd.tt);
+	move_order_swap_history();
 
 	if (infinite || depth_limit == 0)
 		threads[0].sd.depth_limit = -1;

@@ -19,6 +19,10 @@
 
 #include "macros.h"
 
+struct game;
+
+const struct game *parse_setboard_from_arg_file(void);
+
 void run_tests(void);
 
 #endif

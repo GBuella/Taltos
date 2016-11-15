@@ -16,6 +16,8 @@
 #include "hash.h"
 #include "taltos.h"
 #include "trace.h"
+#include "search.h"
+#include "move_order.h"
 
 static const char *progname;
 static struct taltos_conf conf;
@@ -39,9 +41,15 @@ main(int argc, char **argv)
 	(void) argc;
 	setup_defaults();
 	init_move_gen();
+	init_search();
 	process_args(argv);
 	init_book(&book);
 	init_engine(&conf);
+	if (conf.search.use_history_heuristics)
+		move_order_enable_history();
+	else
+		move_order_disable_history();
+
 	if (atexit(exit_routine) != 0)
 		return EXIT_FAILURE;
 	(void) setvbuf(stdout, NULL, _IONBF, 0);
@@ -80,23 +88,25 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_NO_NULLM");
 	conf.search.use_null_moves = (env == NULL || env[0] == '0');
 
-	env = getenv("TALTOS_USE_SE");
-	conf.search.use_SE = (env != NULL && env[0] != '0');
-
-	env = getenv("TALTOS_USE_NO_FP");
-	conf.search.use_FP = (env == NULL || env[0] == '0');
-
 	env = getenv("TALTOS_USE_PVC");
 	conf.search.use_pv_cleanup = (env != NULL && env[0] != '0');
 
-	env = getenv("TALTOS_USE_SRC");
+	env = getenv("TALTOS_USE_NOSRC");
 	conf.search.use_strict_repetition_check =
-	    (env != NULL && env[0] != '0');
+	    (env == NULL || env[0] == '0');
 
 	env = getenv("TALTOS_USE_RC");
 	conf.search.use_repetition_check =
 	    conf.search.use_strict_repetition_check
 	    || (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_AM");
+	conf.search.use_advanced_move_order =
+	    (env != NULL && env[0] != '0');
+
+	env = getenv("TALTOS_USE_HH");
+	conf.search.use_history_heuristics =
+	    (env != NULL && env[0] != '0');
 
 	conf.display_name = "Taltos";
 }
@@ -110,10 +120,6 @@ setup_display_name(void)
 		strcat(name, "-noLMR");
 	if (!conf.search.use_null_moves)
 		strcat(name, "-nonullm");
-	if (conf.search.use_SE)
-		strcat(name, "-SE");
-	if (!conf.search.use_FP)
-		strcat(name, "-noFP");
 
 	conf.display_name = name;
 }
@@ -191,21 +197,18 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;
 		}
-		else if (strcmp(*arg, "--SE") == 0) {
-			conf.search.use_SE = true;
-		}
-		else if (strcmp(*arg, "--noFP") == 0) {
-			conf.search.use_FP = false;
-		}
-		else if (strcmp(*arg, "--RC") == 0) {
-			conf.search.use_repetition_check = true;
-		}
-		else if (strcmp(*arg, "--SRC") == 0) {
-			conf.search.use_repetition_check = true;
-			conf.search.use_strict_repetition_check = true;
+		else if (strcmp(*arg, "--noSRC") == 0) {
+			conf.search.use_repetition_check = false;
+			conf.search.use_strict_repetition_check = false;
 		}
 		else if (strcmp(*arg, "--PVC") == 0) {
 			conf.search.use_pv_cleanup = true;
+		}
+		else if (strcmp(*arg, "--AM") == 0) {
+			conf.search.use_advanced_move_order = true;
+		}
+		else if (strcmp(*arg, "--HH") == 0) {
+			conf.search.use_history_heuristics = true;
 		}
 		else if (strcmp(*arg, "--hash") == 0) {
 			set_default_hash_size(*++arg);
@@ -232,10 +235,9 @@ usage(int status)
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
 	    "  --nonullm           do not use null move heuristics\n"
-	    "  --SE                use singular extension heuristics\n"
-	    "  --noFP              do not use futility pruning\n"
-	    "  --RC                repetition checking during search\n"
-	    "  --SRC               strict repetition checking during search\n"
+	    "  --noSRC             strict repetition checking during search\n"
+	    "  --AM                Use advanced move ordering - 1 ply search\n"
+	    "  --HH                Use move history heuristics\n"
 	    "  --PVC               PV cleanup - attempt to report cleaner PV\n",
 	    progname);
 	exit(status);

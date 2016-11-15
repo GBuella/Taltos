@@ -5,82 +5,92 @@
 #ifndef TALTOS_MOVE_ORDER_H
 #define TALTOS_MOVE_ORDER_H
 
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "chess.h"
 
-struct move_fsm {
+struct move_order {
 	move moves[MOVE_ARRAY_LENGTH];
-	int values[MOVE_ARRAY_LENGTH];
-	bool has_hashmove;
-	unsigned killerm_end;
-	unsigned tacticals_end;
-	unsigned very_late_moves_begin;
-	unsigned count;
+	int value[MOVE_ARRAY_LENGTH];
+	bool tactical[MOVE_ARRAY_LENGTH];
 	unsigned index;
-	unsigned hash_move_count;
-	move hash_moves[2];
+	unsigned count;
 	move killers[2];
-	bool is_in_late_move_phase;
-	bool already_ordered;
+	bool is_started;
+	bool is_already_sorted;
+	unsigned hint_count;
+	bool advanced_order;
+	int pos_value;
+	int pos_threats;
+	const struct position *pos;
 };
 
-
-
-void move_fsm_setup(struct move_fsm*, const struct position*, bool is_qsearch)
+void move_order_setup(struct move_order*, const struct position*,
+		    bool is_qsearch, bool advanced, int static_value)
 	attribute(nonnull);
 
-move select_next_move(const struct position*, struct move_fsm*)
+void move_order_pick_next(struct move_order*)
 	attribute(nonnull);
 
-static inline int
-move_fsm_add_hash_move(struct move_fsm *fsm, move hash_move)
+static inline move
+mo_current_move(const struct move_order *mo)
 {
-	if (hash_move == 0)
-		return 0;
+	return mo->moves[mo->index];
+}
 
-	for (unsigned i = 0; i < fsm->count; ++i) {
-		if (fsm->moves[i] == hash_move) {
-			fsm->moves[i] = fsm->moves[0];
-			fsm->moves[0] = hash_move;
-			fsm->has_hashmove = true;
-			fsm->tacticals_end = 1;
-			return 0;
-		}
-	}
-	return -1;
+static inline move
+mo_is_on_first_move(const struct move_order *mo)
+{
+	return mo->index == 0;
+}
+
+static inline move
+mo_current_move_value(const struct move_order *mo)
+{
+	return mo->value[mo->index];
 }
 
 static inline bool
-move_fsm_has_any_killer(const struct move_fsm *fsm)
+mo_current_move_is_tactical(const struct move_order *mo)
 {
-	/*
-	 * killers are inserted into killers[0] first,
-	 * then shifted to higher indices
-	 * thus if killers[0] is empty -> no killers
-	 */
-	return fsm->killers[0] != 0;
+	return mo->tactical[mo->index];
 }
 
-static inline void
-move_fsm_add_killer(struct move_fsm *fsm, move killer_move)
-{
-	for (unsigned i = ARRAY_LENGTH(fsm->killers) - 1; i > 0; --i)
-		fsm->killers[i] = fsm->killers[i - 1];
-	fsm->killers[0] = killer_move;
-}
+
+int move_order_add_weak_hint(struct move_order*, move hint_move)
+	attribute(nonnull);
+
+int move_order_add_hint(struct move_order*, move hint_move, int priority)
+	attribute(nonnull);
+
+void move_order_add_killer(struct move_order*, move killer_move)
+	attribute(nonnull);
 
 static inline unsigned
-move_fsm_remaining(const struct move_fsm *fsm)
+move_order_remaining(const struct move_order *mo)
 {
-	return fsm->count - fsm->index;
+	return mo->count - mo->index;
 }
 
 static inline bool
-move_fsm_done(const struct move_fsm *fsm)
+move_order_done(const struct move_order *mo)
 {
-	return fsm->index == fsm->count;
+	return mo->is_started && (mo->index + 1 >= mo->count);
 }
 
-void move_fsm_reset(const struct position*, struct move_fsm*, unsigned i)
+void move_order_reset(struct move_order*)
 	attribute(nonnull);
+
+void move_order_reset_to(struct move_order*, unsigned i)
+	attribute(nonnull);
+
+void move_order_adjust_history_on_cutoff(const struct move_order*)
+	attribute(nonnull);
+
+void move_order_enable_history(void);
+void move_order_disable_history(void);
+void move_order_swap_history(void);
 
 #endif

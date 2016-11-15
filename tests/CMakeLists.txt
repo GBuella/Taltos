@@ -22,5 +22,13 @@ add_executable(test_game tests/game.c)
 target_link_libraries(test_game taltos_code tests_main)
 add_test(NAME game COMMAND $<TARGET_FILE:test_game>)
 
+add_executable(test_move_order tests/move_order.c)
+target_link_libraries(test_move_order taltos_code tests_main)
+
+add_executable(test_eval_symmetry tests/eval_symmetry.c)
+target_link_libraries(test_eval_symmetry taltos_code tests_main)
+
 include(tests/perftsuite/CMakeLists.txt)
+include(tests/perftsuite/CMakeLists_move_order.txt)
+include(tests/perftsuite/CMakeLists_eval_symmetry.txt)
 include(tests/positions/CMakeLists.txt)

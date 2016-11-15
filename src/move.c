@@ -76,9 +76,9 @@ print_san_move(const struct position *pos, move m, char *str, enum player turn)
 {
 	int piece = pos_piece_at(pos, mfrom(m));
 
-	if (m == mcastle_king_side)
+	if (mtype(m) == mt_castle_kingside)
 		return str + sprintf(str, "O-O");
-	else if (m == mcastle_queen_side)
+	else if (mtype(m) == mt_castle_queenside)
 		return str + sprintf(str, "O-O-O");
 	if (piece != pawn)
 		*str++ = (char)toupper((unsigned char)piece_to_char(piece));
