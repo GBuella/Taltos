@@ -263,10 +263,73 @@ eval_quiet_move(struct move_order *mo, move m)
 	return value;
 }
 
+static bool
+has_move_defeneder(const struct position *pos, move m,
+			uint64_t rreach, uint64_t breach, uint64_t occ)
+{
+	uint64_t to64 = mto64(m);
+	uint64_t to = mto(m);
+
+	if (is_nonempty(pos->attack[pawn] & to64))
+		return true;
+
+	if (is_nonempty(pos->attack[king] & to64))
+		return true;
+
+	if (is_nonempty(knight_pattern(to) & pos->map[knight] & occ))
+		return true;
+
+	if (is_nonempty(rreach & pos->map[rook] & occ))
+		return true;
+
+	if (is_nonempty(breach & pos->map[bishop] & occ))
+		return true;
+
+	if (is_nonempty(breach & pos->map[queen] & occ))
+		return true;
+
+	if (is_nonempty(rreach & pos->map[queen] & occ))
+		return true;
+
+	return false;
+}
+
+static int
+move_lowest_attacker(const struct position *pos, move m,
+			uint64_t rreach, uint64_t breach)
+{
+	uint64_t to64 = mto64(m);
+
+	if (is_nonempty(pos->attack[opponent_pawn] & to64))
+		return pawn;
+
+	if (is_nonempty(pos->attack[opponent_knight] & to64))
+		return knight;
+
+	if (is_nonempty(breach & pos->map[opponent_bishop]))
+		return bishop;
+
+	if (is_nonempty(rreach & pos->map[opponent_rook]))
+		return rook;
+
+	if (is_nonempty(rreach & pos->map[opponent_queen]))
+		return queen;
+
+	if (is_nonempty(breach & pos->map[opponent_queen]))
+		return queen;
+
+	if (is_nonempty(pos->attack[opponent_king] & to64))
+		return king;
+
+	return 0;
+}
+
 static int
 eval_move_general(struct move_order *mo, move m, bool *tactical)
 {
-	uint64_t to = mto64(m);
+	uint64_t to64 = mto64(m);
+	int to = mto(m);
+	int piece = mresultp(m);
 
 	if (mresultp(m) == pawn) {
 		if (is_capture(m)) {
@@ -281,27 +344,27 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 		}
 
 		// en-prise
-		if (is_nonempty(mo->pos->attack[1] & to)
-		    && is_empty(mo->pos->attack[0] & to))
+		if (is_nonempty(mo->pos->attack[1] & to64)
+		    && is_empty(mo->pos->attack[0] & to64))
 			return -1001;
 
-		if (is_nonempty(mo->pos->attack[pawn] & to)) {
+		if (is_nonempty(mo->pos->attack[pawn] & to64)) {
 			// threat to a non-pawn piece, while being defended
 			// by another pawn
 			uint64_t victims = mo->pos->map[1];
 			victims &= ~mo->pos->map[opponent_pawn];
-			if (is_nonempty(pawn_attacks_player(to) & victims))
+			if (is_nonempty(pawn_attacks_player(to64) & victims))
 				return -2;
 		}
-		else if (is_empty(mo->pos->attack[1] & to)) {
+		else if (is_empty(mo->pos->attack[1] & to64)) {
 			// threat to a non-pawn piece, while not being
 			// attacked in return
 			if (is_nonempty(
-			    pawn_attacks_player(to) & mo->pos->map[1]))
+			    pawn_attacks_player(to64) & mo->pos->map[1]))
 				return -2;
 		}
 		else {
-			return -100 + eval_quiet_move(mo, m);
+			return -140 + eval_quiet_move(mo, m);
 		}
 	}
 
@@ -311,33 +374,85 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 	}
 
 	if (is_capture(m)) {
-		if (is_empty(mo->pos->attack[1] & to)) {
+		if (is_empty(mo->pos->attack[1] & to64)) {
 			*tactical = true;
 			return piece_value[mcapturedp(m)];
 		}
-		if (piece_value[mcapturedp(m)] >= piece_value[mresultp(m)]) {
+		if (piece_value[mcapturedp(m)] >= piece_value[piece]) {
 			*tactical = true;
 			return MVVLVA(m);
 		}
 	}
 
-	if (is_nonempty(to & mo->pos->attack[opponent_pawn])) {
-		if (mresultp(m) != pawn)
-			return -1000 - (piece_value[mresultp(m)] / 2);
-	}
-	else if (is_nonempty(to & mo->pos->attack[opponent_knight])
-	    || is_nonempty(to & mo->pos->attack[opponent_bishop])) {
-		if (mresultp(m) == rook || mresultp(m) == queen)
-			return -1000 - (piece_value[mresultp(m)] / 3);
+	if (is_nonempty(to64 & mo->pos->attack[opponent_pawn])) {
+		if (piece != pawn)
+			return -1000 - (piece_value[piece] / 2);
 	}
 
+	uint64_t occ = (mo->pos->occupied ^ mfrom64(m)) | to64;
+	uint64_t breach = sliding_map(occ, bishop_magics + to);
+	uint64_t rreach = sliding_map(occ, rook_magics + to);
+
+	int lowest_opp_defender =
+	    move_lowest_attacker(mo->pos, m, rreach, breach);
+
+	if (lowest_opp_defender != 0) {
+		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
+			int att_value = 1000;
+			if (lowest_opp_defender != king)
+				att_value = piece_value[lowest_opp_defender];
+			if (att_value < piece_value[piece])
+				return -900 - (piece_value[piece] / 4);
+		}
+		else {
+			return -1000 - (piece_value[piece] / 3);
+		}
+	}
 
 	if (is_capture(m)) {
 		*tactical = true;
 		return MVVLVA(m);
 	}
 
-	return -100 + eval_quiet_move(mo, m);
+	int base = -140;
+
+	uint64_t opp_en_prise = mo->pos->map[1];
+	opp_en_prise &= ~mo->pos->attack[1];
+
+	if (piece == bishop) {
+		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
+			if (is_nonempty(breach & mo->pos->map[opponent_queen]))
+				base = -100;
+		}
+		else if (is_nonempty(breach & opp_en_prise)) {
+			base = -110;
+		}
+		else if (is_nonempty(breach & mo->pos->map[opponent_rook])) {
+			base = -120;
+		}
+	}
+	else if (piece == rook) {
+		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
+			if (is_nonempty(rreach & mo->pos->map[opponent_queen]))
+				base = -100;
+		}
+		else if (is_nonempty(rreach & opp_en_prise)) {
+			base = -110;
+		}
+	}
+	else if (piece == queen) {
+		uint64_t victims = mo->pos->map[opponent_pawn];
+		victims |= mo->pos->map[opponent_knight];
+		victims &= ~mo->pos->attack[0];
+		victims &= ~mo->pos->attack[1];
+
+		if (is_nonempty(breach & victims))
+			base = -100;
+		else if (is_nonempty(rreach & victims))
+			base = -100;
+	}
+
+	return base + eval_quiet_move(mo, m);
 }
 
 static int

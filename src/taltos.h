@@ -22,6 +22,7 @@ struct search_settings {
 	bool use_strict_repetition_check;
 	bool use_advanced_move_order;
 	bool use_history_heuristics;
+	bool use_beta_extensions;
 
 	/*
 	 * TODO: try these

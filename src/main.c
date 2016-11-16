@@ -108,6 +108,10 @@ setup_defaults(void)
 	conf.search.use_history_heuristics =
 	    (env != NULL && env[0] != '0');
 
+	env = getenv("TALTOS_USE_BE");
+	conf.search.use_beta_extensions =
+	    (env != NULL && env[0] != '0');
+
 	conf.display_name = "Taltos";
 }
 

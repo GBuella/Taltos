@@ -724,6 +724,8 @@ search_more_moves(const struct node *node)
 		return false;
 
 	if (node->root_distance > 3
+	    && node->value > - mate_value
+	    && !is_in_check(node->pos)
 	    && node->depth > 0 && node->depth < (int)ARRAY_LENGTH(LMP)) {
 		if (mo_current_move_value(node->mo) <= 0) {
 			if (node->mo->index >= LMP[node->depth])
@@ -899,6 +901,34 @@ new_best_move(struct node *node, move best)
 	}
 }
 
+static int
+handle_beta_extension(struct node *node, move m, int value)
+{
+	if (!node->common->sd.settings.use_beta_extensions)
+		return value;
+
+	if (value >= node->beta
+	    && !node[-1].is_in_null_move_search
+	    && value < mate_value
+	    && node->depth > PLY
+	    && !is_capture(m)
+	    && !is_promotion(m)
+	    && mtype(m) != mt_castle_kingside
+	    && mtype(m) != mt_castle_queenside
+	    && mresultp(m) != pawn) {
+		node[1].alpha = -node->beta;
+		node[1].beta = -node->alpha;
+		if (move_gives_check(m))
+			node[1].depth = node->depth;
+		else
+			node[1].depth = node->depth - PLY / 2;
+		return  negamax_child(node);
+	}
+	else {
+		return value;
+	}
+}
+
 static void
 negamax(struct node *node)
 {
@@ -957,6 +987,8 @@ negamax(struct node *node)
 				continue;
 			}
 		}
+
+		value = handle_beta_extension(node, m, value);
 
 		if (value > node->value) {
 			node->value = value;
@@ -1120,7 +1152,7 @@ next_iteration:
 		c = print_coor_move(root->pv[pv_len], c,
 		    ((pv_len % 2)
 		    ? opponent_of(root->debug_player_to_move)
-		    : root->debug_player_to_move));
+		    : (int)root->debug_player_to_move));
 #endif
 		result->pv[pv_len] = root->pv[pv_len];
 		root[pv_len].forced_pv = root->pv[pv_len];
