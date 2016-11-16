@@ -127,7 +127,7 @@ gen_en_passant_dir(struct move_gen *mg, uint64_t from64, uint64_t to64,
 	}
 
 	*mg->moves++ = create_move_t(bsf(from64), bsf(to64),
-		    mt_en_passant, pawn, pawn, gives_check);
+	    mt_en_passant, pawn, pawn, gives_check);
 }
 
 static void
@@ -663,7 +663,8 @@ gen_queen_moves_nopin(struct move_gen *mg)
 	for (; is_nonempty(queens); queens = reset_lsb(queens)) {
 		uint64_t from64 = lsb(queens);
 		int from = bsf(from64);
-		uint64_t dst_map = sliding_map(mg->pos->occupied, rook_magics + from);
+		uint64_t dst_map =
+		    sliding_map(mg->pos->occupied, rook_magics + from);
 		dst_map |= sliding_map(mg->pos->occupied, bishop_magics + from);
 		dst_map &= mg->dst_mask;
 

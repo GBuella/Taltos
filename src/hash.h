@@ -34,12 +34,15 @@ typedef uint64_t ht_entry;
  * best move    : bits  8 - 13
  * reserved     : bits 14 - 15
  * best move    : bits 16 - 26
- * reserved     : bits 27 - 31
+ * reserved     : bits 27 - 30
+ * no_null      : bits 31 - 31
  * value        : bits 32 - 47
  * depth        : bits 48 - 63
  *
  * This pattern depends on the bits used by move type.
  */
+
+#define HT_NO_NULL_FLAG (1u << 31)
 
 static_assert(
 	(MOVE_MASK & VALUE_TYPE_MASK) == 0,
@@ -135,6 +138,18 @@ static inline attribute(artificial) int
 ht_value(ht_entry e)
 {
 	return (int)(((e >> 32) % 0x10000) - 0x7fff);
+}
+
+static inline attribute(artificial) ht_entry
+ht_set_no_null(ht_entry e)
+{
+	return e | HT_NO_NULL_FLAG;
+}
+
+static inline attribute(artificial) bool
+ht_no_null(ht_entry e)
+{
+	return (e & HT_NO_NULL_FLAG) != 0;
 }
 
 static inline ht_entry

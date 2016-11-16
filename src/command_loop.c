@@ -1517,7 +1517,7 @@ print_move_order(const struct position *pos, enum player player)
 {
 	struct move_order move_order;
 	move_order_setup(&move_order, pos, false,
-	    conf->search.use_advanced_move_order, eval(pos));
+	    conf->search.use_advanced_move_order, eval(pos), 0);
 
 	if (move_order.count == 0) {
 		puts("No legal moves");

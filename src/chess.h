@@ -212,14 +212,14 @@ typedef int32_t move;
  */
 
 #define MOVE_TYPE_MASK ( \
-    mt_general | mt_pawn_double_push \
-    | mt_castle_kingside | mt_castle_queenside \
-    | mt_en_passant | mt_promotion)
+	mt_general | mt_pawn_double_push \
+	| mt_castle_kingside | mt_castle_queenside \
+	| mt_en_passant | mt_promotion)
 
 #define MOVE_MASK ( \
-    63 | (63 << 8) \
-    | MOVE_TYPE_MASK | (15 << 19) \
-    | move_check_flag | (15 << 24))
+	63 | (63 << 8) \
+	| MOVE_TYPE_MASK | (15 << 19) \
+	| move_check_flag | (15 << 24))
 
 static_assert(MOVE_MASK == 0x0fff3f3f, "MOVE_MASK not as expected");
 
@@ -350,7 +350,8 @@ create_move_t(int from, int to, enum move_type t, int result, int captured,
 static inline attribute(artificial) move
 create_move_g(int from, int to, int result, int captured, bool gives_check)
 {
-	return create_move_t(from, to, mt_general, result, captured, gives_check);
+	return create_move_t(from, to, mt_general, result, captured,
+	    gives_check);
 }
 
 static inline bool

@@ -22,7 +22,6 @@
 #define NON_VALUE INT_MIN
 
 enum { node_array_length = MAX_PLY + MAX_Q_PLY + 32 };
-enum { nmr_factor = PLY };
 
 enum node_type {
 	PV_node,
@@ -85,6 +84,7 @@ struct node {
 	int LMR_subject_index;
 
 	bool is_in_null_move_search;
+	bool null_move_search_failed;
 };
 
 static void
@@ -247,6 +247,7 @@ get_static_value(struct node *node)
 }
 
 static int LMR[20 * PLY][64];
+static unsigned LMP[3 * PLY + 1] = { 0, 6, 6, 10, 12, 16, 20};
 
 static int
 get_LMR_factor(struct node *node)
@@ -339,6 +340,7 @@ node_init(struct node *node)
 	debug_trace_tree_init(node);
 
 	node->is_in_null_move_search = false;
+	node->null_move_search_failed = false;
 	node->repetition_affected_any = 0;
 	node->repetition_affected_best = 0;
 	node->non_pawn_move_count = 0;
@@ -367,7 +369,85 @@ node_init(struct node *node)
 	node->fresh_entry = 0;
 }
 
+static int
+negamax_child(struct node *node)
+{
+	negamax(node + 1);
+
+	if (node->forced_pv == 0)
+		node[1].forced_pv = 0;
+
+	int value = -node[1].value;
+
+	if (node->common->sd.settings.use_strict_repetition_check) {
+		node->repetition_affected_any = max(
+		    node->repetition_affected_any,
+		    node[1].repetition_affected_best - 1);
+	}
+
+	/*
+	 * Decrement a mate value each time it is passed down towards root,
+	 * so represent that "mate in 5" is better than "mate in 6" --> the
+	 * closer to the root the checkmate is, the better is is.
+	 */
+	if (value > mate_value)
+		return value - 1;
+	else
+		return value;
+}
+
 enum { prune_successfull = 1 };
+
+static bool
+ht_entry_prevents_null_move(struct node *node, ht_entry entry)
+{
+	if (!ht_is_set(entry) || ht_depth(entry) < node->depth - 2 * PLY)
+		return false;
+
+	if (ht_no_null(entry))
+		return true;
+
+	if (ht_value_is_upper_bound(entry)) {
+		if (ht_value(entry) <= node->beta)
+			return true;
+	}
+
+	return false;
+}
+
+static bool
+opponent_has_positive_capture(const struct node *node)
+{
+	const struct position *pos = node->pos;
+
+	uint64_t attacks = pos->attack[opponent_pawn];
+	uint64_t victims = pos->map[0] & ~pos->map[pawn];
+
+	if (is_nonempty(attacks & victims))
+		return true;
+
+	attacks |= pos->attack[opponent_knight];
+	attacks |= pos->attack[opponent_bishop];
+	victims &= ~pos->map[bishop];
+	victims &= ~pos->map[knight];
+
+	if (is_nonempty(attacks & victims))
+		return true;
+
+	attacks |= pos->attack[opponent_rook];
+	victims = pos->map[queen];
+
+	if (is_nonempty(attacks & victims))
+		return true;
+
+	attacks = pos->attack[opponent_king];
+	victims = pos->map[0] & ~pos->attack[0];
+
+	if (is_nonempty(attacks & victims))
+		return true;
+
+	return false;
+}
 
 static int
 try_null_move_prune(struct node *node)
@@ -378,6 +458,12 @@ try_null_move_prune(struct node *node)
 	if (node->forced_pv != 0)
 		return 0;
 
+	if (ht_entry_prevents_null_move(node, node->deep_entry))
+		return 0;
+
+	if (ht_entry_prevents_null_move(node, node->fresh_entry))
+		return 0;
+
 	if (node->has_repetition_in_history)
 		return 0;
 
@@ -386,10 +472,13 @@ try_null_move_prune(struct node *node)
 	if ((node->root_distance == 0)
 	    || node[-1].is_in_null_move_search
 	    || (node->expected_type == PV_node)
-	    || (advantage < 0)
+	    || (advantage < - 100)
 	    || (node->depth <= 2 * PLY)
 	    || is_in_check(node->pos)
 	    || (node->mo->count < 18))
+		return 0;
+
+	if (advantage < 0 && opponent_has_positive_capture(node))
 		return 0;
 
 	if (node->non_pawn_move_count < 9
@@ -410,15 +499,16 @@ try_null_move_prune(struct node *node)
 
 	node->is_in_null_move_search = true;
 	debug_trace_tree_push_move(node, 0);
-	negamax(child);
+	int value = negamax_child(node);
 	debug_trace_tree_pop_move(node);
 	node->is_in_null_move_search = false;
-
-	int value = -child->value;
 
 	if (value > node->beta + pawn_value && value <= mate_value) {
 		node->value = node->beta;
 		return prune_successfull;
+	}
+	else {
+		node->null_move_search_failed = true;
 	}
 
 	return 0;
@@ -593,7 +683,8 @@ setup_moves(struct node *node)
 	am = am && node->depth > 2 * PLY;
 
 	move_order_setup(node->mo, node->pos,
-	    is_qsearch(node), am, get_static_value(node));
+	    is_qsearch(node), am, get_static_value(node),
+	    node->root_distance % 2);
 
 	if (node->mo->count == 0) {
 		if (is_qsearch(node))
@@ -631,6 +722,14 @@ search_more_moves(const struct node *node)
 
 	if (node->alpha >= node->beta)
 		return false;
+
+	if (node->root_distance > 3
+	    && node->depth > 0 && node->depth < (int)ARRAY_LENGTH(LMP)) {
+		if (mo_current_move_value(node->mo) <= 0) {
+			if (node->mo->index >= LMP[node->depth])
+				return false;
+		}
+	}
 
 	return true;
 }
@@ -763,18 +862,12 @@ setup_child_node(struct node *node, move m, int *LMR_factor)
 	child->beta = -node->alpha;
 	child->alpha = -node->beta;
 
-	//if (is_in_check(child->pos)) {
-		//child->depth += PLY / 2;
-		//*LMR_factor = 0;
-	//}
-	//else {
-		*LMR_factor = get_LMR_factor(node);
+	*LMR_factor = get_LMR_factor(node);
 
-		if (*LMR_factor != 0) {
-			child->depth -= *LMR_factor;
-			child->alpha = -node->alpha - 1;
-		}
-	//}
+	if (*LMR_factor != 0) {
+		child->depth -= *LMR_factor;
+		child->alpha = -node->alpha - 1;
+	}
 }
 
 static void
@@ -796,40 +889,14 @@ new_best_move(struct node *node, move best)
 		    node[1].repetition_affected_any - 1);
 	}
 
-	//if (node->common->sd.settings.use_pv_cleanup) {
+	if (node->alpha < node->beta) {
 		node->pv[0] = best;
 		unsigned i = 0;
 		do {
 			node->pv[i + 1] = node[1].pv[i];
 			++i;
 		} while (node->pv[i] != 0);
-	//}
-}
-
-static int
-negamax_child(struct node *node)
-{
-	negamax(node + 1);
-
-	node[1].forced_pv = 0;
-
-	int value = -node[1].value;
-
-	if (node->common->sd.settings.use_strict_repetition_check) {
-		node->repetition_affected_any = max(
-		    node->repetition_affected_any,
-		    node[1].repetition_affected_best - 1);
 	}
-
-	/*
-	 * Decrement a mate value each time it is passed down towards root,
-	 * so represent that "mate in 5" is better than "mate in 6" --> the
-	 * closer to the root the checkmate is, the better is is.
-	 */
-	if (value > mate_value)
-		return value - 1;
-	else
-		return value;
 }
 
 static void
@@ -853,9 +920,6 @@ negamax(struct node *node)
 	if (setup_moves(node) == no_legal_moves)
 		return;
 
-	if (try_null_move_prune(node) == prune_successfull)
-		return;
-
 	if (node->forced_pv == 0) {
 		if (fetch_hash_value(node) == hash_cutoff)
 			return;
@@ -865,6 +929,9 @@ negamax(struct node *node)
 		(void) r;
 		assert(r == 0);
 	}
+
+	if (try_null_move_prune(node) == prune_successfull)
+		return;
 
 	if (recheck_bounds(node) == alpha_not_less_than_beta)
 		return;
@@ -891,18 +958,6 @@ negamax(struct node *node)
 			}
 		}
 
-		/*
-		if (value >= node->beta && node->depth >= PLY
-		    && !is_capture(m)
-		    && !is_promotion(m)
-		    && value < mate_value
-		    && move_gives_check(m)) {
-			reset_child_after_lmr(node);
-			node[1].depth += PLY;
-			value = negamax_child(node);
-		}
-		*/
-
 		if (value > node->value) {
 			node->value = value;
 			if (value > node->alpha) {
@@ -927,6 +982,8 @@ negamax(struct node *node)
 	if (node->depth > 0) {
 		if (node->best_move != 0)
 			entry = ht_set_move(entry, node->best_move);
+		if (node->null_move_search_failed)
+			entry = ht_set_no_null(entry);
 		if (ht_value_type(entry) != 0 || node->best_move != 0)
 			ht_pos_insert(node->tt, node->pos, entry);
 	}
@@ -1040,20 +1097,6 @@ static void
 extract_pv(struct pv_store *pv_store,
 		struct search_result *result, struct node *root)
 {
-	/*
-	if (!root->common->sd.settings.use_pv_cleanup) {
-		result->pv[0] = root->best_move;
-
-		struct position child;
-		position_make_move(&child, root->pos, root->best_move);
-		ht_extract_pv(root->common->sd.tt, &child,
-		    root->depth - PLY,
-		    &result->pv[1], -root->value);
-
-		return;
-	}
-	*/
-
 	int pv_len = 0;
 	int iteration = 0;
 
@@ -1197,13 +1240,11 @@ init_search(void)
 	for (int d = min_depth + 1; d < (int)ARRAY_LENGTH(LMR); ++d) {
 		for (int i = 0; i < (int)ARRAY_LENGTH(LMR[d]); ++i) {
 			double x = d * (i + 1);
-			int r = (int)(log2((x / 27) + 1) * PLY);
+			int r = (int)(log2((x / 22) + 1) * PLY);
 
 			if (r > d - min_depth)
 				r = d - min_depth;
 			LMR[d][i] = r;
-
-			//printf("LMR[%d][%d] = %d\n", d, i, r);
 		}
 	}
 }

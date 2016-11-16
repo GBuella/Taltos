@@ -14,14 +14,15 @@ static bool use_history;
 
 struct history_value {
 	uintmax_t occurence;
-	uintmax_t cutoff_count; 
+	uintmax_t cutoff_count;
 };
 
 static struct history_value history[2][PIECE_ARRAY_SIZE][64];
 
 void
 move_order_setup(struct move_order *mo, const struct position *pos,
-		bool is_qsearch, bool advanced, int static_value)
+		bool is_qsearch, bool advanced, int static_value,
+		int hside)
 {
 	if (is_qsearch)
 		mo->count = gen_captures(pos, mo->moves);
@@ -37,6 +38,7 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	if (advanced)
 		mo->pos_threats = eval_threats(pos);
 	mo->pos = pos;
+	mo->history_side = hside;
 }
 
 static void
@@ -212,24 +214,25 @@ eval_quiet_move(struct move_order *mo, move m)
 	int value = 0;
 	uint64_t from = mfrom64(m);
 	uint64_t to = mto64(m);
+	int opp_ki = bsf(mo->pos->map[opponent_king]);
 
 	if (is_nonempty(mo->pos->attack[opponent_pawn] & from)
 	    && is_empty(mo->pos->attack[opponent_pawn] & to))
 		value += 5; // attacked by pawn, fleeing
 
-	if (mresultp(m) == rook) {
+	if (mresultp(m) == rook || mresultp(m) == queen) {
 		uint64_t krook;
 
-		krook = rook_pattern_table[bsf(mo->pos->map[opponent_king])];
+		krook = rook_pattern_table[opp_ki];
 		if (is_empty(krook & from) && is_nonempty(krook & to))
-			value += 9; // threaten opponent king
+			value += 4; // threaten opponent king
 	}
-	else if (mresultp(m) == bishop) {
+	if (mresultp(m) == bishop || mresultp(m) == queen) {
 		uint64_t kbishop;
 
-		kbishop = bishop_pattern_table[bsf(mo->pos->map[opponent_king])];
+		kbishop = bishop_pattern_table[opp_ki];
 		if (is_empty(kbishop & from) && is_nonempty(kbishop & to))
-			value += 9; // threaten opponent king
+			value += 4; // threaten opponent king
 	}
 
 	if (mresultp(m) == knight) {
@@ -247,15 +250,14 @@ eval_quiet_move(struct move_order *mo, move m)
 
 	if (use_history) {
 		const struct history_value *h0 =
-		    &(history[1][mresultp(m)][mto(m)]);
+		    &(history[0][mresultp(m) + mo->history_side][mto(m)]);
 		const struct history_value *h1 =
-		    &(history[0][mresultp(m)][mto(m)]);
+		    &(history[1][mresultp(m) + mo->history_side][mto(m)]);
 
 		value +=
-		    (int)((h0->cutoff_count * 30) / (h0->occurence + 1));
+		    (int)((h0->cutoff_count * 15) / (h0->occurence + 20));
 		value +=
-		    (int)((h1->cutoff_count * 70) / (h1->occurence + 1));
-
+		    (int)((h1->cutoff_count * 60) / (h1->occurence + 100));
 	}
 
 	return value;
@@ -272,7 +274,8 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 			return piece_value[mcapturedp(m)] - 10;
 		}
 
-		if (is_passed_pawn_push(mo->pos, m) || is_pawn_fork(mo->pos, m)) {
+		if (is_passed_pawn_push(mo->pos, m)
+		    || is_pawn_fork(mo->pos, m)) {
 			*tactical = true;
 			return 3;
 		}
@@ -293,11 +296,12 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 		else if (is_empty(mo->pos->attack[1] & to)) {
 			// threat to a non-pawn piece, while not being
 			// attacked in return
-			if (is_nonempty(pawn_attacks_player(to) & mo->pos->map[1]))
+			if (is_nonempty(
+			    pawn_attacks_player(to) & mo->pos->map[1]))
 				return -2;
 		}
 		else {
-			return -90 + eval_quiet_move(mo, m);
+			return -100 + eval_quiet_move(mo, m);
 		}
 	}
 
@@ -357,7 +361,7 @@ eval_make_move(struct move_order *mo, move m, bool *tactical)
 	delta -= 100;
 	if (is_in_check(child))
 		delta += 30;
-	
+
 	*tactical = (is_capture(m) && delta >= 0);
 
 	return delta;
@@ -497,20 +501,26 @@ move_order_swap_history(void)
 void
 move_order_adjust_history_on_cutoff(const struct move_order *mo)
 {
-	if (!use_history || mo->count == 1)
+	if (!use_history)
 		return;
 
-	move m = mo->moves[mo->index];
-	if (is_capture(m)) {
-		if (piece_value[mcapturedp(m)] >= piece_value[mresultp(m)])
+	if (mo->count == 1)
+		return;
+
+	move best = mo->moves[mo->index];
+	int side = mo->history_side;
+	if (is_capture(best)) {
+		if (piece_value[mcapturedp(best)] >=
+		    piece_value[mresultp(best)])
 			return;
-		if (is_empty(mo->pos->attack[1] & mto64(m)))
+		if (is_empty(mo->pos->attack[1] & mto64(best)))
 			return;
 	}
 
 	for (unsigned i = 0; i <= mo->index; ++i) {
 		move m = mo->moves[i];
-		struct history_value *h = &(history[1][mresultp(m)][mto(m)]);
+		struct history_value *h =
+		    &(history[1][mresultp(m) + side][mto(m)]);
 
 		h->occurence++;
 		if (i == mo->index)

@@ -31,10 +31,11 @@
  * The bits in the lower 32 bits, not used for storing the move,
  * or the value_type.
  */
-#define COUNTER_MASK ((uint64_t)((uint32_t)~(MOVE_MASK | VALUE_TYPE_MASK)))
+#define COUNTER_MASK \
+	((uint64_t)((uint32_t)~(MOVE_MASK | VALUE_TYPE_MASK | HT_NO_NULL_FLAG)))
 
 static_assert(
-	COUNTER_MASK == UINT64_C(0xf000c000),
+	COUNTER_MASK == UINT64_C(0x7000c000),
 	"COUNTER_MASK not as expected,"
 	" there might be some problem with some values here...");
 
@@ -110,7 +111,6 @@ ht_max_size_mb(void)
 	return (((size_t)1 << HT_MAX_SIZE) * sizeof(struct bucket))
 	    / (1024 * 1024);
 }
-
 
 struct hash_table*
 ht_create(unsigned log2_size)
