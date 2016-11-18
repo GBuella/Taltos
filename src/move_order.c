@@ -330,6 +330,10 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 	uint64_t to64 = mto64(m);
 	int to = mto(m);
 	int piece = mresultp(m);
+	uint64_t opp_en_prise =
+	    mo->pos->map[1] & ~mo->pos->attack[1] & ~mo->pos->attack[0];
+	uint64_t en_prise =
+	    mo->pos->map[0] & mo->pos->attack[1] & ~mo->pos->attack[0];
 
 	if (mresultp(m) == pawn) {
 		if (is_capture(m)) {
@@ -363,9 +367,12 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 			    pawn_attacks_player(to64) & mo->pos->map[1]))
 				return -2;
 		}
-		else {
-			return -140 + eval_quiet_move(mo, m);
-		}
+
+		int base = -140;
+		if (is_nonempty(pawn_attacks_player(to64) & en_prise))
+			base = -110;
+
+		return base + eval_quiet_move(mo, m);
 	}
 
 	if (is_knight_threat(mo->pos, m)) {
@@ -416,40 +423,49 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 
 	int base = -140;
 
-	uint64_t opp_en_prise = mo->pos->map[1];
-	opp_en_prise &= ~mo->pos->attack[1];
 
-	if (piece == bishop) {
-		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
-			if (is_nonempty(breach & mo->pos->map[opponent_queen]))
-				base = -100;
-		}
-		else if (is_nonempty(breach & opp_en_prise)) {
+	if (piece == knight) {
+		if (is_nonempty(knight_pattern(to) & en_prise))
 			base = -110;
-		}
-		else if (is_nonempty(breach & mo->pos->map[opponent_rook])) {
+		else if (is_nonempty(knight_pattern(to) & opp_en_prise))
+			base = -110;
+	}
+	else if (piece == bishop) {
+		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
+		    && is_nonempty(breach & mo->pos->map[opponent_queen]))
+				base = -100;
+		else if (is_nonempty(breach & opp_en_prise))
+			base = -110;
+		else if (is_nonempty(breach & en_prise))
+			base = -110;
+		else if (is_nonempty(breach & mo->pos->map[opponent_rook]))
 			base = -120;
-		}
 	}
 	else if (piece == rook) {
-		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
-			if (is_nonempty(rreach & mo->pos->map[opponent_queen]))
+		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
+		    && is_nonempty(rreach & mo->pos->map[opponent_queen]))
 				base = -100;
-		}
-		else if (is_nonempty(rreach & opp_en_prise)) {
+		else if (is_nonempty(rreach & opp_en_prise))
 			base = -110;
-		}
+		else if (is_nonempty(rreach & en_prise))
+			base = -110;
 	}
 	else if (piece == queen) {
-		uint64_t victims = mo->pos->map[opponent_pawn];
-		victims |= mo->pos->map[opponent_knight];
-		victims &= ~mo->pos->attack[0];
-		victims &= ~mo->pos->attack[1];
-
-		if (is_nonempty(breach & victims))
+		if (is_nonempty(breach & opp_en_prise))
 			base = -100;
-		else if (is_nonempty(rreach & victims))
+		else if (is_nonempty(rreach & opp_en_prise))
 			base = -100;
+		else if (is_nonempty(breach & en_prise))
+			base = -110;
+		else if (is_nonempty(rreach & en_prise))
+			base = -110;
+	}
+	else if (piece == king) {
+		uint64_t new_reach = king_moves_table[to];
+		if (is_nonempty(new_reach & opp_en_prise))
+			base = -120;
+		else if (is_nonempty(new_reach & en_prise))
+			base = -121;
 	}
 
 	return base + eval_quiet_move(mo, m);
@@ -521,9 +537,11 @@ eval_move(struct move_order *mo, move m, bool *tactical)
 	int value = eval_move_general(mo, m, tactical);
 
 	if (move_gives_check(m)) {
-		if (value < - 1000)
+		if (value < - 1000 && is_capture(m))
 			value = -999;
-		if (value < 0)
+		else if (value < - 1000 && !is_capture(m))
+			++value;
+		else if (value < 0)
 			value = 1;
 		else
 			++value;
