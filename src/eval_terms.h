@@ -384,6 +384,34 @@ opponent_bishop_trapped_at_h2(const struct position *pos)
 }
 
 static inline bool
+bishop_trappable_at_a7(const struct position *pos)
+{
+	return is_nonempty(pos->map[bishop] & SQ_A7)
+	    && ((pos->map[opponent_pawn] & (SQ_B7 | SQ_C7)) == (SQ_B7 | SQ_C7));
+}
+
+static inline bool
+bishop_trappable_at_h7(const struct position *pos)
+{
+	return is_nonempty(pos->map[bishop] & SQ_H7)
+	    && ((pos->map[opponent_pawn] & (SQ_G7 | SQ_F7)) == (SQ_G7 | SQ_F7));
+}
+
+static inline bool
+opponent_bishop_trappable_at_a2(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_bishop] & SQ_A2)
+	    && ((pos->map[pawn] & (SQ_B2 | SQ_C2)) == (SQ_B2 | SQ_C2));
+}
+
+static inline bool
+opponent_bishop_trappable_at_h2(const struct position *pos)
+{
+	return is_nonempty(pos->map[opponent_bishop] & SQ_H2)
+	    && ((pos->map[pawn] & (SQ_G2 | SQ_F2)) == (SQ_G2 | SQ_F2));
+}
+
+static inline bool
 rook_a1_is_trapped(const struct position *pos)
 {
 	if (pos->cr_queen_side)

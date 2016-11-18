@@ -371,6 +371,14 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 		int base = -140;
 		if (is_nonempty(pawn_attacks_player(to64) & en_prise))
 			base = -110;
+		else if (to == sq_b3
+		    && is_nonempty(mo->pos->map[pawn] & SQ_C2)
+		    && is_nonempty(mo->pos->map[opponent_bishop] & SQ_A2))
+			base = -120;
+		else if (to == sq_g3
+		    && is_nonempty(mo->pos->map[pawn] & SQ_F2)
+		    && is_nonempty(mo->pos->map[opponent_bishop] & SQ_H2))
+			base = -120;
 
 		return base + eval_quiet_move(mo, m);
 	}

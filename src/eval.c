@@ -50,7 +50,8 @@ enum {
 
 	passed_pawn_value = 32,
 
-	bishop_trapped_value = -12,
+	bishop_trapped_value = -16,
+	bishop_trapped_by_opponent_value = -60,
 	rook_trapped_value = -32,
 	knight_cornered_value = -16,
 
@@ -364,16 +365,24 @@ eval_bishop_placement(const struct position *pos)
 		value -= bishop_trapped_value;
 
 	if (bishop_trapped_at_a7(pos))
-		value += bishop_trapped_value;
+		value += bishop_trapped_by_opponent_value;
+	else if (bishop_trappable_at_a7(pos))
+		value += bishop_trapped_by_opponent_value / 2;
 
 	if (bishop_trapped_at_h7(pos))
-		value += bishop_trapped_value;
+		value += bishop_trapped_by_opponent_value;
+	else if (bishop_trappable_at_h7(pos))
+		value += bishop_trapped_by_opponent_value / 2;
 
 	if (opponent_bishop_trapped_at_a2(pos))
-		value -= bishop_trapped_value;
+		value -= bishop_trapped_by_opponent_value;
+	else if (opponent_bishop_trappable_at_a2(pos))
+		value -= bishop_trapped_by_opponent_value / 2;
 
 	if (opponent_bishop_trapped_at_h2(pos))
-		value -= bishop_trapped_value;
+		value -= bishop_trapped_by_opponent_value;
+	else if (opponent_bishop_trappable_at_h2(pos))
+		value -= bishop_trapped_by_opponent_value / 2;
 
 	return value;
 }
