@@ -282,7 +282,13 @@ get_LMR_factor(struct node *node)
 	if (index >= (int)ARRAY_LENGTH(LMR[node->depth]))
 		index = (int)ARRAY_LENGTH(LMR[node->depth]) - 1;
 
-	return LMR[d][index];
+	int r = LMR[d][index];
+	if (node->expected_type == PV_node && r > 0)
+		--r;
+	else if (mo_current_move_value(node->mo) < - 1000)
+		++r;
+
+	return r;
 }
 
 static void
