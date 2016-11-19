@@ -479,7 +479,8 @@ try_null_move_prune(struct node *node)
 	    || node[-1].is_in_null_move_search
 	    || (node->expected_type == PV_node)
 	    || (advantage < - 100)
-	    || (node->depth <= 2 * PLY)
+	    || (node->depth <= 4 * PLY)
+	    || (node->depth > 7 * PLY && advantage < 0)
 	    || is_in_check(node->pos)
 	    || (node->mo->count < 18))
 		return 0;
@@ -495,13 +496,21 @@ try_null_move_prune(struct node *node)
 
 	position_flip(child->pos, node->pos);
 
+	int required = node->beta;
+	if (node->depth < 9 * PLY)
+		required += ((node->depth - 4 * PLY) * pawn_value) / PLY;
+	else
+		required += 5 * pawn_value;
+
 	child->has_repetition_in_history = false;
 	child->is_GHI_barrier = true;
 	child->expected_type = all_node;
-	child->alpha = -node->beta - pawn_value - 1;
-	child->beta = -node->beta - pawn_value;
+	child->alpha = -required - 1;
+	child->beta = -required;
 
 	child->depth = node->depth - PLY - 3 * PLY;
+	if (child->depth < PLY)
+		child->depth = PLY;
 
 	node->is_in_null_move_search = true;
 	debug_trace_tree_push_move(node, 0);
@@ -509,7 +518,7 @@ try_null_move_prune(struct node *node)
 	debug_trace_tree_pop_move(node);
 	node->is_in_null_move_search = false;
 
-	if (value > node->beta + pawn_value && value <= mate_value) {
+	if (value > required && value <= mate_value) {
 		node->value = node->beta;
 		return prune_successfull;
 	}
@@ -915,19 +924,16 @@ handle_beta_extension(struct node *node, move m, int value)
 
 	if (value >= node->beta
 	    && !node[-1].is_in_null_move_search
+	    && move_gives_check(m)
 	    && value < mate_value
-	    && node->depth > PLY
+	    && node->depth > 0
 	    && !is_capture(m)
 	    && !is_promotion(m)
 	    && mtype(m) != mt_castle_kingside
-	    && mtype(m) != mt_castle_queenside
-	    && mresultp(m) != pawn) {
+	    && mtype(m) != mt_castle_queenside) {
 		node[1].alpha = -node->beta;
 		node[1].beta = -node->alpha;
-		if (move_gives_check(m))
-			node[1].depth = node->depth;
-		else
-			node[1].depth = node->depth - PLY / 2;
+		node[1].depth = node->depth;
 		return  negamax_child(node);
 	}
 	else {
