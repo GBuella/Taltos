@@ -37,6 +37,7 @@ enum {
 
 	knight_outpost_value = 24,
 	knight_outpost_reach_value = 10,
+	knight_on_edge_value = -8,
 
 	bishop_pair_value = 3,
 	bishop_wrong_color_value = -1,
@@ -314,6 +315,11 @@ eval_knight_placement(const struct position *pos)
 	    * popcnt(knight_reach_outposts(pos));
 	value -= knight_outpost_reach_value
 	    * popcnt(opponent_knight_reach_outposts(pos));
+
+	value += knight_on_edge_value
+	    * popcnt(pos->map[knight] & EDGES);
+	value -= knight_on_edge_value
+	    * popcnt(pos->map[opponent_knight] & EDGES);
 
 	if (knight_cornered_a8(pos))
 		value += knight_cornered_value;
