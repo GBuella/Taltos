@@ -235,16 +235,6 @@ eval_quiet_move(struct move_order *mo, move m)
 			value += 4; // threaten opponent king
 	}
 
-	if (mresultp(m) == knight) {
-		uint64_t victims;
-		victims = mo->pos->map[opponent_bishop];
-		victims |= mo->pos->map[opponent_rook];
-		victims |= mo->pos->map[opponent_queen];
-
-		if (is_nonempty(knight_pattern(mto(m)) & victims))
-			++value;
-	}
-
 	value += quiet_move_sq_table[mfrom(m)];
 	value += quiet_move_sq_table[mto(m)];
 
@@ -433,18 +423,23 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 
 
 	if (piece == knight) {
-		if (is_nonempty(knight_pattern(to) & en_prise))
+		uint64_t reach = knight_pattern(to);
+		if (is_nonempty(reach & en_prise))
+			base = -100;
+		else if (is_nonempty(reach & opp_en_prise))
 			base = -110;
-		else if (is_nonempty(knight_pattern(to) & opp_en_prise))
-			base = -110;
+		else if (is_nonempty(reach &mo->pos->map[opponent_queen]))
+			base = -120;
+		else if (is_nonempty(reach &mo->pos->map[opponent_rook]))
+			base = -121;
 	}
 	else if (piece == bishop) {
 		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
 		    && is_nonempty(breach & mo->pos->map[opponent_queen]))
 				base = -100;
-		else if (is_nonempty(breach & opp_en_prise))
-			base = -110;
 		else if (is_nonempty(breach & en_prise))
+			base = -100;
+		else if (is_nonempty(breach & opp_en_prise))
 			base = -110;
 		else if (is_nonempty(breach & mo->pos->map[opponent_rook]))
 			base = -120;
@@ -453,26 +448,26 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
 		    && is_nonempty(rreach & mo->pos->map[opponent_queen]))
 				base = -100;
-		else if (is_nonempty(rreach & opp_en_prise))
-			base = -110;
 		else if (is_nonempty(rreach & en_prise))
+			base = -100;
+		else if (is_nonempty(rreach & opp_en_prise))
 			base = -110;
 	}
 	else if (piece == queen) {
-		if (is_nonempty(breach & opp_en_prise))
+		if (is_nonempty(breach & en_prise))
 			base = -100;
-		else if (is_nonempty(rreach & opp_en_prise))
-			base = -100;
-		else if (is_nonempty(breach & en_prise))
-			base = -110;
 		else if (is_nonempty(rreach & en_prise))
+			base = -100;
+		else if (is_nonempty(breach & opp_en_prise))
+			base = -110;
+		else if (is_nonempty(rreach & opp_en_prise))
 			base = -110;
 	}
 	else if (piece == king) {
 		uint64_t new_reach = king_moves_table[to];
-		if (is_nonempty(new_reach & opp_en_prise))
+		if (is_nonempty(new_reach & en_prise))
 			base = -120;
-		else if (is_nonempty(new_reach & en_prise))
+		else if (is_nonempty(new_reach & opp_en_prise))
 			base = -121;
 	}
 
