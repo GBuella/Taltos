@@ -1493,6 +1493,8 @@ cmd_go(void)
 			set_time_inc(get_uint(0, UINT_MAX) / 10);
 		else if (strcmp(token, "movestogo") == 0)
 			set_moves_left_in_time(get_uint(0, 1024));
+		else if (strcmp(token, "nodes") == 0)
+			set_exact_node_count(get_uint(1, UINT_MAX));
 	}
 
 	is_force_mode = false;
@@ -1558,6 +1560,12 @@ cmd_mo(void)
 	else {
 		print_move_order(current_position(), turn());
 	}
+}
+
+static void
+cmd_nodes(void)
+{
+	set_exact_node_count(get_uint(1, UINT_MAX));
 }
 
 static void nop(void) {}
@@ -1631,7 +1639,8 @@ static struct cmd_entry cmd_list[] = {
 	{"setoption",    cmd_setoption,          NULL},
 	{"ucinewgame",   cmd_ucinewgame,         NULL},
 	{"stop",         cmd_stop,               NULL},
-	{"mo",           cmd_mo,                 NULL}
+	{"mo",           cmd_mo,                 NULL},
+	{"nodes",        cmd_nodes,              NULL}
 /* END CSTYLED */
 };
 

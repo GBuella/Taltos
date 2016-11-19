@@ -53,5 +53,6 @@ void engine_process_move(move);
 void debug_engine_set_player_to_move(enum player);
 size_t engine_ht_size(void);
 void engine_conf_change(void);
+void set_exact_node_count(uintmax_t);
 
 #endif

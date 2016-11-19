@@ -112,6 +112,12 @@ static uintmax_t nps = 0;
  */
 static int depth_limit = 0;
 
+/*
+ * If exact_node_count is non-zero, the thinking searches exactly this
+ * number of nodes.
+ */
+static uintmax_t exact_node_count = 0;
+
 void
 set_time_infinite(void)
 {
@@ -157,6 +163,22 @@ set_time_inc(unsigned n)
 	is_tc_secs_per_move = false;
 	time_infinite = false;
 	time_inc = n;
+	mtx_unlock(&engine_mutex);
+}
+
+void
+set_exact_node_count(uintmax_t n)
+{
+	if (n == 0)
+		return;
+
+	mtx_lock(&engine_mutex);
+	tracef("%s n = %ju", __func__, n);
+	stop_thinking();
+	exact_node_count = n;
+	depth_limit = 0;
+	time_infinite = false;
+	time_inc = 0;
 	mtx_unlock(&engine_mutex);
 }
 
@@ -579,7 +601,11 @@ think(bool infinite, bool single_thread)
 	else
 		threads[0].sd.depth_limit = depth_limit;
 
-	if (infinite || time_infinite) {
+	if (exact_node_count != 0) {
+		threads[0].sd.time_limit = 0;
+		threads[0].sd.node_count_limit = exact_node_count;
+	}
+	else if (infinite || time_infinite) {
 		threads[0].sd.time_limit = 0;
 		threads[0].sd.node_count_limit = 0;
 	}
