@@ -40,6 +40,7 @@ main(int argc, char **argv)
 	conf.mutex = &conf_mutex;
 	(void) argc;
 	setup_defaults();
+	trace_init(argv);
 	init_move_gen();
 	init_search();
 	process_args(argv);
@@ -170,7 +171,6 @@ process_args(char **arg)
 			++arg;
 			if (*arg == NULL)
 				usage(EXIT_FAILURE);
-			trace_init(*arg);
 		}
 		else if (strcmp(*arg, "--book") == 0
 		    || strcmp(*arg, "--fenbook") == 0) {

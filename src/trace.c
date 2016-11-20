@@ -5,6 +5,7 @@
 #include "trace.h"
 
 #include <stdarg.h>
+#include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
@@ -12,10 +13,23 @@
 static FILE *trace_file;
 
 void
-trace_init(const char *path)
+trace_init(char **argv)
 {
-	errno = 0;
+	const char *path = NULL;
 
+	for (char **arg = argv; *arg != NULL; ++arg) {
+		if (strcmp(*arg, "--trace") == 0) {
+			++arg;
+			if (*arg == NULL)
+				exit(EXIT_FAILURE);
+			path = *arg;
+			break;
+		}
+	}
+	if (path == NULL)
+		return;
+
+	errno = 0;
 	trace_file = fopen(path, "w");
 
 	if (trace_file == NULL) {
@@ -25,7 +39,18 @@ trace_init(const char *path)
 
 	(void) setvbuf(trace_file, NULL, _IONBF, 0);
 
-	trace("Taltos debug log start");
+	fputs(argv[0], trace_file);
+	for (char **arg = argv + 1; *arg != NULL; ++arg) {
+		if (strcmp(*arg, "--trace") == 0) {
+			++arg;
+			continue;
+		}
+		fprintf(trace_file, " %s", *arg);
+	}
+	fputc('\n', trace_file);
+
+	trace("repro: force");
+	trace("repro: verbose on");
 }
 
 static char*

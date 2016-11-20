@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 
-void trace_init(const char *path)
+void trace_init(char **argv)
 	attribute(nonnull);
 
 void trace(const char *str)

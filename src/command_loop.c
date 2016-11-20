@@ -193,9 +193,14 @@ add_move(move m)
 {
 	mtx_lock(&game_mutex);
 
+
+	char move_str[MOVE_STR_BUFFER_LENGTH];
+
+	(void) print_move(current_position(), m, move_str, mn_san, turn());
 	if (game_append(game, m) == 0) {
 		engine_process_move(m);
 		debug_engine_set_player_to_move(turn());
+		tracef("repro: %s", move_str);
 
 		if (is_end()) {
 			game_started = false;

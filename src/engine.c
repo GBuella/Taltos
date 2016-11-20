@@ -529,6 +529,7 @@ iterative_deepening(void *arg)
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
 		result = search(&data->root, debug_player_to_move,
 		    data->sd, &data->run_flag, engine_result.pv);
+		update_engine_result(data, &engine_result, &result);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&(data->mutex));
 		if (result.is_terminated)
@@ -536,7 +537,6 @@ iterative_deepening(void *arg)
 		if (data->sd.node_count_limit > 0)
 			data->sd.node_count_limit -= result.node_count;
 		engine_result.depth = data->sd.depth / PLY;
-		update_engine_result(data, &engine_result, &result);
 		if (data->export_best_move && result.best_move != 0)
 			engine_best_move = result.best_move;
 		if (data->show_thinking_cb != NULL) {
@@ -547,6 +547,16 @@ iterative_deepening(void *arg)
 			break;
 		data->sd.depth++;
 	}
+
+	if (engine_result.sresult.node_count <= UINT_MAX) {
+		tracef("repro: nodes %u\n",
+		    (unsigned)engine_result.sresult.node_count);
+		trace("repro: search_sync");
+	}
+	else {
+		trace("repro: nodes -- too many");
+	}
+
 	if (data->thinking_cb != NULL)
 		data->thinking_cb();
 	mtx_unlock(&(data->mutex));
