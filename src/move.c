@@ -163,7 +163,7 @@ cleanup_move(char str[])
 	// remove extra characters
 	src = dst = str;
 	do {
-		if (strchr("KQNRBkqnrb", *src) != NULL)
+		if (strchr("KQNRkqnrb", *src) != NULL)
 			*dst++ = tolower(*src);
 		else if (is_rank(*src) || is_file(*src))
 			*dst++ = *src;
