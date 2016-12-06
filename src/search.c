@@ -378,6 +378,9 @@ node_init(struct node *node)
 static int
 negamax_child(struct node *node)
 {
+	if (node[1].beta < - mate_value && node[1].beta > - max_value)
+		node[1].beta--;
+
 	negamax(node + 1);
 
 	if (node->forced_pv == 0)
