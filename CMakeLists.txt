@@ -7,7 +7,12 @@ FIND_PACKAGE(Threads)
 
 include_directories(src tests "${PROJECT_BINARY_DIR}")
 
-add_executable(gen_constants tools/gen_constants.c)
+add_executable(gen_constants
+		tools/gen_constants/magic.c
+		tools/gen_constants/main.c
+		tools/gen_constants/print.c
+		tools/gen_constants/rays.c
+		tools/gen_constants/simple_tables.c)
 add_executable(epd_runner tools/epd_runner.c)
 
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
