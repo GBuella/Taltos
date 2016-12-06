@@ -516,11 +516,28 @@ print_current_result(struct engine_result res)
 		printf("%u %d %ju %ju ",
 		    res.depth, res.sresult.value,
 		    res.time_spent, res.sresult.node_count);
+		printf("%u ", res.depth);
+		if (res.sresult.value < - mate_value)
+			printf("%d ",
+			    -100000 - (res.sresult.value + max_value));
+		else if (res.sresult.value > mate_value)
+			printf("%d ", 100000 + (max_value - res.sresult.value));
+		else
+			printf("%d ", res.sresult.value);
+		printf("%ju ", res.time_spent);
+		printf("%ju ", res.sresult.node_count);
 	}
 	else if (is_uci) {
-		printf("info depth %u seldepth %u score cp %d nodes %ju ",
-		    res.depth, res.sresult.selective_depth,
-		    res.sresult.value, res.sresult.node_count);
+		printf("info depth %u ", res.depth);
+		printf("seldepth %u ", res.sresult.selective_depth);
+		if (res.sresult.value < - mate_value)
+			printf("score mate -%d ",
+			    res.sresult.value + max_value);
+		else if (res.sresult.value > mate_value)
+			printf("score mate %d ", max_value - res.sresult.value);
+		else
+			printf("score cp %d ", res.sresult.value);
+		printf("nodes %ju ", res.sresult.node_count);
 	}
 	else {
 		if (res.first)
@@ -530,7 +547,12 @@ print_current_result(struct engine_result res)
 		putchar('\t');
 		printf("%ju.%.2ju", res.time_spent / 100, res.time_spent % 100);
 		putchar('\t');
-		print_centipawns(res.sresult.value);
+		if (res.sresult.value < - mate_value)
+			printf("-#%d", res.sresult.value + max_value);
+		else if (res.sresult.value > mate_value)
+			printf("#%d", max_value - res.sresult.value);
+		else
+			print_centipawns(res.sresult.value);
 		putchar('\t');
 		if (verbose)
 			print_verbose_search_info(res);
