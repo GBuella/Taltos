@@ -86,6 +86,9 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_NO_LMR");
 	conf.search.use_LMR = (env == NULL || env[0] == '0');
 
+	env = getenv("TALTOS_USE_NO_LMP");
+	conf.search.use_LMP = (env == NULL || env[0] == '0');
+
 	env = getenv("TALTOS_USE_NO_NULLM");
 	conf.search.use_null_moves = (env == NULL || env[0] == '0');
 
@@ -119,10 +122,12 @@ setup_defaults(void)
 static void
 setup_display_name(void)
 {
-	static char name[0x100] = "Taltos";
+	static char name[0x100] = "t3 Taltos";
 
 	if (!conf.search.use_LMR)
 		strcat(name, "-noLMR");
+	if (!conf.search.use_LMP)
+		strcat(name, "-noLMP");
 	if (!conf.search.use_null_moves)
 		strcat(name, "-nonullm");
 
@@ -198,6 +203,9 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--nolmr") == 0) {
 			conf.search.use_LMR = false;
 		}
+		else if (strcmp(*arg, "--nolmp") == 0) {
+			conf.search.use_LMP = false;
+		}
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;
 		}
@@ -241,6 +249,7 @@ usage(int status)
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
+	    "  --nolmp             do not use LMP heuristics\n"
 	    "  --nonullm           do not use null move heuristics\n"
 	    "  --noSRC             strict repetition checking during search\n"
 	    "  --AM                Use advanced move ordering - 1 ply search\n"

@@ -16,6 +16,7 @@
 
 struct search_settings {
 	bool use_LMR; // Late Move Reductions
+	bool use_LMP; // Late Move Pruning
 	bool use_null_moves; // Recursive null move pruning
 	bool use_pv_cleanup;
 	bool use_repetition_check;
