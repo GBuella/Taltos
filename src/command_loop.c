@@ -513,15 +513,12 @@ print_current_result(struct engine_result res)
 	mtx_lock(&stdout_mutex);
 
 	if (is_xboard) {
-		printf("%u %d %ju %ju ",
-		    res.depth, res.sresult.value,
-		    res.time_spent, res.sresult.node_count);
 		printf("%u ", res.depth);
 		if (res.sresult.value < - mate_value)
 			printf("%d ",
-			    -100000 - (res.sresult.value + max_value));
+			    -100000 - (res.sresult.value + max_value) / 2);
 		else if (res.sresult.value > mate_value)
-			printf("%d ", 100000 + (max_value - res.sresult.value));
+			printf("%d ", 100000 + (max_value - res.sresult.value) / 2);
 		else
 			printf("%d ", res.sresult.value);
 		printf("%ju ", res.time_spent);
@@ -532,9 +529,9 @@ print_current_result(struct engine_result res)
 		printf("seldepth %u ", res.sresult.selective_depth);
 		if (res.sresult.value < - mate_value)
 			printf("score mate -%d ",
-			    res.sresult.value + max_value);
+			    (res.sresult.value + max_value) / 2);
 		else if (res.sresult.value > mate_value)
-			printf("score mate %d ", max_value - res.sresult.value);
+			printf("score mate %d ", (max_value - res.sresult.value) / 2);
 		else
 			printf("score cp %d ", res.sresult.value);
 		printf("nodes %ju ", res.sresult.node_count);
@@ -548,9 +545,9 @@ print_current_result(struct engine_result res)
 		printf("%ju.%.2ju", res.time_spent / 100, res.time_spent % 100);
 		putchar('\t');
 		if (res.sresult.value < - mate_value)
-			printf("-#%d", res.sresult.value + max_value);
+			printf("-#%d", (res.sresult.value + max_value) / 2);
 		else if (res.sresult.value > mate_value)
-			printf("#%d", max_value - res.sresult.value);
+			printf("#%d", (max_value - res.sresult.value) / 2);
 		else
 			print_centipawns(res.sresult.value);
 		putchar('\t');

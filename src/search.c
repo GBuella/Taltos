@@ -380,6 +380,12 @@ negamax_child(struct node *node)
 {
 	if (node[1].beta < - mate_value && node[1].beta > - max_value)
 		node[1].beta--;
+	if (node[1].alpha < - mate_value && node[1].alpha > - max_value)
+		node[1].alpha--;
+	if (node[1].beta > mate_value && node[1].beta < max_value)
+		node[1].beta++;
+	if (node[1].alpha > mate_value && node[1].alpha < max_value)
+		node[1].alpha++;
 
 	negamax(node + 1);
 
@@ -401,6 +407,8 @@ negamax_child(struct node *node)
 	 */
 	if (value > mate_value)
 		return value - 1;
+	else if (value < -mate_value)
+		return value + 1;
 	else
 		return value;
 }
@@ -741,6 +749,12 @@ search_more_moves(const struct node *node)
 	if (node->alpha >= node->beta)
 		return false;
 
+	if (node->alpha >= max_value - 1)
+		return false;
+
+	if (!node->common->sd.settings.use_LMP)
+		return true;
+
 	if (node->root_distance > 3
 	    && node->value > - mate_value
 	    && !is_in_check(node->pos)
@@ -898,6 +912,28 @@ reset_child_after_lmr(struct node *node)
 	node[1].beta = -node->alpha;
 }
 
+enum { mate_search_handled = 1 };
+
+static int
+handle_mate_search(struct node *node)
+{
+	if (node->beta > - mate_value)
+		return 0;
+
+	if (node->beta <= -max_value + 2) {
+		if (!is_in_check(node->pos))
+			node->value = node->beta;
+		else if (gen_moves(node->pos, node->mo->moves) == 0)
+			node->value = -max_value;
+		else
+			node->value = node->beta;
+
+		return mate_search_handled;
+	}
+
+	return 0;
+}
+
 static void
 new_best_move(struct node *node, move best)
 {
@@ -937,7 +973,7 @@ handle_beta_extension(struct node *node, move m, int value)
 		node[1].alpha = -node->beta;
 		node[1].beta = -node->alpha;
 		node[1].depth = node->depth;
-		return  negamax_child(node);
+		return negamax_child(node);
 	}
 	else {
 		return value;
@@ -957,6 +993,9 @@ negamax(struct node *node)
 	ht_prefetch(node->tt, pos_hash(node->pos));
 
 	if (adjust_depth(node) == too_deep)
+		return;
+
+	if (handle_mate_search(node) == mate_search_handled)
 		return;
 
 	if (setup_bounds(node) == stand_pat_cutoff)
