@@ -252,7 +252,6 @@ static void (*show_thinking_cb)(const struct engine_result);
 static unsigned thread_count = 1;
 
 struct search_thread_data {
-	mtx_t mutex;
 	thrd_t thr;
 
 	/*
@@ -344,12 +343,12 @@ join_all_threads(bool signal_stop)
 {
 	for (unsigned i = 0; i < MAX_THREAD_COUNT; ++i) {
 		struct search_thread_data *thread = threads + i;
-		mtx_lock(&(thread->mutex));
+		mtx_lock(&engine_mutex);
 		if (thread->is_started_flag) {
 			thread->is_started_flag = false;
 			if (signal_stop)
 				atomic_flag_clear(&(thread->run_flag));
-			mtx_unlock(&(thread->mutex));
+			mtx_unlock(&engine_mutex);
 			tracef("thrd_join search thread #%u", i);
 			thrd_join(thread->thr, NULL);
 			tracef("thrd_join search thread #%u - done", i);
@@ -357,7 +356,7 @@ join_all_threads(bool signal_stop)
 				atomic_flag_clear(&(thread->run_flag));
 		}
 		else {
-			mtx_unlock(&(thread->mutex));
+			mtx_unlock(&engine_mutex);
 		}
 	}
 }
@@ -515,7 +514,7 @@ iterative_deepening(void *arg)
 	struct engine_result engine_result;
 	struct search_thread_data *data = (struct search_thread_data*)arg;
 
-	mtx_lock(&(data->mutex));
+	mtx_lock(&engine_mutex);
 
 	memset(&engine_result, 0, sizeof(engine_result));
 	engine_result.first = true;
@@ -525,13 +524,13 @@ iterative_deepening(void *arg)
 	    || (data->sd.depth <= data->sd.depth_limit * PLY)) {
 		struct search_result result;
 
-		mtx_unlock(&(data->mutex));
+		mtx_unlock(&engine_mutex);
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
 		result = search(&data->root, debug_player_to_move,
 		    data->sd, &data->run_flag, engine_result.pv);
 		update_engine_result(data, &engine_result, &result);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
-		mtx_lock(&(data->mutex));
+		mtx_lock(&engine_mutex);
 		if (result.is_terminated)
 			break;
 		if (data->sd.node_count_limit > 0)
@@ -559,7 +558,7 @@ iterative_deepening(void *arg)
 
 	if (data->thinking_cb != NULL)
 		data->thinking_cb();
-	mtx_unlock(&(data->mutex));
+	mtx_unlock(&engine_mutex);
 	tracef("%s -- done", __func__);
 	// data->is_started_flag = false; ??
 
@@ -598,8 +597,6 @@ think(bool infinite, bool single_thread)
 	mtx_lock(&engine_mutex);
 
 	stop_thinking();
-
-	mtx_lock(&threads[0].mutex);
 
 	thinking_started = threads[0].sd.thinking_started = xnow();
 
@@ -654,7 +651,6 @@ think(bool infinite, bool single_thread)
 
 	thrd_create(&threads[0].thr, iterative_deepening, &threads[0]);
 
-	mtx_unlock(&threads[0].mutex);
 	mtx_unlock(&engine_mutex);
 }
 
@@ -820,14 +816,14 @@ engine_conf_change(void)
 
 	for (unsigned i = 0; i < MAX_THREAD_COUNT; ++i) {
 		struct search_thread_data *thread = threads + i;
-		mtx_lock(&(thread->mutex));
+		mtx_lock(&engine_mutex);
 		if (!thread->is_started_flag) {
 			struct hash_table *new_tt =
 			    ht_resize_mb(threads[0].sd.tt, new_hash_size);
 			if (new_tt != NULL)
 				thread->sd.tt = new_tt;
 		}
-		mtx_unlock(&(thread->mutex));
+		mtx_unlock(&engine_mutex);
 	}
 }
 
@@ -839,8 +835,6 @@ init_engine(const struct taltos_conf *h)
 
 	struct position pos;
 	xmtx_init(&engine_mutex, mtx_plain | mtx_recursive);
-	for (size_t i = 0; i < sizeof(threads) / sizeof(threads[0]); ++i)
-		xmtx_init(&(threads[i].mutex), mtx_plain);
 
 	horse = h;
 
