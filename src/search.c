@@ -407,7 +407,7 @@ negamax_child(struct node *node)
 	 */
 	if (value > mate_value)
 		return value - 1;
-	else if (value < -mate_value)
+	else if (value < - mate_value)
 		return value + 1;
 	else
 		return value;

@@ -518,7 +518,8 @@ print_current_result(struct engine_result res)
 			printf("%d ",
 			    -100000 - (res.sresult.value + max_value) / 2);
 		else if (res.sresult.value > mate_value)
-			printf("%d ", 100000 + (max_value - res.sresult.value) / 2);
+			printf("%d ",
+			    100000 + (max_value - res.sresult.value) / 2);
 		else
 			printf("%d ", res.sresult.value);
 		printf("%ju ", res.time_spent);
@@ -531,7 +532,8 @@ print_current_result(struct engine_result res)
 			printf("score mate -%d ",
 			    (res.sresult.value + max_value) / 2);
 		else if (res.sresult.value > mate_value)
-			printf("score mate %d ", (max_value - res.sresult.value) / 2);
+			printf("score mate %d ",
+			    (max_value - res.sresult.value) / 2);
 		else
 			printf("score cp %d ", res.sresult.value);
 		printf("nodes %ju ", res.sresult.node_count);
