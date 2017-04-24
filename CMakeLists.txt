@@ -65,13 +65,9 @@ add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
 target_link_libraries(taltos m)
 
-set_property(TARGET taltos PROPERTY C_STANDARD 11)
-# set_property(TARGET taltos PROPERTY C_EXTENSIONS OFF)
-set_property(TARGET taltos PROPERTY C_STANDARD_REQUIRED ON)
-set_property(TARGET gen_constants PROPERTY C_STANDARD 11)
-# set_property(TARGET gen_constants PROPERTY C_EXTENSIONS OFF)
-set_property(TARGET gen_constants PROPERTY C_STANDARD_REQUIRED ON)
-
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
 if(HAS_FLAX_VCONVS)
 	target_compile_options(taltos PUBLIC -flax-vector-conversions)
