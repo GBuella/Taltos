@@ -8,6 +8,7 @@
 #include <time.h>
 #include <threads.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "macros.h"
 #include "search.h"
@@ -38,6 +39,8 @@ struct nodes_common_data {
 	enum player debug_root_player_to_move;
 	char debug_move_stack[0x10000];
 	char *debug_move_stack_end;
+
+	FILE *dump_file;
 };
 
 struct node {
@@ -85,14 +88,47 @@ struct node {
 
 	bool is_in_null_move_search;
 	bool null_move_search_failed;
+
+	uintmax_t node_count_before;
 };
+
+static mtx_t dump_init_mutex;
+static unsigned dump_id = 0;
+
+static void
+dump_init(struct nodes_common_data *data)
+{
+	const char *e = getenv("TREE_DUMP");
+
+	if (e == NULL) {
+		data->dump_file = NULL;
+		return;
+	}
+
+	char path[strlen(e) + 16];
+
+	mtx_lock(&dump_init_mutex);
+	(void) sprintf(path, "%s.%u.treedump", e, dump_id);
+	++dump_id;
+	mtx_unlock(&dump_init_mutex);
+
+	data->dump_file = fopen(path, "w");
+	if (data->dump_file == NULL) {
+		perror("error creating dumpfile");
+		exit(1);
+	}
+}
+
+static void
+dump_close(struct nodes_common_data *data)
+{
+	if (data->dump_file != NULL)
+		fclose(data->dump_file);
+}
 
 static void
 debug_trace_tree_init(struct node *node)
 {
-#ifdef NDEBUG
-	(void) node;
-#else
 	if (node->root_distance == 0) {
 		node->debug_player_to_move =
 		    node->common->debug_root_player_to_move;
@@ -104,14 +140,15 @@ debug_trace_tree_init(struct node *node)
 		node->debug_player_to_move =
 		    opponent_of(node[-1].debug_player_to_move);
 	}
-#endif
 }
 
 static void
 debug_trace_tree_push_move(struct node *node, move m)
 {
+	if (node->common->dump_file != NULL)
+		node->node_count_before = node->common->result.node_count;
+
 #ifdef NDEBUG
-	(void) node;
 	(void) m;
 #else
 	assert(node->common->debug_move_stack_end[0] == '\0');
@@ -132,11 +169,22 @@ debug_trace_tree_push_move(struct node *node, move m)
 }
 
 static void
-debug_trace_tree_pop_move(struct node *node)
+debug_trace_tree_pop_move(struct node *node, move m)
 {
-#ifdef NDEBUG
-	(void) node;
-#else
+	if (node->common->dump_file != NULL) {
+		char move_buffer[16];
+		if (m != 0)
+			print_coor_move(m, move_buffer,
+			    node->debug_player_to_move);
+		else
+			strcpy(move_buffer, "null");
+
+		fprintf(node->common->dump_file, "%u %s %ju\n",
+		    node->root_distance, move_buffer,
+		    node->common->result.node_count - node->node_count_before);
+	}
+
+#ifndef NDEBUG
 	assert(node->common->debug_move_stack_end
 	    > node->common->debug_move_stack);
 
@@ -526,7 +574,7 @@ try_null_move_prune(struct node *node)
 	node->is_in_null_move_search = true;
 	debug_trace_tree_push_move(node, 0);
 	int value = negamax_child(node);
-	debug_trace_tree_pop_move(node);
+	debug_trace_tree_pop_move(node, 0);
 	node->is_in_null_move_search = false;
 
 	if (value > required && value <= mate_value) {
@@ -872,7 +920,7 @@ check_trivial_draw(struct node *node)
 }
 
 static void
-setup_child_node(struct node *node, move m, int *LMR_factor)
+setup_child_node(struct node *node, move m, bool *reduced_search)
 {
 	struct node *child = node + 1;
 
@@ -889,23 +937,30 @@ setup_child_node(struct node *node, move m, int *LMR_factor)
 	}
 
 	make_move(child->pos, node->pos, m);
-	debug_trace_tree_push_move(node, m);
 	handle_node_types(node);
 
 	child->depth = node->depth - PLY;
 	child->beta = -node->alpha;
 	child->alpha = -node->beta;
 
-	*LMR_factor = get_LMR_factor(node);
+	int LMR_factor = get_LMR_factor(node);
 
-	if (*LMR_factor != 0) {
-		child->depth -= *LMR_factor;
+	if (LMR_factor != 0) {
+		child->depth -= LMR_factor;
 		child->alpha = -node->alpha - 1;
+		*reduced_search = true;
+	}
+	else if (node->mo->index > 0 && node->alpha < node->beta - 1) {
+		child->alpha = -node->alpha - 1;
+		*reduced_search = true;
+	}
+	else {
+		*reduced_search = false;
 	}
 }
 
 static void
-reset_child_after_lmr(struct node *node)
+reset_child_after_reduced_search(struct node *node)
 {
 	node[1].depth = node->depth - PLY;
 	node[1].alpha = -node->beta;
@@ -1025,19 +1080,20 @@ negamax(struct node *node)
 
 		move m = mo_current_move(node->mo);
 
-		int LMR_factor;
+		bool reduced_search;
 
-		setup_child_node(node, m, &LMR_factor);
+		setup_child_node(node, m, &reduced_search);
 
+		debug_trace_tree_push_move(node, m);
 		int value = negamax_child(node);
 
-		if (LMR_factor != 0) {
+		if (reduced_search) {
 			if (value > node->alpha) {
-				reset_child_after_lmr(node);
+				reset_child_after_reduced_search(node);
 				value = negamax_child(node);
 			}
 			else {
-				debug_trace_tree_pop_move(node);
+				debug_trace_tree_pop_move(node, m);
 				continue;
 			}
 		}
@@ -1056,7 +1112,7 @@ negamax(struct node *node)
 					node->expected_type = PV_node;
 			}
 		}
-		debug_trace_tree_pop_move(node);
+		debug_trace_tree_pop_move(node, m);
 	} while (search_more_moves(node));
 
 	ht_entry entry = hash_current_node_value(node);
@@ -1271,7 +1327,9 @@ next_iteration:
 	root->alpha = -max_value;
 	root->beta = max_value;
 	root->expected_type = PV_node;
+	dump_init(root->common);
 	negamax(root);
+	dump_close(root->common);
 
 	goto next_iteration;
 }
@@ -1302,7 +1360,9 @@ search(const struct position *root_pos,
 
 	if (setjmp(common.terminate_jmp_buf) == 0) {
 		setup_registers();
+		dump_init(&common);
 		negamax(root_node);
+		dump_close(&common);
 		extract_pv(pv_store, &common.result, root_node);
 		common.result.value = root_node->value;
 		common.result.best_move = root_node->best_move;
@@ -1321,6 +1381,9 @@ search(const struct position *root_pos,
 void
 init_search(void)
 {
+	if (mtx_init(&dump_init_mutex, mtx_plain) != thrd_success)
+		abort();
+
 	static const int min_depth = (2 * PLY) - 1;
 
 	for (int d = min_depth + 1; d < (int)ARRAY_LENGTH(LMR); ++d) {
