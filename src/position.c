@@ -810,17 +810,21 @@ setup_registers(void)
  */
 #if defined(TALTOS_CAN_USE_INTEL_AVX2)
 
-#define FLIP_BOARD_SELECTOR (0 + (1 << 4) + (2 << 2) + (3 << 0))
+// !!!  temp hack here
 
 static void
 flip_board(struct position *restrict dst,
 		const struct position *restrict src)
 {
-	const __m256d *restrict src32 = (const __m256d*)(src->board);
-	__m256d *restrict dst32 = (__m256d*)(dst->board);
+	__m512i idx =
+	    _mm512_set_epi64(0, 0, 0, 0, 0, 0, 0,
+	    ((0 << 21) + (1 << 18) + (2 << 15) + (3 << 12) +
+	    (4 << 9) + (5 << 6) + (6 << 3) + (7 << 0)));
 
-	dst32[1] = _mm256_permute4x64_pd(src32[0], FLIP_BOARD_SELECTOR);
-	dst32[0] = _mm256_permute4x64_pd(src32[1], FLIP_BOARD_SELECTOR);
+	const __m512d *restrict src64 = (const __m512d*)(src->board);
+	__m512d *restrict dst64 = (__m512d*)(dst->board);
+
+	*dst64 = _mm512_permutexvar_pd(idx, *src64);
 }
 
 #undef FLIP_BOARD_SELECTOR
