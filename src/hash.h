@@ -15,26 +15,25 @@ struct hash_table;
 
 enum value_type {
 	vt_none = 0,
-	vt_upper_bound = 1 << 6,
-	vt_lower_bound = 2 << 6,
-	vt_exact = 3 << 6
+	vt_upper_bound = 1 << 24,
+	vt_lower_bound = 2 << 24,
+	vt_exact = 3 << 24
 };
 
-#define VALUE_TYPE_MASK (3 << 6)
+#define VALUE_TYPE_MASK (3 << 24)
 
 typedef uint64_t ht_entry;
 #define HT_NULL UINT64_C(0)
 #define F_ZHASH_HEX PRIx64
 
+static_assert(move_bit_mask_plus_one_shift <= 24, "layout requirement");
+
 /*
  * A hash table entry is a 64bit value, with the following bitfields:
  *
- * best move    : bits  0 -  5
- * value type   : bits  6 -  7
- * best move    : bits  8 - 13
- * reserved     : bits 14 - 15
- * best move    : bits 16 - 26
- * reserved     : bits 27 - 30
+ * best move    : bits  0 - 23
+ * value type   : bits 24 - 25
+ * reserved     : bits 26 - 30
  * no_null      : bits 31 - 31
  * value        : bits 32 - 47
  * depth        : bits 48 - 63

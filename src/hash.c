@@ -34,10 +34,9 @@
 #define COUNTER_MASK \
 	((uint64_t)((uint32_t)~(MOVE_MASK | VALUE_TYPE_MASK | HT_NO_NULL_FLAG)))
 
-static_assert(
-	COUNTER_MASK == UINT64_C(0x7000c000),
-	"COUNTER_MASK not as expected,"
-	" there might be some problem with some values here...");
+static_assert((MOVE_MASK & VALUE_TYPE_MASK) == 0, "layout");
+static_assert((MOVE_MASK & HT_NO_NULL_FLAG) == 0, "layout");
+static_assert((VALUE_TYPE_MASK & HT_NO_NULL_FLAG) == 0, "layout");
 
 #define HASH_MASK (~COUNTER_MASK)
 

@@ -38,15 +38,6 @@ enum {
 
 enum { player_mask = 1 };
 
-enum move_type {
-	mt_general = 0,
-	mt_pawn_double_push = 1 << 16,
-	mt_castle_kingside = 2 << 16,
-	mt_castle_queenside = 3 << 16,
-	mt_en_passant = 4 << 16,
-	mt_promotion = 5 << 16
-};
-
 static inline attribute(artificial) bool
 is_valid_piece(int piece)
 {
@@ -57,21 +48,6 @@ is_valid_piece(int piece)
 	    || (piece == bishop)
 	    || (piece == queen);
 }
-
-static inline attribute(artificial) bool
-is_valid_mt(int t)
-{
-	return (t == mt_general)
-	    || (t == mt_pawn_double_push)
-	    || (t == mt_castle_kingside)
-	    || (t == mt_castle_queenside)
-	    || (t == mt_en_passant)
-	    || (t == mt_promotion);
-}
-
-enum {
-	move_check_flag = (1 << 23)
-};
 
 enum player {
 	white = 0,
@@ -84,7 +60,6 @@ opponent_of(int p)
 	return p ^ 1;
 }
 
-
 enum {
 	sq_h1 = 56, sq_g1, sq_f1, sq_e1, sq_d1, sq_c1, sq_b1, sq_a1,
 	sq_h2 = 48, sq_g2, sq_f2, sq_e2, sq_d2, sq_c2, sq_b2, sq_a2,
@@ -94,15 +69,6 @@ enum {
 	sq_h6 = 16, sq_g6, sq_f6, sq_e6, sq_d6, sq_c6, sq_b6, sq_a6,
 	sq_h7 = 8,  sq_g7, sq_f7, sq_e7, sq_d7, sq_c7, sq_b7, sq_a7,
 	sq_h8 = 0,  sq_g8, sq_f8, sq_e8, sq_d8, sq_c8, sq_b8, sq_a8
-};
-
-enum {
-	mcastle_king_side =
-		sq_e1 | (sq_g1 << 8) | mt_castle_kingside | (king << 19),
-	mcastle_queen_side =
-		sq_e1 | (sq_c1 << 8) | mt_castle_queenside | (king << 19),
-	mcastle_king_side_check = mcastle_king_side | move_check_flag,
-	mcastle_queen_side_check = mcastle_queen_side | move_check_flag
 };
 
 enum {
@@ -201,32 +167,86 @@ typedef int32_t move;
  * move layout:
  *
  * from           : bits  0 -  5
- * to             : bits  8 - 12
- * type           : bits 16 - 18
- * result piece   : bits 19 - 22
- * check flag     : bit  23
- * captured piece : bits 24 - 28
+ * to             : bits  6 - 11
+ * result piece   : bits 12 - 14
+ * captured piece : bits 15 - 17
+ * type           : bits 18 - 20
+ * check flag     : bit  21
  *
  *
  *
  */
 
-#define MOVE_TYPE_MASK ( \
-	mt_general | mt_pawn_double_push \
-	| mt_castle_kingside | mt_castle_queenside \
-	| mt_en_passant | mt_promotion)
+enum move_bit_offsets {
+	move_bit_off_from = 0,
 
-#define MOVE_MASK ( \
-	63 | (63 << 8) \
-	| MOVE_TYPE_MASK | (15 << 19) \
-	| move_check_flag | (15 << 24))
+	move_bit_off_to = move_bit_off_from + 6,
 
-static_assert(MOVE_MASK == 0x0fff3f3f, "MOVE_MASK not as expected");
+	move_bit_off_result = move_bit_off_to + 6,
+	move_bit_off_result_bit1,
+	move_bit_off_result_bit2,
+
+	move_bit_off_captured,
+	move_bit_off_captured_bit1,
+	move_bit_off_captured_bit2,
+
+	move_bit_off_type,
+	move_bit_off_type_bit1,
+	move_bit_off_type_bit2,
+
+	move_bit_off_check_flag,
+	move_bit_mask_plus_one_shift
+};
+
+#define MOVE_MASK ((1 << move_bit_mask_plus_one_shift) - 1)
+
+enum move_type {
+	mt_general = 0,
+	mt_pawn_double_push = 1 << move_bit_off_type,
+	mt_castle_kingside = 2 << move_bit_off_type,
+	mt_castle_queenside = 3 << move_bit_off_type,
+	mt_en_passant = 4 << move_bit_off_type,
+	mt_promotion = 5 << move_bit_off_type
+};
+
+static inline attribute(artificial) bool
+is_valid_mt(int t)
+{
+	return (t == mt_general)
+	    || (t == mt_pawn_double_push)
+	    || (t == mt_castle_kingside)
+	    || (t == mt_castle_queenside)
+	    || (t == mt_en_passant)
+	    || (t == mt_promotion);
+}
+
+#define MOVE_TYPE_MASK (7 << move_bit_off_type)
+
+enum {
+	move_check_flag = (1 << move_bit_off_check_flag)
+};
+
+enum {
+	mcastle_king_side =
+		(sq_e1 << move_bit_off_from) |
+		(sq_g1 << move_bit_off_to) |
+		mt_castle_kingside |
+		(king << (move_bit_off_result - 1)),
+
+	mcastle_queen_side =
+		(sq_e1 << move_bit_off_from) |
+		(sq_c1 << move_bit_off_to) |
+		mt_castle_queenside |
+		(king << (move_bit_off_result - 1)),
+
+	mcastle_king_side_check = mcastle_king_side | move_check_flag,
+	mcastle_queen_side_check = mcastle_queen_side | move_check_flag
+};
 
 static inline attribute(artificial) int
 mfrom(move m)
 {
-	return m & 0xff;
+	return (m >> move_bit_off_from) & 0x3f;
 }
 
 static inline attribute(artificial) uint64_t
@@ -238,7 +258,7 @@ mfrom64(move m)
 static inline attribute(artificial) int
 mto(move m)
 {
-	return (m >> 8) & 0xff;
+	return (m >> move_bit_off_to) & 0x3f;
 }
 
 static inline attribute(artificial) uint64_t
@@ -256,7 +276,7 @@ set_mfrom(move m, int from)
 static inline attribute(artificial) uint64_t
 set_mto(move m, int to)
 {
-	return m | (to << 8);
+	return m | (to << move_bit_off_to);
 }
 
 static inline attribute(artificial) uint64_t
@@ -275,7 +295,7 @@ static inline attribute(artificial) move
 set_resultp(move m, enum piece p)
 {
 	invariant(is_valid_piece(p));
-	return m | (p << 19);
+	return m | (p << (move_bit_off_result - 1));
 }
 
 static inline attribute(artificial) enum move_type
@@ -293,7 +313,7 @@ is_promotion(move m)
 static inline attribute(artificial) enum piece
 mresultp(move m)
 {
-	return (m >> 19) & 0xf;
+	return (m >> (move_bit_off_result - 1)) & 0xe;
 }
 
 static inline attribute(artificial) bool
@@ -305,20 +325,20 @@ is_under_promotion(move m)
 static inline attribute(artificial) move
 flip_m(move m)
 {
-	return m ^ 0x3838;
+	return m ^ ((0x38 << move_bit_off_from) | (0x38 << move_bit_off_to));
 }
 
 static inline attribute(artificial) move
 set_capturedp(move m, int piece)
 {
 	invariant(piece == 0 || is_valid_piece(piece));
-	return m | (piece << 24);
+	return m | (piece << (move_bit_off_captured - 1));
 }
 
 static inline attribute(artificial) enum piece
 mcapturedp(move m)
 {
-	return m >> 24;
+	return (m >> (move_bit_off_captured - 1)) & 0xe;
 }
 
 static inline attribute(artificial) bool
@@ -343,8 +363,12 @@ create_move_t(int from, int to, enum move_type t, int result, int captured,
 	invariant(captured == 0 || is_valid_piece(captured));
 	invariant(is_valid_mt(t));
 
-	return from | (to << 8) | t | (result << 19)
-	    | (gives_check ? move_check_flag : 0) | (captured << 24);
+	return (from << move_bit_off_from) |
+	    (to << move_bit_off_to) |
+	    t |
+	    (result << (move_bit_off_result - 1)) |
+	    (captured << (move_bit_off_captured - 1)) |
+	    (gives_check ? move_check_flag : 0);
 }
 
 static inline attribute(artificial) move
