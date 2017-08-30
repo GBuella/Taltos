@@ -16,20 +16,15 @@
 #if defined(TALTOS_CAN_USE_INTEL_AVX2) \
 	&& defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM)
 
+register __m256i bitboard_flip_shufflekey_32 asm("ymm6");
+register __m256i ymm_zero asm("ymm7");
+
 #define HAS_YMM_ZERO
-#define HAS_XMM_SHUFFLE_CONTROL_MASK_32
 
 #elif defined(TALTOS_CAN_USE_INTEL_AVX) \
-	&& defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM) \
 	&& defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
 
-#define HAS_YMM_ZERO
-#define HAS_XMM_SHUFFLE_CONTROL_MASK_16
-
-#elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8) \
-	&& defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
-
-#define HAS_XMM_SHUFFLE_CONTROL_MASK_16
+register __m128i bitboard_flip_shufflekey_16 asm("xmm6");
 
 #endif
 

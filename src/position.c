@@ -760,9 +760,15 @@ can_be_valid_ep_index(const struct position *pos, int index)
 
 
 #if defined(TALTOS_CAN_USE_INTEL_AVX2)
+#if !defined(USE_GLOBAL_REGISTERS) || \
+    !defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM)
 static __m256i bitboard_flip_shufflekey_32;
+#endif
 #elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
+#if !defined(USE_GLOBAL_REGISTERS) || \
+    !defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
 static __m128i bitboard_flip_shufflekey_16;
+#endif
 #endif
 
 void
@@ -786,13 +792,7 @@ setup_registers(void)
 #ifdef HAS_YMM_ZERO
 	__asm__ volatile ("vpxor %xmm7, %xmm7, %xmm7");
 #endif
-#ifdef HAS_XMM_SHUFFLE_CONTROL_MASK_32
-	__asm__ volatile
-	    ("vmovdqa %0, %%ymm6":: "m" (bitboard_flip_shufflekey_32));
-#elif defined(HAS_XMM_SHUFFLE_CONTROL_MASK_16)
-	__asm__ volatile
-	    ("vmovdqa %0, %%xmm6":: "m" (bitboard_flip_shufflekey_16));
-#endif
+
 /* END CSTYLED */
 }
 
@@ -944,7 +944,7 @@ flip_piece_maps(struct position *restrict dst,
 	__m256i *restrict dst32 = (__m256i*)(dst->attack + 2);
 
 	for (int i = 0; i < (FLIP_COUNT / 4); ++i) {
-#ifdef HAS_XMM_SHUFFLE_CONTROL_MASK_32
+#ifdef TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM
 		__asm__ volatile
 		    ("vpshufb %%ymm6, %1, %0"
 		    : "=x" (dst32[i])
@@ -970,15 +970,8 @@ flip_piece_maps(struct position *restrict dst,
 	    = (__m128i*)(dst->attack + 2);
 
 	for (int i = 0; i < (FLIP_COUNT / 2); ++i) {
-#ifdef HAS_XMM_SHUFFLE_CONTROL_MASK_16
-		__asm__ volatile
-		    ("vpshufb %%xmm6, %1, %0"
-		    : "=x" (dst16[i])
-		    : "x" (src16[i]));
-#else
 		dst16[i] =
 		    _mm_shuffle_epi8(src16[i], bitboard_flip_shufflekey_16);
-#endif
 	}
 }
 
@@ -1110,9 +1103,8 @@ clear_extra_bitboards(struct position *pos)
 {
 #ifdef HAS_YMM_ZERO
 
-	__asm__ volatile
-	    ("vmovdqa %%ymm7, %0"
-	    :"=m" (*((__m256i*)(&(pos->king_attack_map)))));
+	__m256i *addr = (void*)&pos->king_attack_map;
+	*addr = ymm_zero;
 
 #else
 
