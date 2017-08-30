@@ -173,7 +173,8 @@ generate_attacks_move(struct position *restrict dst,
 {
 	uint64_t move_map = dst->occupied ^ bswap(src->occupied);
 
-	if (is_capture(m) || is_nonempty(move_map & dst->sliding_attacks[0]))
+	if ((mresultp(m) != king) &&
+	    (is_capture(m) || is_nonempty(move_map & dst->sliding_attacks[0])))
 		generate_player_attacks_move(dst, m, move_map);
 	else
 		dst->attack[0] = bswap(src->attack[1]);
