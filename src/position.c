@@ -1182,7 +1182,6 @@ clear_to_square(struct position *pos, int i)
 		pos->material_value -= piece_value[(unsigned)(pos->board[i])];
 		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
-		z2_toggle_sq(pos->zhash, i, pos->board[i], 0);
 		pos->map[(unsigned char)(pos->board[i])] &= ~bit64(i);
 		pos->map[0] &= ~bit64(i);
 	}
@@ -1195,13 +1194,10 @@ move_pawn(struct position *pos, move m)
 	pos->board[mfrom(m)] = 0;
 	pos->map[opponent_pawn] ^= m64(m);
 	pos->map[1] ^= m64(m);
-	z2_toggle_sq(pos->zhash, mfrom(m), pawn, 1);
-	z2_toggle_sq(pos->zhash, mto(m), pawn, 1);
 	if (mtype(m) == mt_en_passant) {
 		pos->board[mto(m) + NORTH] = 0;
 		pos->map[pawn] &= ~bit64(mto(m) + NORTH);
 		pos->map[0] &= ~bit64(mto(m) + NORTH);
-		z2_toggle_sq(pos->zhash, mto(m) + NORTH, pawn, 0);
 		pos->material_value -= pawn_value;
 		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
@@ -1224,10 +1220,6 @@ move_piece(struct position *pos, move m)
 		pos->map[opponent_rook] ^= SQ_F8 | SQ_H8;
 		pos->map[opponent_king] ^= SQ_E8 | SQ_G8;
 		pos->map[1] ^= SQ_H8 | SQ_F8 | SQ_E8 | SQ_G8;
-		z2_toggle_sq(pos->zhash, sq_h8, rook, 1);
-		z2_toggle_sq(pos->zhash, sq_f8, rook, 1);
-		z2_toggle_sq(pos->zhash, sq_e8, king, 1);
-		z2_toggle_sq(pos->zhash, sq_g8, king, 1);
 	}
 	else if (mtype(m) == mt_castle_queenside) {
 		pos->board[sq_e8] = 0;
@@ -1237,10 +1229,6 @@ move_piece(struct position *pos, move m)
 		pos->map[opponent_rook] ^= SQ_D8 | SQ_A8;
 		pos->map[opponent_king] ^= SQ_E8 | SQ_C8;
 		pos->map[1] ^= SQ_D8 | SQ_A8 | SQ_C8 | SQ_E8;
-		z2_toggle_sq(pos->zhash, sq_d8, rook, 1);
-		z2_toggle_sq(pos->zhash, sq_a8, rook, 1);
-		z2_toggle_sq(pos->zhash, sq_e8, king, 1);
-		z2_toggle_sq(pos->zhash, sq_c8, king, 1);
 	}
 	else {
 		uint64_t from = mfrom64(m);
@@ -1252,8 +1240,6 @@ move_piece(struct position *pos, move m)
 
 		invariant(value_bounds(pos->material_value));
 		enum piece porig = pos_piece_at(pos, mfrom(m));
-		z2_toggle_sq(pos->zhash, mfrom(m), porig, 1);
-		z2_toggle_sq(pos->zhash, mto(m), mresultp(m), 1);
 		pos->map[porig + 1] &= ~from;
 		pos->map[mresultp(m) + 1] |= to;
 		pos->board[mfrom(m)] = 0;
@@ -1297,6 +1283,7 @@ make_move(struct position *restrict dst,
 	search_bishop_king_attacks(dst);
 	search_rook_king_attacks(dst);
 	generate_attacks_move(dst, src, m);
+	z2_xor_move(dst->zhash, m);
 }
 
 void

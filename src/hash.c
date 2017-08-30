@@ -10,7 +10,6 @@
 #include "macros.h"
 
 #include "hash.h"
-#include "z_random.inc"
 #include "search.h"
 #include "util.h"
 #include "eval.h"
@@ -442,66 +441,4 @@ ht_swap(struct hash_table *ht)
 		for (unsigned si = 0; si < DEEP_SLOT_COUNT / 2; ++si)
 			slot_swap(ht, bucket->slots + si);
 	}
-}
-
-uint64_t
-position_polyglot_key(const struct position *pos, enum player turn)
-{
-	uint64_t key = UINT64_C(0);
-
-	/*
-	 * Taltos an polyglot have different table representations,
-	 * while Taltos uses the 64 bit constants also used by Polyglot.
-	 * Hence using here (7-row) and (7-file) for
-	 * indexing the z_random array.
-	 */
-	for (int row = 0; row < 8; ++row) {
-		for (int file = 0; file < 8; ++file) {
-			enum piece p = pos_piece_at(pos, ind(row, file));
-			enum player pl = pos_player_at(pos, ind(row, file));
-			int index;
-
-			if (p == nonpiece)
-				continue;
-
-			if (turn == white) {
-				pl = opponent_of(pl);
-				index = (7 - row) * 8 + (7 - file);
-			}
-			else {
-				index = row * 8 + (7 - file);
-			}
-			key ^= z_random[p + pl][index];
-		}
-	}
-	if (turn == white) {
-		if (position_cr_opponent_queen_side(pos))
-			key = z_toggle_castle_queen_side_opponent(key);
-		if (position_cr_queen_side(pos))
-			key = z_toggle_castle_queen_side(key);
-		if (position_cr_opponent_king_side(pos))
-			key = z_toggle_castle_king_side_opponent(key);
-		if (position_cr_king_side(pos))
-			key = z_toggle_castle_king_side(key);
-	}
-	else {
-		if (position_cr_opponent_queen_side(pos))
-			key = z_toggle_castle_queen_side(key);
-		if (position_cr_queen_side(pos))
-			key = z_toggle_castle_queen_side_opponent(key);
-		if (position_cr_opponent_king_side(pos))
-			key = z_toggle_castle_king_side(key);
-		if (position_cr_king_side(pos))
-			key = z_toggle_castle_king_side_opponent(key);
-	}
-	if (pos_has_ep_target(pos)) {
-		if (is_nonempty(pos_pawn_attacks_player(pos)
-		    & bit64(pos->ep_index + NORTH))) {
-			int file = 7 - pos_en_passant_file(pos);
-			key = z_toggle_ep_file(key, file);
-		}
-	}
-	if (turn == white)
-		key ^= UINT64_C(0xF8D626AAAF278509);
-	return key;
 }

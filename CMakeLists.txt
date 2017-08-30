@@ -52,7 +52,8 @@ set(TALTOS_SOURCES
 	src/position.c
 	src/str_util.c
 	src/util.c
-	src/trace.c)
+	src/trace.c
+	src/zobrist.c)
 
 if(NOT TALTOS_CAN_USE_ISO_THREADS)
 	set(TALTOS_SOURCES tinycthread/tinycthread.c ${TALTOS_SOURCES})

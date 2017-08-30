@@ -271,6 +271,23 @@ z2_toggle_castle_king_side(uint64_t attribute(align_value(16)) hash[2])
 	hash[1] = z_toggle_castle_king_side_opponent(hash[1]);
 }
 
+static inline attribute(artificial) void
+prefetch_z2_xor_move(move m)
+{
+	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
+
+	prefetch(zhash_xor_table + (m & ~move_check_flag), 0, 0);
+}
+
+static inline attribute(artificial) void
+z2_xor_move(uint64_t attribute(align_value(16)) hash[2], move m)
+{
+	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
+
+	hash[0] ^= zhash_xor_table[m & ~move_check_flag][0];
+	hash[1] ^= zhash_xor_table[m & ~move_check_flag][1];
+}
+
 
 
 struct hash_table *ht_create(unsigned log2_size);
@@ -327,5 +344,7 @@ size_t ht_usage(const struct hash_table*)
 
 uint64_t position_polyglot_key(const struct position*, enum player turn)
 	attribute(nonnull);
+
+void init_zhash_table(void);
 
 #endif

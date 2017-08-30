@@ -41,6 +41,7 @@ main(int argc, char **argv)
 	(void) argc;
 	setup_defaults();
 	trace_init(argv);
+	init_zhash_table();
 	init_move_gen();
 	init_search();
 	process_args(argv);
