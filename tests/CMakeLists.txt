@@ -28,7 +28,11 @@ target_link_libraries(test_move_order tests_main taltos_code)
 add_executable(test_eval_symmetry tests/eval_symmetry.c)
 target_link_libraries(test_eval_symmetry tests_main taltos_code)
 
+add_executable(test_zhash_key tests/zhash_key.c)
+target_link_libraries(test_zhash_key tests_main taltos_code)
+
 include(tests/perftsuite/CMakeLists.txt)
 include(tests/perftsuite/CMakeLists_move_order.txt)
 include(tests/perftsuite/CMakeLists_eval_symmetry.txt)
+include(tests/perftsuite/CMakeLists_zhash_key.txt)
 include(tests/positions/CMakeLists.txt)

@@ -9,6 +9,7 @@
 
 #include "tests.h"
 
+#include "hash.h"
 #include "game.h"
 
 static int prog_argc;
@@ -21,6 +22,7 @@ main(int argc, const char **argv)
 	prog_argc = argc;
 	prog_argv = argv;
 
+	init_zhash_table();
 	init_move_gen();
 
 	run_tests();
