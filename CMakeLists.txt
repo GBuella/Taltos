@@ -13,7 +13,6 @@ add_executable(epd_runner tools/epd_runner.c)
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
 option(USE_KNIGHT_LOOKUP_TABLE "lookup table for knight moves" ON)
-option(USE_GLOBAL_REGISTERS "Store some values in some XMM / YMM registers" OFF)
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)
@@ -72,22 +71,6 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 if(HAS_FLAX_VCONVS)
 	target_compile_options(taltos PUBLIC -flax-vector-conversions)
-endif()
-
-# This is needed to instruct GCC not to clobber the SIMD
-# registers used as permanent storage
-#
-if(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM AND USE_GLOBAL_REGISTERS)
-	if(HAS_MNO_VZEROUPPER)
-		target_compile_options(taltos PUBLIC -mno-vzeroupper)
-		target_compile_options(taltos_code PUBLIC -mno-vzeroupper)
-	endif()
-	if(HAS_FIXED_REGISTER_FLAG)
-		target_compile_options(taltos_code PUBLIC -ffixed-xmm6)
-		target_compile_options(taltos_code PUBLIC -ffixed-xmm7)
-		target_compile_options(taltos PUBLIC -ffixed-xmm6)
-		target_compile_options(taltos PUBLIC -ffixed-xmm7)
-	endif()
 endif()
 
 # hack: this gets rid of some declarations in Visual C++ headers

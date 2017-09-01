@@ -80,7 +80,6 @@ uintmax_t
 perft(const struct position *pos, unsigned depth)
 {
 	assert(depth <= MAX_PLY);
-	setup_registers();
 	return do_perft(pos, depth);
 }
 
@@ -88,14 +87,15 @@ uintmax_t
 qperft(const struct position *pos, unsigned depth)
 {
 	assert(depth <= MAX_PLY);
-	setup_registers();
 	return do_qperft(pos, depth);
 }
 
 
-static uintmax_t
-do_perft_ordered(const struct position *pos, unsigned depth)
+uintmax_t
+perft_ordered(const struct position *pos, unsigned depth)
 {
+	assert(depth <= MAX_PLY);
+
 	struct move_order move_order[1];
 	uintmax_t n;
 	struct position child[1];
@@ -124,16 +124,9 @@ do_perft_ordered(const struct position *pos, unsigned depth)
 	do {
 		move_order_pick_next(move_order);
 		make_move(child, pos, mo_current_move(move_order));
-		n += do_perft_ordered(child, depth - 1);
+		n += perft_ordered(child, depth - 1);
 	} while (!move_order_done(move_order));
 	return n;
-}
-
-uintmax_t
-perft_ordered(const struct position *pos, unsigned depth)
-{
-	setup_registers();
-	return do_perft_ordered(pos, depth);
 }
 
 struct divide_info*
@@ -167,7 +160,6 @@ divide(struct divide_info *dinfo, enum move_notation_type mn)
 	char *str;
 
 	str = print_move(&dinfo->pos, *dinfo->m, dinfo->str, mn, dinfo->turn);
-	setup_registers();
 	make_move(&t, &dinfo->pos, *dinfo->m);
 	if (dinfo->is_ordered) {
 		n = perft_ordered(&t, dinfo->depth - 1);

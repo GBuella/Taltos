@@ -9,7 +9,6 @@
 #include "constants.h"
 #include "hash.h"
 #include "util.h"
-#include "vector_values.h"
 #include "eval.h"
 
 
@@ -759,42 +758,29 @@ can_be_valid_ep_index(const struct position *pos, int index)
 
 
 
-#if defined(TALTOS_CAN_USE_INTEL_AVX2)
-#if !defined(USE_GLOBAL_REGISTERS) || \
-    !defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM)
-static __m256i bitboard_flip_shufflekey_32;
-#endif
-#elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
-#if !defined(USE_GLOBAL_REGISTERS) || \
-    !defined(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
-static __m128i bitboard_flip_shufflekey_16;
-#endif
-#endif
-
-void
-setup_registers(void)
-{
 /* BEGIN CSTYLED */
 #if defined(TALTOS_CAN_USE_INTEL_AVX2)
-	bitboard_flip_shufflekey_32 =
-	    _mm256_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
+
+static __m256i
+flip_shufflekey_32(void)
+{
+    return _mm256_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
 	                      7,  6,  5,  4,  3,  2,  1,  0,
 	                     15, 14, 13, 12, 11, 10,  9,  8,
 	                      7,  6,  5,  4,  3,  2,  1,  0);
-#elif defined(TALTOS_CAN_USE_INTEL_AVX) \
-	|| defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
-
-	bitboard_flip_shufflekey_16 =
-	    _mm_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
-	                   7,  6,  5,  4,  3,  2,  1,  0);
-#endif
-
-#ifdef HAS_YMM_ZERO
-	__asm__ volatile ("vpxor %xmm7, %xmm7, %xmm7");
-#endif
-
-/* END CSTYLED */
 }
+
+#elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
+
+static __m128i
+flip_shufflekey_16(void)
+{
+    return _mm_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
+	                  7,  6,  5,  4,  3,  2,  1,  0);
+}
+
+#endif
+/* END CSTYLED */
 
 
 
@@ -943,17 +929,8 @@ flip_piece_maps(struct position *restrict dst,
 	const __m256i *restrict src32 = (const __m256i*)(src->attack + 2);
 	__m256i *restrict dst32 = (__m256i*)(dst->attack + 2);
 
-	for (int i = 0; i < (FLIP_COUNT / 4); ++i) {
-#ifdef TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM
-		__asm__ volatile
-		    ("vpshufb %%ymm6, %1, %0"
-		    : "=x" (dst32[i])
-		    : "x" (src32[i]));
-#else
-		dst32[i] =
-		    _mm256_shuffle_epi8(src32[i], bitboard_flip_shufflekey_32);
-#endif
-	}
+	for (int i = 0; i < (FLIP_COUNT / 4); ++i)
+		dst32[i] = _mm256_shuffle_epi8(src32[i], flip_shufflekey_32());
 }
 
 #elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
@@ -969,10 +946,8 @@ flip_piece_maps(struct position *restrict dst,
 	__m128i attribute(align_value(16)) *restrict dst16
 	    = (__m128i*)(dst->attack + 2);
 
-	for (int i = 0; i < (FLIP_COUNT / 2); ++i) {
-		dst16[i] =
-		    _mm_shuffle_epi8(src16[i], bitboard_flip_shufflekey_16);
-	}
+	for (int i = 0; i < (FLIP_COUNT / 2); ++i)
+		dst16[i] = _mm_shuffle_epi8(src16[i], flip_shufflekey_16());
 }
 
 #else
@@ -1283,6 +1258,6 @@ position_make_move(struct position *restrict dst,
 			const struct position *restrict src,
 			move m)
 {
-	setup_registers();
+	// this wrapper function is pointless now
 	make_move(dst, src, m);
 }

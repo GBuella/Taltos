@@ -115,40 +115,7 @@ int main() {}
 "
  TALTOS_CAN_USE_BUILTIN_BSWAP64)
 
-# register char test_global_vector
-# asm(\"xmm7\") __attribute__ ((__vector_size__(16)));
-CHECK_C_SOURCE_COMPILES("
-void something(void) {
-    register volatile char test_var __asm__(\"xmm7\")
-    __attribute__ ((__vector_size__(16)));
-
-    test_var = (char __attribute__((__vector_size__(16)))){
-                             15, 14, 13, 12, 11, 10,  9,  8,
-                              7,  6,  5,  4,  3,  2,  1,  0};
-}
-int main() { return 0; }"
-  TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
-
-if(TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_XMM)
-
-CHECK_C_SOURCE_COMPILES("
-void something(void) {
-    register volatile char test_var __asm__(\"xmm7\")
-    __attribute__ ((__vector_size__(32)));
-
-    test_var = (char __attribute__((__vector_size__(32)))){
-                             15, 14, 13, 12, 11, 10,  9,  8,
-                              7,  6,  5,  4,  3,  2,  1,  0,
-                             15, 14, 13, 12, 11, 10,  9,  8,
-                              7,  6,  5,  4,  3,  2,  1,  0};
-}
-int main() { return 0; }"
-  TALTOS_CAN_USE_GCC_GLOBAL_REGISTER_VARIABLE_YMM)
-
 check_c_compiler_flag(-flax-vector-conversions HAS_FLAX_VCONVS)
 check_c_compiler_flag(-mno-vzeroupper HAS_MNO_VZEROUPPER)
-check_c_compiler_flag(-ffixed-xmm7 HAS_FIXED_REGISTER_FLAG)
-
-endif()
 
 endif()

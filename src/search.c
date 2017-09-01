@@ -1267,7 +1267,6 @@ next_iteration:
 	if (pv_len >= root->depth / PLY - 1)
 		return;
 
-	setup_registers();
 	root->alpha = -max_value;
 	root->beta = max_value;
 	root->expected_type = PV_node;
@@ -1301,7 +1300,6 @@ search(const struct position *root_pos,
 	root_node = setup_root_node(nodes, root_pos);
 
 	if (setjmp(common.terminate_jmp_buf) == 0) {
-		setup_registers();
 		negamax(root_node);
 		extract_pv(pv_store, &common.result, root_node);
 		common.result.value = root_node->value;

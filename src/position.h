@@ -17,8 +17,6 @@
 #include "chess.h"
 #include "hash.h"
 
-void setup_registers(void);
-
 #if defined(TALTOS_CAN_USE_INTEL_AVX) \
 	&& !defined(TALTOS_MAX_ALIGN_IS_GTE_32)
 enum { pos_alignment = 32 };

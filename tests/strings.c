@@ -218,7 +218,6 @@ test_fen_basic(void)
 	move = create_move_t(str_to_index("e2", white),
 	    str_to_index("e4", white),
 	    mt_pawn_double_push, pawn, 0, false);
-	setup_registers();
 	make_move(next, position, move);
 	assert(position_piece_at(next, str_to_index("e2", black)) == nonpiece);
 	assert(position_piece_at(next, str_to_index("e4", black)) == pawn);

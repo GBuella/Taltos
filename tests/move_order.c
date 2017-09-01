@@ -87,7 +87,6 @@ test_tree_walk(const struct position *pos, unsigned depth)
 		move m = mo_current_move(move_order);
 		move_stack_append(m);
 		check_moves[i] = m;
-		setup_registers();
 		make_move(child, pos, m);
 		test_tree_walk(child, depth - 1);
 		++i;

@@ -58,7 +58,6 @@ static char*
 print_san_check(const struct position *pos, move m, char *str)
 {
 	struct position child;
-	setup_registers();
 	make_move(&child, pos, m);
 	if (is_in_check(&child)) {
 		move moves[MOVE_ARRAY_LENGTH];
