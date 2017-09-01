@@ -123,7 +123,7 @@ test_tree_walk(const struct position *pos, unsigned depth)
 {
 	move moves[MOVE_ARRAY_LENGTH];
 
-	if (!pos_has_ep_target(pos))
+	if (!pos_has_ep_target(pos) && !is_in_check(pos))
 		check_eval_symmetry(pos);
 
 	if (depth == 0)
