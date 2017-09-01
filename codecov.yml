@@ -1,0 +1,4 @@
+ignore:
+  - tinycthread/tinycthread.h
+  - tinycthread/tinycthread.c
+  - tinycthread/threads.h
