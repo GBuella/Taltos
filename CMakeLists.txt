@@ -9,6 +9,7 @@ include_directories(src tests "${PROJECT_BINARY_DIR}")
 
 add_executable(gen_constants tools/gen_constants.c)
 add_executable(epd_runner tools/epd_runner.c)
+add_executable(cmp_text tools/cmp_text.c)
 
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
