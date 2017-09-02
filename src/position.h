@@ -17,12 +17,7 @@
 #include "chess.h"
 #include "hash.h"
 
-#if defined(TALTOS_CAN_USE_INTEL_AVX) \
-	&& !defined(TALTOS_MAX_ALIGN_IS_GTE_32)
 enum { pos_alignment = 32 };
-#else
-enum { pos_alignment = alignof(max_align_t) };
-#endif
 
 /*
  * PIECE_ARRAY_SIZE - the length of an array that contains one item
