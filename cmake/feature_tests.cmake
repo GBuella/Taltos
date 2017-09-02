@@ -144,3 +144,35 @@ _Static_assert(_Alignof(max_align_t) % 32 == 0, \"no\");
 int main() { return 0; }
 "
  TALTOS_MAX_ALIGN_IS_GTE_32)
+
+CHECK_C_SOURCE_COMPILES("
+#include <math.h>
+int main() {
+	double x = 3.0;
+	double y = log2(x);
+	(void) y;
+}
+"
+ TALTOS_CAN_USE_LOG2_WITHOUT_LIBM)
+
+if(NOT TALTOS_CAN_USE_LOG2_WITHOUT_LIBM)
+set(orig_req_libs ${CMAKE_REQUIRED_LIBRARIES})
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} m)
+
+CHECK_C_SOURCE_COMPILES("
+#include <math.h>
+int main() {
+	double x = 3.0;
+	double y = log2(x);
+	(void) y;
+}
+"
+ TALTOS_CAN_USE_LOG2_WITH_LIBM)
+
+if(NOT TALTOS_CAN_USE_LOG2_WITH_LIBM)
+	message(FATAL_ERROR "Unable to use log2 from math.h")
+endif()
+
+set(CMAKE_REQUIRED_LIBRARIES ${orig_req_libs})
+endif()
+

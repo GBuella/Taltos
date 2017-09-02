@@ -63,7 +63,10 @@ add_library(taltos_code STATIC move_gen_const.inc ${TALTOS_SOURCES})
 
 add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
-target_link_libraries(taltos m)
+
+if(TALTOS_CAN_USE_LOG2_WITH_LIBM)
+	target_link_libraries(taltos m)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
