@@ -29,6 +29,7 @@ generate()
 		printf "add_test(NAME \"%s%s\"\n" $prefix $(basename $test)
 		printf "\tCOMMAND \${CMAKE_COMMAND}\n"
 		printf "\t-DTEST_PROG=$<TARGET_FILE:taltos>\n"
+		printf "\t-DCMP_PROG=$<TARGET_FILE:cmp_text>\n"
 		printf "\t-DTEST_FILE=\${PROJECT_SOURCE_DIR}/%s\n" $test
 		printf "\t-P \${PROJECT_SOURCE_DIR}/cmake/expect.cmake)\n"
 	done

@@ -4,761 +4,888 @@
 add_test(NAME "perft_000"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_000
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_001"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_001
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_002"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_002
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_003"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_003
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_004"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_004
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_005"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_005
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_006"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_006
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_007"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_007
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_008"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_008
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_009"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_009
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_010"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_010
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_011"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_011
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_012"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_012
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_013"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_013
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_014"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_014
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_015"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_015
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_016"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_016
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_017"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_017
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_018"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_018
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_019"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_019
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_020"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_020
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_021"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_021
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_022"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_022
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_023"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_023
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_024"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_024
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_025"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_025
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_026"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_026
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_027"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_027
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_028"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_028
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_029"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_029
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_030"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_030
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_031"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_031
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_032"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_032
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_033"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_033
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_034"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_034
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_035"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_035
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_036"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_036
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_037"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_037
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_038"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_038
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_039"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_039
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_040"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_040
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_041"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_041
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_042"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_042
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_043"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_043
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_044"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_044
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_045"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_045
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_046"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_046
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_047"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_047
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_048"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_048
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_049"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_049
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_050"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_050
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_051"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_051
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_052"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_052
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_053"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_053
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_054"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_054
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_055"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_055
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_056"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_056
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_057"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_057
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_058"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_058
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_059"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_059
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_060"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_060
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_061"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_061
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_062"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_062
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_063"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_063
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_064"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_064
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_065"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_065
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_066"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_066
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_067"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_067
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_068"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_068
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_069"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_069
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_070"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_070
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_071"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_071
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_072"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_072
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_073"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_073
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_074"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_074
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_075"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_075
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_076"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_076
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_077"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_077
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_078"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_078
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_079"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_079
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_080"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_080
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_081"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_081
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_082"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_082
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_083"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_083
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_084"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_084
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_085"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_085
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_086"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_086
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_087"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_087
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_088"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_088
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_089"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_089
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_090"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_090
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_091"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_091
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_092"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_092
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_093"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_093
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_094"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_094
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_095"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_095
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_096"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_096
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_097"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_097
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_098"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_098
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_099"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_099
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_100"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_100
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_101"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_101
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_102"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_102
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_103"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_103
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_104"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_104
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_105"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_105
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_106"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_106
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_107"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_107
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_108"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_108
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_109"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_109
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_110"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_110
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_111"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_111
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_112"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_112
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_113"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_113
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_114"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_114
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_115"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_115
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_116"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_116
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_117"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_117
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_118"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_118
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_119"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_119
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_120"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_120
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_121"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_121
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_122"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_122
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_123"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_123
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_124"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_124
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_125"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_125
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "perft_126"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_126
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
