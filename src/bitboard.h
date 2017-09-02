@@ -46,26 +46,26 @@ bitbard square index map:
 #define EMPTY (UINT64_C(0))
 #define UNIVERSE UINT64_MAX
 
-static inline attribute(artificial) bool
+static inline bool
 is_empty(uint64_t bitboard)
 {
 	return bitboard == EMPTY;
 }
 
-static inline attribute(artificial) bool
+static inline bool
 is_nonempty(uint64_t bitboard)
 {
 	return bitboard != EMPTY;
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 bit64(int index)
 {
 	invariant(index >= 0 && index <= 63);
 	return UINT64_C(1) << index;
 }
 
-static inline attribute(artificial) int
+static inline int
 bsf(uint64_t value)
 {
 	invariant(value != 0);
@@ -118,7 +118,7 @@ bsf(uint64_t value)
 #define bswap __builtin_bswap64
 #else
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 bswap(uint64_t value)
 {
 	static const uint64_t k1 = UINT64_C(0x00ff00ff00ff00ff);
@@ -137,7 +137,7 @@ bswap(uint64_t value)
 #ifdef TALTOS_CAN_USE_INTEL_BLSI64
 #define lsb _blsi_u64
 #else
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 lsb(uint64_t value)
 {
 	return (value & (UINT64_C(0) - value));
@@ -147,14 +147,14 @@ lsb(uint64_t value)
 #ifdef TALTOS_CAN_USE_INTEL_BLSR64
 #define reset_lsb _blsr_u64
 #else
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 reset_lsb(uint64_t value)
 {
 	return value & (value - UINT64_C(1));
 }
 #endif
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 msb(uint64_t value)
 {
 #ifdef TALTOS_CAN_USE_BUILTIN_CLZLL_64
@@ -178,7 +178,7 @@ msb(uint64_t value)
 #elif defined(TALTOS_CAN_USE_BUILTIN_POPCOUNTL64)
 #define popcnt __builtin_popcountl
 #else
-static inline attribute(artificial) int
+static inline int
 popcnt(uint64_t value)
 {
 	static const uint64_t k1 = UINT64_C(0x5555555555555555);
@@ -257,13 +257,13 @@ fill_files(uint64_t occ)
 	return kogge_stone_north(kogge_stone_south(occ));
 }
 
-static inline attribute(artificial) bool
+static inline bool
 is_singular(uint64_t map)
 {
 	return is_empty(reset_lsb(map)) && is_nonempty(map);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 rol(uint64_t value, unsigned d)
 {
 	return (value << d) | (value >> (64 - d));

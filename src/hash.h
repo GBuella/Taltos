@@ -49,20 +49,20 @@ static_assert(
 
 
 
-static inline attribute(artificial) move
+static inline move
 ht_move(ht_entry e)
 {
 	return (move)(e & MOVE_MASK);
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_set_move(ht_entry e, move m)
 {
 	invariant(is_move_valid(m));
 	return e | m;
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_set_depth(ht_entry e, int depth)
 {
 	invariant(depth <= MAX_PLY * PLY);
@@ -73,7 +73,7 @@ ht_set_depth(ht_entry e, int depth)
 	return e | (((ht_entry)depth) << (32 + 16));
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_set_value(ht_entry e, enum value_type vt, int value)
 {
 	invariant(value >= -0x7fff && value < 0x7fff);
@@ -84,68 +84,68 @@ ht_set_value(ht_entry e, enum value_type vt, int value)
 	return e;
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_clear_value(ht_entry e)
 {
 	return e & ~(VALUE_TYPE_MASK | (UINT64_C(0xffff) << 32));
 }
 
-static inline attribute(artificial) bool
+static inline bool
 ht_has_move(ht_entry e)
 {
 	return (e & MOVE_MASK) != 0;
 	// perhaps rather   return ((move)e) != 0;   ??
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_reset_move(ht_entry dst, ht_entry src)
 {
 	return (dst & ~((ht_entry)MOVE_MASK)) | (src & MOVE_MASK);
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_set_no_move(ht_entry e)
 {
 	return e & ~((ht_entry)MOVE_MASK);
 }
 
-static inline attribute(artificial) int
+static inline int
 ht_depth(ht_entry e)
 {
 	return (unsigned)(e >> (32 + 16));
 }
 
-static inline attribute(artificial) enum value_type
+static inline enum value_type
 ht_value_type(ht_entry e)
 {
 	return (int)(e & VALUE_TYPE_MASK);
 }
 
-static inline attribute(artificial) bool
+static inline bool
 ht_value_is_lower_bound(ht_entry e)
 {
 	return (e & vt_lower_bound) != 0;
 }
 
-static inline attribute(artificial) bool
+static inline bool
 ht_value_is_upper_bound(ht_entry e)
 {
 	return (e & vt_upper_bound) != 0;
 }
 
-static inline attribute(artificial) int
+static inline int
 ht_value(ht_entry e)
 {
 	return (int)(((e >> 32) % 0x10000) - 0x7fff);
 }
 
-static inline attribute(artificial) ht_entry
+static inline ht_entry
 ht_set_no_null(ht_entry e)
 {
 	return e | HT_NO_NULL_FLAG;
 }
 
-static inline attribute(artificial) bool
+static inline bool
 ht_no_null(ht_entry e)
 {
 	return (e & HT_NO_NULL_FLAG) != 0;
@@ -174,7 +174,7 @@ create_ht_entry(int value, enum value_type vt, move m, int depth)
 	return e;
 }
 
-static inline attribute(artificial) bool
+static inline bool
 ht_is_set(ht_entry e)
 {
 	return e != HT_NULL;
@@ -182,7 +182,7 @@ ht_is_set(ht_entry e)
 
 
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_ep_file(uint64_t hash, int file)
 {
 	invariant(file >= 0 && file <= 7);
@@ -196,7 +196,7 @@ z_toggle_ep_file(uint64_t hash, int file)
 	return hash ^ zobrist_value[file];
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_sq(uint64_t hash, int i, enum piece p, enum player pl)
 {
 	invariant(ivalid(i));
@@ -206,7 +206,7 @@ z_toggle_sq(uint64_t hash, int i, enum piece p, enum player pl)
 	return hash ^= z_random[p + pl][i];
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_toggle_sq(uint64_t attribute(align_value(16)) hash[2],
 		int i, enum piece p, enum player pl)
 {
@@ -218,31 +218,31 @@ z2_toggle_sq(uint64_t attribute(align_value(16)) hash[2],
 	hash[1] ^= z_random[opponent_of(p + pl)][flip_i(i)];
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_castle_queen_side_opponent(uint64_t hash)
 {
 	return hash ^ UINT64_C(0x1EF6E6DBB1961EC9);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_castle_queen_side(uint64_t hash)
 {
 	return hash ^ UINT64_C(0xF165B587DF898190);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_castle_king_side_opponent(uint64_t hash)
 {
 	return hash ^ UINT64_C(0xA57E6339DD2CF3A0);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 z_toggle_castle_king_side(uint64_t hash)
 {
 	return hash ^ UINT64_C(0x31D71DCE64B2C310);
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_toggle_castle_queen_side_opponent(
 	uint64_t attribute(align_value(16)) hash[2])
 {
@@ -250,28 +250,28 @@ z2_toggle_castle_queen_side_opponent(
 	hash[1] = z_toggle_castle_queen_side(hash[1]);
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_toggle_castle_queen_side(uint64_t attribute(align_value(16)) hash[2])
 {
 	hash[0] = z_toggle_castle_queen_side(hash[0]);
 	hash[1] = z_toggle_castle_queen_side_opponent(hash[1]);
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_toggle_castle_king_side_opponent(uint64_t attribute(align_value(16)) hash[2])
 {
 	hash[0] = z_toggle_castle_king_side_opponent(hash[0]);
 	hash[1] = z_toggle_castle_king_side(hash[1]);
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_toggle_castle_king_side(uint64_t attribute(align_value(16)) hash[2])
 {
 	hash[0] = z_toggle_castle_king_side(hash[0]);
 	hash[1] = z_toggle_castle_king_side_opponent(hash[1]);
 }
 
-static inline attribute(artificial) void
+static inline void
 prefetch_z2_xor_move(move m)
 {
 	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
@@ -279,7 +279,7 @@ prefetch_z2_xor_move(move m)
 	prefetch(zhash_xor_table + (m & ~move_check_flag), 0, 0);
 }
 
-static inline attribute(artificial) void
+static inline void
 z2_xor_move(uint64_t attribute(align_value(16)) hash[2], move m)
 {
 	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];

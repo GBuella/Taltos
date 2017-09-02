@@ -205,46 +205,46 @@ static_assert(offsetof(struct position, opponent_material_value) +
 
 
 
-static inline attribute(artificial) enum piece
+static inline enum piece
 pos_piece_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
 	return p->board[i];
 }
 
-static inline attribute(artificial) enum player
+static inline enum player
 pos_player_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
 	return is_nonempty(p->map[1] & bit64(i)) ? 1 : 0;
 }
 
-static inline attribute(artificial) int
+static inline int
 pos_square_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
 	return pos_piece_at(p, i) | pos_player_at(p, i);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pos_king_attackers(const struct position *p)
 {
 	return p->king_attack_map & p->map[1];
 }
 
-static inline attribute(artificial) int
+static inline int
 pos_en_passant_file(const struct position *p)
 {
 	return ind_file(p->ep_index);
 }
 
-static inline attribute(artificial) int
+static inline int
 pos_has_ep_target(const struct position *p)
 {
 	return p->ep_index != 0;
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pos_hash(const struct position *p)
 {
 	uint64_t key = p->zhash[0];
@@ -253,21 +253,21 @@ pos_hash(const struct position *p)
 	return key;
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 rank64(int i)
 {
 	invariant(ivalid(i));
 	return RANK_8 << (i & 0x38);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 file64(int i)
 {
 	invariant(ivalid(i));
 	return FILE_H << (i % 8);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 sliding_map(uint64_t occ, const struct magical *magic)
 {
 	uint64_t index = ((occ & magic->mask) * magic->multiplier);
@@ -280,7 +280,7 @@ sliding_map(uint64_t occ, const struct magical *magic)
 #endif
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 knight_pattern(int i)
 {
 	invariant(ivalid(i));
@@ -294,50 +294,50 @@ knight_pattern(int i)
 #endif
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pawn_reach_south(uint64_t map)
 {
 	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pawn_reach_north(uint64_t map)
 {
 	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pawn_attacks_opponent(uint64_t pawn_map)
 {
 	return pawn_reach_south(pawn_map);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pawn_attacks_player(uint64_t pawn_map)
 {
 	return pawn_reach_north(pawn_map);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pos_pawn_attacks_player(const struct position *p)
 {
 	return pawn_attacks_player(p->map[pawn]);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pos_pawn_attacks_opponent(const struct position *p)
 {
 	return pawn_attacks_player(p->map[opponent_pawn]);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 rook_full_attack(int i)
 {
 	invariant(ivalid(i));
 	return file64(i) | rank64(i);
 }
 
-static inline attribute(artificial) int
+static inline int
 pos_king_index_player(const struct position *p)
 {
 	uint64_t map = p->map[king];
@@ -345,7 +345,7 @@ pos_king_index_player(const struct position *p)
 	return bsf(map);
 }
 
-static inline attribute(artificial) int
+static inline int
 pos_king_index_opponent(const struct position *p)
 {
 	uint64_t map = p->map[opponent_king];
@@ -353,13 +353,13 @@ pos_king_index_opponent(const struct position *p)
 	return bsf(map);
 }
 
-static inline attribute(artificial) uint64_t
+static inline uint64_t
 pos_king_knight_attack(const struct position *p)
 {
 	return knight_pattern(pos_king_index_opponent(p)) & p->map[knight];
 }
 
-static inline attribute(artificial) bool
+static inline bool
 is_in_check(const struct position *p)
 {
 	return is_nonempty(p->king_attack_map);
