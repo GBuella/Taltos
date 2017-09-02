@@ -29,6 +29,10 @@ if(TALTOS_FORCE_AVX2 AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
 endif()
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 include(cmake/feature_tests.cmake)
 
 add_custom_command(
@@ -67,10 +71,6 @@ target_link_libraries(taltos taltos_code)
 if(TALTOS_CAN_USE_LOG2_WITH_LIBM)
 	target_link_libraries(taltos m)
 endif()
-
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
 
 if(HAS_FLAX_VCONVS)
 	target_compile_options(taltos PUBLIC -flax-vector-conversions)
