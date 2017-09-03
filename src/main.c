@@ -105,10 +105,6 @@ setup_defaults(void)
 	    conf.search.use_strict_repetition_check
 	    || (env != NULL && env[0] != '0');
 
-	env = getenv("TALTOS_USE_AM");
-	conf.search.use_advanced_move_order =
-	    (env != NULL && env[0] != '0');
-
 	env = getenv("TALTOS_USE_NOHH");
 	conf.search.use_history_heuristics =
 	    (env == NULL || env[0] == '0');

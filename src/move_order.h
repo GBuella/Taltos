@@ -21,16 +21,12 @@ struct move_order {
 	bool is_started;
 	bool is_already_sorted;
 	unsigned hint_count;
-	bool advanced_order;
-	int pos_value;
-	int pos_threats;
 	const struct position *pos;
 	int history_side;
 };
 
 void move_order_setup(struct move_order*, const struct position*,
-		    bool is_qsearch, bool advanced, int static_value,
-		    int history_side)
+		    bool is_qsearch, int history_side)
 	attribute(nonnull);
 
 void move_order_pick_next(struct move_order*)

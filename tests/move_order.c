@@ -55,7 +55,7 @@ test_tree_walk(const struct position *pos, unsigned depth)
 	if (depth == 0)
 		return;
 
-	move_order_setup(move_order, pos, false, false, 0, 0);
+	move_order_setup(move_order, pos, false, 0);
 	count = move_order->count;
 	if (count == 0)
 		return;

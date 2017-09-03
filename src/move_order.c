@@ -21,8 +21,7 @@ static struct history_value history[2][PIECE_ARRAY_SIZE][64];
 
 void
 move_order_setup(struct move_order *mo, const struct position *pos,
-		bool is_qsearch, bool advanced, int static_value,
-		int hside)
+		bool is_qsearch, int hside)
 {
 	if (is_qsearch)
 		mo->count = gen_captures(pos, mo->moves);
@@ -33,10 +32,6 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	mo->is_started = false;
 	mo->is_already_sorted = false;
 	mo->hint_count = 0;
-	mo->advanced_order = advanced;
-	mo->pos_value = static_value;
-	if (advanced)
-		mo->pos_threats = eval_threats(pos);
 	mo->pos = pos;
 	mo->history_side = hside;
 }
@@ -475,33 +470,6 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 }
 
 static int
-eval_make_move(struct move_order *mo, move m, bool *tactical)
-{
-	if (is_under_promotion(m)) {
-		if (move_gives_check(m))
-			return -1;
-		else
-			return -1001;
-	}
-
-	struct position child[1];
-
-	make_move(child, mo->pos, m);
-	int new_value = -eval(child);
-	int new_threats = -eval_threats(child);
-
-	int delta = new_value - mo->pos_value;
-	delta += 3 * (new_threats - mo->pos_threats);
-	delta -= 100;
-	if (is_in_check(child))
-		delta += 30;
-
-	*tactical = (is_capture(m) && delta >= 0);
-
-	return delta;
-}
-
-static int
 eval_move(struct move_order *mo, move m, bool *tactical)
 {
 	uint64_t to = mto64(m);
@@ -571,10 +539,7 @@ eval_moves(struct move_order *mo)
 			bool tactical = false;
 			int value;
 
-			if (mo->advanced_order)
-				value = eval_make_move(mo, m, &tactical);
-			else
-				value = eval_move(mo, m, &tactical);
+			value = eval_move(mo, m, &tactical);
 			insert(mo, i, m, value, tactical);
 		}
 	}

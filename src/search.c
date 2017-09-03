@@ -705,12 +705,8 @@ enum { no_legal_moves = 1 };
 static int
 setup_moves(struct node *node)
 {
-	bool am = node->common->sd.settings.use_advanced_move_order;
-	am = am && node->depth > 2 * PLY;
-
 	move_order_setup(node->mo, node->pos,
-	    is_qsearch(node), am, get_static_value(node),
-	    node->root_distance % 2);
+	    is_qsearch(node), node->root_distance % 2);
 
 	if (node->mo->count == 0) {
 		if (is_qsearch(node))

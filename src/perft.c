@@ -103,7 +103,7 @@ perft_ordered(const struct position *pos, unsigned depth)
 	if (depth == 0)
 		return 1;
 
-	move_order_setup(move_order, pos, false, false, 0, 0);
+	move_order_setup(move_order, pos, false, 0);
 
 	if (depth == 1)
 		return move_order->count;
