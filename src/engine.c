@@ -320,7 +320,8 @@ add_history_as_repetition(void)
 {
 	trace(__func__);
 
-	struct position duplicates[ARRAY_LENGTH(history)];
+	static struct position duplicates[ARRAY_LENGTH(history)];
+
 	size_t duplicate_count;
 	ht_entry entry = ht_set_depth(HT_NULL, 99);
 	entry = ht_set_value(entry, vt_exact, 0);
