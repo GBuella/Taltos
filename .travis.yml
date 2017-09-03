@@ -2,6 +2,11 @@
 
 language: c
 
+branches:
+  only:
+    - master
+    - branch_for_ci
+
 matrix:
   include:
 
