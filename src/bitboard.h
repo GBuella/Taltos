@@ -76,11 +76,11 @@ bsf(uint64_t value)
 
 	result = __builtin_ctzll(value);
 
-#elif TALTOS_CAN_USE_BUILTIN_CTZL_64
+#elif defined(TALTOS_CAN_USE_BUILTIN_CTZL_64)
 
 	result = __builtin_ctzl(value);
 
-#elif TALTOS_CAN_USE_INTEL_BITSCANFORWARD64
+#elif defined(TALTOS_CAN_USE_INTEL_BITSCANFORWARD64)
 
 	unsigned long index;
 
@@ -161,7 +161,7 @@ msb(uint64_t value)
 
 	return bit64(63 - __builtin_clzll(value));
 
-#elif TALTOS_CAN_USE_BUILTIN_CLZL_64
+#elif defined(TALTOS_CAN_USE_BUILTIN_CLZL_64)
 
 	return bit64(63 - __builtin_clzl(value));
 
