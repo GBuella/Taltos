@@ -112,7 +112,9 @@ set(CMAKE_REQUIRED_FLAGS "${orig_req_flags} -std=gnu11")
 CHECK_C_SOURCE_COMPILES("
 #include <stdlib.h>
 void *something(int x) { return aligned_alloc(64, x); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_ISO_ALIGNAD_ALLOC)
 
@@ -122,8 +124,10 @@ CHECK_C_SOURCE_COMPILES("
 #endif
 #include <threads.h>
 
-int main() {}
-(void) thrd_current();
+int main() {
+	(void) thrd_current();
+	return 0;
+}
 "
  TALTOS_CAN_USE_ISO_THREADS)
 
@@ -144,6 +148,7 @@ int main() {
 	double x = 3.0;
 	double y = log2(x);
 	(void) y;
+	return 0;
 }
 "
  TALTOS_CAN_USE_LOG2_WITHOUT_LIBM)
@@ -158,6 +163,7 @@ int main() {
 	double x = 3.0;
 	double y = log2(x);
 	(void) y;
+	return 0;
 }
 "
  TALTOS_CAN_USE_LOG2_WITH_LIBM)

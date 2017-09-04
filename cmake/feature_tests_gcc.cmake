@@ -11,7 +11,9 @@ include(CheckCCompilerFlag)
 
 CHECK_C_SOURCE_COMPILES("
 int something(const char*, ...) __attribute__((format(printf, 1, 2)));
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
 
@@ -31,22 +33,26 @@ endif()
 if(NOT TALTOS_FORCE_NO_BUILTINS)
 
 CHECK_C_SOURCE_COMPILES("
-void *something(const char*p)
+int something(const char*p)
 {
     if (p == 0) __builtin_unreachable();
 	return 0;
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_UNREACHABLE)
 
 CHECK_C_SOURCE_COMPILES("
-void *something(const char*p)
+int something(const char*p)
 {
 	__builtin_prefetch(p, 1);
 	return 0;
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_PREFETCH)
 
@@ -57,7 +63,9 @@ int something(unsigned long x)
 {
 	return __builtin_ctzl(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_CTZL_64)
 
@@ -68,7 +76,9 @@ int something(unsigned long long x)
 {
 	return __builtin_ctzll(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_CTZLL_64)
 
@@ -79,7 +89,9 @@ int something(unsigned long x)
 {
 	return __builtin_clzl(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_CLZL_64)
 
@@ -101,7 +113,9 @@ int something(unsigned long long x)
 {
 	return __builtin_popcountll(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_POPCOUNTLL64)
 
@@ -111,7 +125,9 @@ uint64_t something(uint64_t x)
 {
     return __builtin_bswap64(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_BUILTIN_BSWAP64)
 
