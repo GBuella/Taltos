@@ -92,4 +92,5 @@ add_custom_target(cstyle
 	-pc ${PROJECT_SOURCE_DIR}/src/*
 	${PROJECT_SOURCE_DIR}/tests/*.{h,c})
 
-include(tests/CMakeLists.txt)
+enable_testing()
+add_subdirectory(tests)
