@@ -21,7 +21,9 @@ uint64_t something(uint64_t x)
 {
     return _bswap64(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_BSWAP64)
 
@@ -37,7 +39,9 @@ int something(uint64_t x)
 	_BitScanForward64(&index, x);
 	result = (int)index;
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_BITSCANFORWARD64)
 endif()
@@ -54,7 +58,9 @@ int something(uint64_t x)
 	_BitScanReverse64(&index, x);
 	result = (int)index;
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_BITSCANREVERSE64)
 endif()
@@ -66,7 +72,9 @@ uint64_t something(uint64_t x)
 {
 	return _blsi_u64(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_BLSI64)
 
@@ -77,7 +85,9 @@ uint64_t something(uint64_t x)
 {
 	return _blsr_u64(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_BLSR64)
 
@@ -88,7 +98,9 @@ int something(uint64_t x)
 {
     return _mm_popcnt_u64(x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_POPCOUNT64)
 
@@ -99,7 +111,9 @@ unsigned something(uint64_t x)
 {
     return _pdep_u64(x, x) + _pext_u64(x, x);
 }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_PDEP_PEXT_64)
 
@@ -107,21 +121,27 @@ CHECK_C_SOURCE_COMPILES("
 #include <xmmintrin.h>
 void *something(int x) { return _mm_malloc(64, x); }
 void other(void *x) { _mm_free(x); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_MMALLOC)
 
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m128i something(__m128i x) { return _mm_shuffle_epi8(x, x); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
 
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m128i something(__m128i x) { return _mm_shuffle_epi32(x, 1); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_SHUFFLE_EPI32)
 
@@ -133,7 +153,9 @@ CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256d something(__m256d x) { return _mm256_permute_pd(x, 6); }
 __m256d other(__m256d x) { return _mm256_permute2f128_pd(x, x, 1); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_AVX)
 endif()
@@ -147,7 +169,9 @@ CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256i something(__m256i x) { return _mm256_shuffle_epi8(x, x); }
 __m256d other(__m256d x) { return _mm256_permute4x64_pd(x, 13); }
-int main() {}
+int main() {
+	return 0;
+}
 "
  TALTOS_CAN_USE_INTEL_AVX2)
 endif()
