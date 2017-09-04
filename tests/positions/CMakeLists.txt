@@ -6,6 +6,7 @@ add_test(NAME "position_bratko-kopec_1"
 	-DTEST_PROG=$<TARGET_FILE:taltos>
 	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/positions/bratko-kopec_1
+	-DNAME=bratko-kopec_1
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "position_fine_70"
@@ -13,6 +14,7 @@ add_test(NAME "position_fine_70"
 	-DTEST_PROG=$<TARGET_FILE:taltos>
 	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/positions/fine_70
+	-DNAME=fine_70
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "position_zugzwang_1"
@@ -20,6 +22,7 @@ add_test(NAME "position_zugzwang_1"
 	-DTEST_PROG=$<TARGET_FILE:taltos>
 	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/positions/zugzwang_1
+	-DNAME=zugzwang_1
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
 add_test(NAME "position_zugzwang_2"
@@ -27,4 +30,5 @@ add_test(NAME "position_zugzwang_2"
 	-DTEST_PROG=$<TARGET_FILE:taltos>
 	-DCMP_PROG=$<TARGET_FILE:cmp_text>
 	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/positions/zugzwang_2
+	-DNAME=zugzwang_2
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)

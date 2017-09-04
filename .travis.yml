@@ -103,7 +103,7 @@ script:
     - cd build
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE $CMAKE_EXTRA_ARGS ..
     - make VERBOSE=1
-    - ctest --output-on-failure $CTEST_ARGS
+    - ctest --output-on-failure -j2 $CTEST_ARGS
 
 after_success:
     - if [[ $COVERITY -eq 1 ]]; then bash <(curl -s https://codecov.io/bash) ; fi
