@@ -1,6 +1,7 @@
 # Based on https://docs.travis-ci.com/user/languages/c
 
 language: c
+sudo: false
 
 branches:
   only:
@@ -12,46 +13,35 @@ matrix:
 
     - os: linux
       dist: trusty
-      sudo: false
       addons:
         apt:
-          sources:
-            - llvm-toolchain-trusty-4.0
           packages:
-            - clang-4.0
+            - clang-3.9
       env:
-        - BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=clang-4.0"
+        - BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=clang-3.9"
 
     - os: linux
       dist: trusty
-      sudo: false
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-4.0
+            - ubuntu-toolchain-r-test
           packages:
-            - clang-4.0
+            - gcc-4.9
       env:
-        - BUILD_TYPE=Debug MATRIX_EVAL="CC=clang-4.0" CTEST_ARGS="-LE long"
-
-#
-# installing clang-5.0 fails ??
-#
-#   - os: linux
-#     dist: trusty
-#     sudo: false
-#     addons:
-#       apt:
-#         sources:
-#           - llvm-toolchain-trusty-5.0
-#         packages:
-#           - clang-5.0
-#     env:
-#       - BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=clang-5.0"
+        - BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=gcc-4.9"
 
     - os: linux
       dist: trusty
-      sudo: false
+      addons:
+        apt:
+          packages:
+            - clang-3.9
+      env:
+        - BUILD_TYPE=Debug MATRIX_EVAL="CC=clang-3.9" CTEST_ARGS="-LE long"
+
+    - os: linux
+      dist: trusty
       addons:
         apt:
           sources:
@@ -63,7 +53,6 @@ matrix:
 
     - os: linux
       dist: trusty
-      sudo: false
       addons:
         apt:
           sources:
@@ -75,7 +64,6 @@ matrix:
 
     - os: linux
       dist: trusty
-      sudo: false
       addons:
         apt:
           sources:
@@ -101,9 +89,8 @@ before_install:
 script:
     - mkdir build
     - cd build
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE $CMAKE_EXTRA_ARGS ..
-    - make VERBOSE=1
-    - ctest --output-on-failure -j2 $CTEST_ARGS
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE $CMAKE_EXTRA_ARGS .. || cat CMakeFiles/CMakeError.log
+    - make VERBOSE=1 && ctest --output-on-failure -j2 $CTEST_ARGS
 
 after_success:
     - if [[ $COVERITY -eq 1 ]]; then bash <(curl -s https://codecov.io/bash) ; fi
