@@ -8,7 +8,6 @@
  */
 
 #include <stdbool.h>
-#include <setjmp.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -24,125 +23,169 @@ struct entry {
 	uint32_t learn;
 };
 
-static bool
-has_key(struct entry entry, uint64_t key)
-{
-	return entry.key == key;
-}
+/* Each entry in a file uses 16 bytes */
+enum { file_entry_size = 16 };
 
 int
 polyglot_book_open(struct book *book, const char *path)
 {
+	book->type = bt_polyglot;
+
 	if (path == NULL)
 		return -1;
 
 	if ((book->file = fopen(path, "rb")) == NULL)
 		return -1;
 
-	if (bin_file_size(book->file, &book->polyglot_book.size) != 0)
+	size_t file_size;
+	if (bin_file_size(book->file, &file_size) != 0)
 		return -1;
 
-	if (book->polyglot_book.size < 16
-	    || book->polyglot_book.size % 16 != 0)
+	if ((file_size % file_entry_size) != 0)
 		return -1;
 
-	book->polyglot_book.size /= 16;
+	book->polyglot_book.size = file_size / file_entry_size;
+
+	if (book->polyglot_book.size == 0)
+		return -1;
 
 	return 0;
 }
 
-static struct entry
-get_entry(FILE *f, size_t offset, jmp_buf jb)
+static int
+get_entry(FILE *f, size_t offset, struct entry *entry)
 {
-	struct entry entry;
-	unsigned char buffer[16];
+	unsigned char buffer[file_entry_size];
 
+	/*
+	 * Seek to the entry in the file, and load it.
+	 */
 	if (fseek(f, (long)offset * 16, SEEK_SET) != 0)
-		longjmp(jb, 1);
-	if (fread(buffer, 1, 16, f) != 16)
-		longjmp(jb, 1);
-	entry.key = (uint64_t)get_big_endian_num(8, buffer);
-	entry.move = (uint16_t)get_big_endian_num(2, buffer + 8);
-	entry.weight = (uint16_t)get_big_endian_num(2, buffer + 10);
-	entry.learn = (uint32_t)get_big_endian_num(4, buffer + 12);
-	return entry;
+		return -1;
+
+	if (fread(buffer, sizeof(buffer), 1, f) != 1)
+		return -1;
+
+	entry->key = (uint64_t)get_big_endian_num(8, buffer);
+	entry->move = (uint16_t)get_big_endian_num(2, buffer + 8);
+	entry->weight = (uint16_t)get_big_endian_num(2, buffer + 10);
+	entry->learn = (uint32_t)get_big_endian_num(4, buffer + 12);
+	return 0;
 }
 
-struct result_set {
+struct search {
+	FILE *file;
+	size_t size;
+	uint64_t key;
 	struct entry *entries;
 	size_t count;
 	size_t max_count;
 };
 
 static bool
-is_full(const struct result_set *r)
+is_full(const struct search *search)
 {
-	return r->count >= r->max_count;
+	return search->count >= search->max_count;
 }
 
 static void
-add_entry(struct result_set *r, struct entry entry)
+add_entry(struct search *search, const struct entry *entry)
 {
-	r->entries[r->count] = entry;
-	r->count++;
+	search->entries[search->count] = *entry;
+	search->count++;
 }
 
-static long
-find_first_entry(FILE *f, uint64_t key, size_t offset, jmp_buf jb)
+static int
+find_first_entry(FILE *file, uint64_t key, size_t *offset)
 {
-	while (offset > 0 && has_key(get_entry(f, offset - 1, jb), key))
-		--offset;
-	return offset;
+	/*
+	 * There is an entry with the right key at *offset, but it might
+	 * not be the first such entry. Look for the first one among the
+	 * previous entries.
+	 */
+
+	while (*offset > 0) { // Are ther any more keys before this one?
+		struct entry entry;
+		if (get_entry(file, *offset - 1, &entry) != 0)
+			return -1;
+
+		if (entry.key != key) {
+			/*
+			 * The entry at *offset-1 has a different key, thus
+			 * the entry at *offset is the first one with the
+			 * right key.
+			 */
+			return 0;
+		}
+
+		--(*offset);
+	}
+
+	return 0;
 }
 
-static void
-load_entries(FILE *file, size_t size,
-		uint64_t key, struct result_set *results,
-		size_t offset, jmp_buf jb)
+static int
+load_entries(struct search *search, size_t offset)
 {
-	offset = find_first_entry(file, key, offset, jb);
-	while (!is_full(results) && offset < size) {
-		struct entry entry = get_entry(file, offset, jb);
+	if (find_first_entry(search->file, search->key, &offset) != 0)
+		return -1;
 
-		if (entry.key != key)
-			break;
+	while (!is_full(search) && offset < search->size) {
+		struct entry entry;
+
+		if (get_entry(search->file, offset, &entry) != 0)
+			return -1;
+
+		if (entry.key != search->key)
+			return 0;
+
 		if (entry.weight != 0 && entry.move != 0)
-			add_entry(results, entry);
+			add_entry(search, &entry);
+
 		++offset;
 	}
+
+	return 0;
 }
 
-static void
-get_entries(FILE *file, size_t size, uint64_t key,
-		struct result_set *results, jmp_buf jb)
+static int
+get_entries(struct search *search)
 {
 	size_t low = 0;
-	size_t high = size;
+	size_t high = search->size;
 
-	if (key == UINT64_C(0) || is_full(results))
-		return;
+	if (search->key == UINT64_C(0) || is_full(search))
+		return 0;
+
 	while (low < high) {
 		long middle = (high + low) / 2;
-		struct entry entry = get_entry(file, middle, jb);
+		struct entry entry;
+		if (get_entry(search->file, middle, &entry) != 0)
+			return -1;
 
-		if (entry.key == key) {
-			load_entries(file, size, key, results, middle, jb);
+		if (entry.key == search->key) {
+			if (load_entries(search, middle) != 0)
+				return -1;
 			break;
 		}
-		else if (entry.key > key) {
+		else if (entry.key > search->key) {
 			high = middle;
 		}
 		else if (high > low + 1) {
 			low = middle;
 		}
 		else {
-			entry = get_entry(file, high, jb);
-			if (entry.key == key)
-				load_entries(file, size, key,
-				    results, high, jb);
-			break;
+			if (get_entry(search->file, high, &entry) != 0)
+				return -1;
+			if (entry.key == search->key) {
+				if (load_entries(search, high) != 0)
+					return -1;
+			}
+			return 0;
 		}
 	}
+
+	return 0;
 }
 
 static int
@@ -189,14 +232,15 @@ pmove_match(uint16_t polyglot_move, move m, bool flip)
 }
 
 static void
-pick_legal_moves(struct result_set *results, const struct position *position,
+pick_legal_moves(struct search *search,
+		const struct position *position,
 		enum player side, move moves[])
 {
 	move legal_moves[MOVE_ARRAY_LENGTH];
 
 	(void) gen_moves(position, legal_moves);
-	for (unsigned ri = 0; ri < results->count; ++ri) {
-		uint16_t m = results->entries[ri].move;
+	for (unsigned ri = 0; ri < search->count; ++ri) {
+		uint16_t m = search->entries[ri].move;
 
 		for (unsigned i = 0; legal_moves[i] != 0; ++i) {
 			if (pmove_match(m, legal_moves[i], side == white)) {
@@ -205,7 +249,7 @@ pick_legal_moves(struct result_set *results, const struct position *position,
 			}
 		}
 	}
-	*moves++ = 0;
+	*moves = 0;
 }
 
 static int
@@ -222,41 +266,54 @@ cmp(const void *a, const void *b)
 		return 0;
 }
 
-void
-polyglot_book_get_move(const struct book *book, const struct position *position,
-			size_t msize, move moves[volatile msize])
+static void
+sort_entries(size_t count, struct entry entries[count])
 {
-	struct result_set results[1];
-	jmp_buf jb;
-	enum player side;
+	qsort(entries, count, sizeof(entries[0]), cmp);
+}
+
+void
+polyglot_book_get_move(const struct book *book,
+			const struct position *position,
+			size_t msize, move moves[msize])
+{
 
 	moves[0] = 0;
 	if (msize < 2)
 		return;
 
 	struct entry entries[msize - 1];
+	struct search search = {.entries = entries,
+				.count = 0,
+				.max_count = msize - 1,
+				.file = book->file,
+				.size = book->polyglot_book.size, };
 
-	results->entries = entries;
-	results->count = 0;
-	results->max_count = msize - 1;
-	if (setjmp(jb) != 0) {
-		moves[0] = 0;
-		return;
-	}
-	get_entries(book->file, book->polyglot_book.size,
-	    position_polyglot_key(position, white), results, jb);
-	if (results->count > 0) {
-		side = white;
-	}
-	else {
-		get_entries(book->file, book->polyglot_book.size,
-		    position_polyglot_key(position, black), results, jb);
-		if (results->count > 0)
-			side = black;
-		else
+	enum player side;
+
+	side = white;
+	search.key = position_polyglot_key(position, side);
+	if (get_entries(&search) != 0)
+		search.count = 0;
+
+	if (search.count == 0) {
+		side = black;
+		search.key = position_polyglot_key(position, side);
+		if (get_entries(&search) != 0) {
+			search.count = 0;
+		}
+
+		if (search.count == 0)
 			return;
 	}
-	qsort(results->entries, results->count,
-	    sizeof(results->entries[0]), cmp);
-	pick_legal_moves(results, position, side, moves);
+
+	sort_entries(search.count, entries);
+
+	pick_legal_moves(&search, position, side, moves);
+}
+
+size_t
+polyglot_book_size(const struct book *book)
+{
+	return book->polyglot_book.size;
 }

@@ -22,6 +22,8 @@ struct book *book_open(enum book_type, const char *path)
 move book_get_move(const struct book*, const struct position*)
 	attribute(nonnull);
 
+size_t book_get_size(const struct book*);
+
 void book_close(struct book*);
 
 #endif

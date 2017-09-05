@@ -2,7 +2,6 @@
 /* vim: set filetype=c : */
 /* vim: set noet ts=8 sw=8 cinoptions=+4,(4: */
 
-#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,7 +119,7 @@ fen_book_read_file(struct fen_book *book, FILE *f)
 	if ((book->data = malloc(file_size + 1)) == NULL)
 		return -1;
 
-	if (fread(book->data, 1, file_size, f) != 1)
+	if (fread(book->data, file_size, 1, f) != 1)
 		return -1;
 
 	book->data[file_size] = '\0';
@@ -191,6 +190,12 @@ fen_book_get_move(const struct book *book,
 		--size;
 	}
 	*m = 0;
+}
+
+size_t
+fen_book_size(const struct book *book)
+{
+	return book->fen_book.count;
 }
 
 void

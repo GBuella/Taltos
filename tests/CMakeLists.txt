@@ -34,6 +34,7 @@ include(perftsuite/CMakeLists_move_order.txt)
 include(perftsuite/CMakeLists_eval_symmetry.txt)
 include(perftsuite/CMakeLists_zhash_key.txt)
 include(positions/CMakeLists.txt)
+include(books/CMakeLists.txt)
 
 set_property(TEST perft_000 PROPERTY LABELS long)
 set_property(TEST perft_001 PROPERTY LABELS long)

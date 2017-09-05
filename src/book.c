@@ -109,6 +109,19 @@ book_get_move(const struct book *book, const struct position *position)
 		return none_move;
 }
 
+size_t
+book_get_size(const struct book *book)
+{
+	switch (book->type) {
+	case bt_polyglot:
+		return polyglot_book_size(book);
+	case bt_fen:
+		return fen_book_size(book);
+	default:
+		return 0;
+	}
+}
+
 void
 book_close(struct book *book)
 {

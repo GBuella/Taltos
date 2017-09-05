@@ -1593,6 +1593,12 @@ cmd_nodes(void)
 	set_exact_node_count(get_uint(1, UINT_MAX));
 }
 
+static void
+cmd_booksize(void)
+{
+	printf("%zu\n", book_get_size(book));
+}
+
 static void nop(void) {}
 
 static struct cmd_entry cmd_list[] = {
@@ -1665,7 +1671,8 @@ static struct cmd_entry cmd_list[] = {
 	{"ucinewgame",   cmd_ucinewgame,         NULL},
 	{"stop",         cmd_stop,               NULL},
 	{"mo",           cmd_mo,                 NULL},
-	{"nodes",        cmd_nodes,              NULL}
+	{"nodes",        cmd_nodes,              NULL},
+	{"booksize",     cmd_booksize,           NULL}
 /* END CSTYLED */
 };
 

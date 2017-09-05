@@ -4,7 +4,7 @@
 # Run a program with input piped into, and compare the output
 # with the expected output.
 
-execute_process(COMMAND ${TEST_PROG}
+execute_process(COMMAND ${TEST_PROG} ${TEST_PROG_ARGS1} ${TEST_PROG_ARGS2}
 	INPUT_FILE ${TEST_FILE}.in
 	OUTPUT_FILE ${NAME}.out
 	RESULT_VARIABLE HAD_ERROR)

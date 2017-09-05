@@ -18,8 +18,8 @@ struct polyglot_book {
 int polyglot_book_open(struct book *book, const char *path);
 void polyglot_book_get_move(const struct book*,
 				const struct position*,
-				size_t size,
-				move[size]);
+				size_t msize, move[msize]);
+size_t polyglot_book_size(const struct book *book);
 
 
 struct fen_book {
@@ -31,6 +31,7 @@ struct fen_book {
 int fen_book_open(struct book *book, const char *path);
 int fen_book_parse(struct book *book, const char *data);
 void fen_book_close(struct book *book);
+size_t fen_book_size(const struct book *book);
 
 void fen_book_get_move(const struct book*,
 			const struct position*,

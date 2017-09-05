@@ -242,7 +242,8 @@ usage(int status)
 	    "  -t                  print time after quitting\n"
 	    "  --trace path        log debug information to file at path\n"
 	    "  --book path         load polyglot book at path\n"
-	    "  --hash             hash table size in megabytes\n"
+	    "  --fenbook path      load FEN book at path\n"
+	    "  --hash              hash table size in megabytes\n"
 	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
@@ -268,6 +269,9 @@ init_book(struct book **book)
 	if (*book == NULL) {
 		if (errno != 0 && conf.book_path != NULL)
 			perror(conf.book_path);
+		else
+			fprintf(stderr, "Unable to load book %s\n",
+			    conf.book_path);
 		exit(EXIT_FAILURE);
 	}
 }
