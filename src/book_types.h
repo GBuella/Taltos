@@ -15,7 +15,7 @@ struct polyglot_book {
 	size_t size;
 };
 
-struct book *polyglot_book_open(const char *path);
+int polyglot_book_open(struct book *book, const char *path);
 void polyglot_book_get_move(const struct book*,
 				const struct position*,
 				size_t size,
@@ -24,11 +24,13 @@ void polyglot_book_get_move(const struct book*,
 
 struct fen_book {
 	size_t count;
-	const char *entries[0x10000];
+	const char **entries;
+	char *data;
 };
 
-struct book *fen_book_open(const char *path);
-struct book *fen_book_parse(const char * const * volatile data);
+int fen_book_open(struct book *book, const char *path);
+int fen_book_parse(struct book *book, const char *data);
+void fen_book_close(struct book *book);
 
 void fen_book_get_move(const struct book*,
 			const struct position*,

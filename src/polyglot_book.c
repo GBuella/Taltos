@@ -30,29 +30,25 @@ has_key(struct entry entry, uint64_t key)
 	return entry.key == key;
 }
 
-struct book*
-polyglot_book_open(const char *path)
+int
+polyglot_book_open(struct book *book, const char *path)
 {
-	struct book *book;
-
 	if (path == NULL)
-		return NULL;
-	book = xmalloc(sizeof *book);
-	if ((book->file = fopen(path, "rb")) == NULL) {
-		book_close(book);
-		return NULL;
-	}
-	if (bin_file_size(book->file, &book->polyglot_book.size) != 0) {
-		book_close(book);
-		return NULL;
-	}
+		return -1;
+
+	if ((book->file = fopen(path, "rb")) == NULL)
+		return -1;
+
+	if (bin_file_size(book->file, &book->polyglot_book.size) != 0)
+		return -1;
+
 	if (book->polyglot_book.size < 16
-	    || book->polyglot_book.size % 16 != 0) {
-		book_close(book);
-		return NULL;
-	}
+	    || book->polyglot_book.size % 16 != 0)
+		return -1;
+
 	book->polyglot_book.size /= 16;
-	return book;
+
+	return 0;
 }
 
 static struct entry

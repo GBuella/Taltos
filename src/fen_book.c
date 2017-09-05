@@ -13,17 +13,20 @@
 #include "util.h"
 #include "book_types.h"
 
-static void
-validate_fen_book_entry(const char *line_start, jmp_buf jb)
+static int
+validate_fen_book_entry(const char *line_start)
 {
 	const char *str;
 
 	str = position_read_fen(NULL, line_start, NULL, NULL);
-	if (str == NULL) longjmp(jb, 1);
+	if (str == NULL)
+		return -1;
+
 	while ((str = next_token(str)) != NULL) {
 		if (fen_read_move(line_start, str, NULL) != 0)
-			longjmp(jb, 1);
+			return -1;
 	}
+	return 0;
 }
 
 static int
@@ -38,99 +41,124 @@ cmp_entry_key(const void *a, const void *b)
 	return strncmp(a, *((const char **)b), strlen(a));
 }
 
-static int
-parse_raw(char *raw, struct fen_book *book)
+static void
+sort_entries(struct fen_book *book)
 {
+	qsort(book->entries, book->count, sizeof(book->entries[0]), cmp_entry);
+}
+
+static const char*
+lookup_entry(const struct fen_book *book, const char *fen)
+{
+	const char **entry = bsearch(fen, book->entries, book->count,
+	    sizeof(book->entries[0]), cmp_entry_key);
+
+	if (entry != NULL)
+		return *entry;
+	else
+		return NULL;
+}
+
+static int
+allocate_entries(struct fen_book *book, size_t *allocated)
+{
+	if (book->count * sizeof(book->entries[0]) < *allocated)
+		return 0;
+
+	if (*allocated == 0)
+		*allocated = sizeof(book->entries[0]);
+	else
+		*allocated *= 2;
+
+	const char **new = realloc(book->entries, *allocated);
+	if (new == NULL)
+		return -1;
+
+	book->entries = new;
+	return 0;
+}
+
+static int
+parse_raw(struct fen_book *book)
+{
+	size_t allocated = 0;
 	book->count = 0;
+	char *raw = book->data;
 	raw += strspn(raw, "\n\r");
+
 	while (*raw != '\0') {
-
-		if (book->count == ARRAY_LENGTH(book->entries))
+		if (allocate_entries(book, &allocated) != 0)
 			return -1;
 
-		jmp_buf jb;
-		if (setjmp(jb) != 0)
-			return -1;
-
-		book->entries[book->count] = raw;
+		const char *line = raw;
 
 		raw += strcspn(raw, "\n\r");
 		if (*raw != '\0') {
 			*raw++ = '\0';
 			raw += strspn(raw, "\n\r");
 		}
-		if (book->entries[book->count][0] != '#') {
-			validate_fen_book_entry(book->entries[book->count], jb);
-			++book->count;
+		if (line[0] != '#') {
+			if (validate_fen_book_entry(line) != 0)
+				return -1;
+			book->entries[book->count] = line;
+			book->count++;
 		}
 	}
-	qsort(book->entries, book->count, sizeof(book->entries[0]), cmp_entry);
+
+	sort_entries(book);
 	return 0;
 }
 
-struct book
-*fen_book_open(const char *path)
+int
+fen_book_read_file(struct fen_book *book, FILE *f)
 {
-	FILE *f = NULL;
-	struct book *book = NULL;
 	size_t file_size;
 
-	if ((f = fopen(path, "r")) == NULL)
-		return NULL;
-
 	if (bin_file_size(f, &file_size) != 0)
-		goto error;
+		return -1;
 
-	book = xmalloc(sizeof *book + file_size + 1);
-	book->type = bt_fen;
-	book->file = NULL;
+	if ((book->data = malloc(file_size + 1)) == NULL)
+		return -1;
 
-	if (fread(book->raw, 1, file_size, f) != 1)
-		goto error;
+	if (fread(book->data, 1, file_size, f) != 1)
+		return -1;
 
-	book->raw[file_size] = '\0';
+	book->data[file_size] = '\0';
 
-	if (parse_raw(book->raw, &book->fen_book) != 0)
-		goto error;
-
-	if (ferror(f))
-		goto error;
-
-	(void) fclose(f);
-	return book;
-
-error:
-	if (book != NULL)
-		free(book);
-	if (f != NULL)
-		fclose(f);
-	return NULL;
+	return parse_raw(book);
 }
 
-struct book*
-fen_book_parse(const char * const * volatile raw)
+int
+fen_book_open(struct book *book, const char *path)
 {
-	if (raw == NULL)
-		return NULL;
-
-	struct book *book = xcalloc(1, sizeof(*book));
-	jmp_buf jb;
+	FILE *f;
 
 	book->type = bt_fen;
-	if (setjmp(jb) != 0) {
-		free(book);
-		return NULL;
+
+	if ((f = fopen(path, "r")) == NULL)
+		return -1;
+
+	if (fen_book_read_file(&book->fen_book, f) != 0) {
+		fclose(f);
+		return -1;
 	}
-	do {
-		if (book->fen_book.count
-		    == ARRAY_LENGTH(book->fen_book.entries))
-			longjmp(jb, 1);
-		validate_fen_book_entry(*raw, jb);
-		book->fen_book.entries[book->fen_book.count++] = *raw++;
-	} while (*raw != NULL);
-	qsort(book->fen_book.entries, book->fen_book.count,
-	    sizeof book->fen_book.entries[0], cmp_entry);
-	return book;
+
+	return 0;
+}
+
+int
+fen_book_parse(struct book *book, const char *raw)
+{
+	if (raw == NULL)
+		return -1;
+
+	book->type = bt_fen;
+	if ((book->fen_book.data = malloc(strlen(raw) + 1)) == NULL)
+		return -1;
+
+	strcpy(book->fen_book.data, raw);
+
+	return parse_raw(&book->fen_book);
 }
 
 void
@@ -140,33 +168,34 @@ fen_book_get_move(const struct book *book,
 		move m[size])
 {
 	char fen[FEN_BUFFER_LENGTH];
-	const char **entry;
+	const char *entry;
 	const char *str;
 
 	m[0] = 0;
-	if (book == NULL || position == NULL) {
+	if (book == NULL || position == NULL)
 		return;
-	}
+
 	(void) position_print_fen(position, fen, 0, white);
-	entry = bsearch(fen, book->fen_book.entries,
-	    book->fen_book.count,
-	    sizeof book->fen_book.entries[0],
-	    cmp_entry_key);
+	entry = lookup_entry(&book->fen_book, fen);
 	if (entry == NULL) {
 		(void) position_print_fen(position, fen, 0, black);
-		entry = bsearch(fen, book->fen_book.entries,
-		    book->fen_book.count,
-		    sizeof book->fen_book.entries[0],
-		    cmp_entry_key);
-		if (entry == NULL) {
-			return;
-		}
+		entry = lookup_entry(&book->fen_book, fen);
 	}
-	str = position_read_fen(NULL, *entry, NULL, NULL);
+	if (entry == NULL)
+		return;
+
+	str = position_read_fen(NULL, entry, NULL, NULL);
 	while ((size > 0) && ((str = next_token(str)) != NULL)) {
-		fen_read_move(*entry, str, m);
+		fen_read_move(entry, str, m);
 		++m;
 		--size;
 	}
 	*m = 0;
+}
+
+void
+fen_book_close(struct book *book)
+{
+	free(book->fen_book.entries);
+	free(book->fen_book.data);
 }

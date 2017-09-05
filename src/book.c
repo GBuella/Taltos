@@ -16,22 +16,32 @@ static struct book empty_book = { .type = bt_empty };
 struct book*
 book_open(enum book_type type, const char *path)
 {
+	if (type == bt_empty)
+		return &empty_book;
+
+	struct book *book = calloc(1, sizeof(*book));
+	if (book == NULL)
+		return NULL;
+
 	switch (type) {
 		case bt_polyglot:
-			return polyglot_book_open(path);
+			if (polyglot_book_open(book, path) == 0)
+				return book;
+			break;
 		case bt_fen:
+			if (fen_book_open(book, path) == 0)
+				return book;
+			break;
 		case bt_builtin:
-			if (type == bt_builtin) {
-				return fen_book_parse(builtin_book);
-			}
-			else {
-				return fen_book_open(path);
-			}
-		case bt_empty:
-			return &empty_book;
+			if (fen_book_parse(book, builtin_book) == 0)
+				return book;
+			break;
 		default:
-			return NULL;
+			break;
 	}
+
+	book_close(book);
+	return NULL;
 }
 
 static int
@@ -102,9 +112,16 @@ book_get_move(const struct book *book, const struct position *position)
 void
 book_close(struct book *book)
 {
-	if (book != NULL || book != &empty_book) {
+	if (book != NULL && book != &empty_book) {
 		if (book->file != NULL)
 			fclose(book->file);
+		switch (book->type) {
+		case bt_fen:
+			fen_book_close(book);
+			break;
+		default:
+			break;
+		}
 		free(book);
 	}
 }
