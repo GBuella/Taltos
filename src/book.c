@@ -7,8 +7,6 @@
 #include "book_types.h"
 #include "book.h"
 
-#include "builtin_book.inc"
-
 #include "macros.h"
 
 static struct book empty_book = { .type = bt_empty };
@@ -16,22 +14,28 @@ static struct book empty_book = { .type = bt_empty };
 struct book*
 book_open(enum book_type type, const char *path)
 {
+	if (type == bt_empty)
+		return &empty_book;
+
+	struct book *book = calloc(1, sizeof(*book));
+	if (book == NULL)
+		return NULL;
+
 	switch (type) {
 		case bt_polyglot:
-			return polyglot_book_open(path);
+			if (polyglot_book_open(book, path) == 0)
+				return book;
+			break;
 		case bt_fen:
-		case bt_builtin:
-			if (type == bt_builtin) {
-				return fen_book_parse(builtin_book);
-			}
-			else {
-				return fen_book_open(path);
-			}
-		case bt_empty:
-			return &empty_book;
+			if (fen_book_open(book, path) == 0)
+				return book;
+			break;
 		default:
-			return NULL;
+			break;
 	}
+
+	book_close(book);
+	return NULL;
 }
 
 static int
@@ -74,6 +78,31 @@ mlength(const move *m)
 	return l;
 }
 
+void
+book_get_move_list(const struct book *book, const struct position *position,
+		move moves[static MOVE_ARRAY_LENGTH])
+{
+	if (book->type == bt_empty) {
+		moves[0] = 0;
+		return;
+	}
+
+	switch (book->type) {
+	case bt_polyglot:
+		polyglot_book_get_move(book, position,
+		    MOVE_ARRAY_LENGTH, moves);
+		break;
+	case bt_fen:
+		fen_book_get_move(book, position,
+		    MOVE_ARRAY_LENGTH, moves);
+		break;
+	default:
+		unreachable;
+	}
+
+	return;
+}
+
 move
 book_get_move(const struct book *book, const struct position *position)
 {
@@ -81,30 +110,40 @@ book_get_move(const struct book *book, const struct position *position)
 		return none_move;
 	move moves[MOVE_ARRAY_LENGTH];
 
-	switch (book->type) {
-	case bt_polyglot:
-		polyglot_book_get_move(book, position,
-		    ARRAY_LENGTH(moves), moves);
-		break;
-	case bt_fen:
-		fen_book_get_move(book, position,
-		    ARRAY_LENGTH(moves), moves);
-		break;
-	default:
-		unreachable;
-	}
+	book_get_move_list(book, position, moves);
+
 	if (moves[0] != 0)
 		return moves[pick_half_bell_curve(mlength(moves))];
 	else
 		return none_move;
 }
 
+size_t
+book_get_size(const struct book *book)
+{
+	switch (book->type) {
+	case bt_polyglot:
+		return polyglot_book_size(book);
+	case bt_fen:
+		return fen_book_size(book);
+	default:
+		return 0;
+	}
+}
+
 void
 book_close(struct book *book)
 {
-	if (book != NULL || book != &empty_book) {
+	if (book != NULL && book != &empty_book) {
 		if (book->file != NULL)
 			fclose(book->file);
+		switch (book->type) {
+		case bt_fen:
+			fen_book_close(book);
+			break;
+		default:
+			break;
+		}
 		free(book);
 	}
 }
