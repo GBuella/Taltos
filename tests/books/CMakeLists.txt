@@ -38,7 +38,7 @@ add_test(NAME "polyglotbook_argument"
 
 add_executable(test_fen_book fen_book.c)
 target_link_libraries(test_fen_book tests_main taltos_code)
-add_test(NAME fen_book COMMAND $<TARGET_FILE:test_fen_book>)
+add_test(NAME fen_book COMMAND $<TARGET_FILE:test_fen_book> ${PROJECT_SOURCE_DIR}/tests/books/fen_dummy.txt)
 
 add_executable(test_polyglot_book polyglot_book.c)
 target_link_libraries(test_polyglot_book tests_main taltos_code)
