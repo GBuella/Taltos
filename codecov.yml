@@ -1,7 +1,4 @@
 ignore:
-  - tinycthread/tinycthread.h
-  - tinycthread/tinycthread.c
-  - tinycthread/threads.h
-  - tools/cmp_text.c
-  - tools/epd_runner.c
-  - tools/gen_constants.c
+  - tinycthread
+  - tools
+  - tests
