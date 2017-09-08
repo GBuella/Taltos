@@ -81,7 +81,7 @@ setup_defaults(void)
 	conf.hash_table_size_mb = 256;
 
 	conf.book_path = NULL;   // book path, none by default
-	conf.book_type = bt_builtin;  // use the builtin book by default
+	conf.book_type = bt_empty;  // use the empty book by default
 	conf.use_unicode = false;
 
 	env = getenv("TALTOS_USE_NO_LMR");
@@ -176,7 +176,7 @@ process_args(char **arg)
 		}
 		else if (strcmp(*arg, "--book") == 0
 		    || strcmp(*arg, "--fenbook") == 0) {
-			if (arg[1] == NULL || conf.book_type != bt_builtin)
+			if (arg[1] == NULL || conf.book_type != bt_empty)
 				usage(EXIT_FAILURE);
 			if (strcmp(*arg, "--book") == 0)
 				conf.book_type = bt_polyglot;
@@ -184,11 +184,6 @@ process_args(char **arg)
 				conf.book_type = bt_fen;
 			++arg;
 			conf.book_path = *arg;
-		}
-		else if (strcmp(*arg, "--nobook") == 0) {
-			if (conf.book_type != bt_builtin)
-				usage(EXIT_FAILURE);
-			conf.book_type = bt_empty;
 		}
 		else if (strcmp(*arg, "--unicode") == 0) {
 			conf.use_unicode = true;
@@ -244,7 +239,6 @@ usage(int status)
 	    "  --book path         load polyglot book at path\n"
 	    "  --fenbook path      load FEN book at path\n"
 	    "  --hash              hash table size in megabytes\n"
-	    "  --nobook            don't use any opening book\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
 	    "  --nolmp             do not use LMP heuristics\n"

@@ -7,8 +7,6 @@
 #include "book_types.h"
 #include "book.h"
 
-#include "builtin_book.inc"
-
 #include "macros.h"
 
 static struct book empty_book = { .type = bt_empty };
@@ -30,10 +28,6 @@ book_open(enum book_type type, const char *path)
 			break;
 		case bt_fen:
 			if (fen_book_open(book, path) == 0)
-				return book;
-			break;
-		case bt_builtin:
-			if (fen_book_parse(book, builtin_book) == 0)
 				return book;
 			break;
 		default:
@@ -84,6 +78,31 @@ mlength(const move *m)
 	return l;
 }
 
+void
+book_get_move_list(const struct book *book, const struct position *position,
+		move moves[static MOVE_ARRAY_LENGTH])
+{
+	if (book->type == bt_empty) {
+		moves[0] = 0;
+		return;
+	}
+
+	switch (book->type) {
+	case bt_polyglot:
+		polyglot_book_get_move(book, position,
+		    MOVE_ARRAY_LENGTH, moves);
+		break;
+	case bt_fen:
+		fen_book_get_move(book, position,
+		    MOVE_ARRAY_LENGTH, moves);
+		break;
+	default:
+		unreachable;
+	}
+
+	return;
+}
+
 move
 book_get_move(const struct book *book, const struct position *position)
 {
@@ -91,18 +110,8 @@ book_get_move(const struct book *book, const struct position *position)
 		return none_move;
 	move moves[MOVE_ARRAY_LENGTH];
 
-	switch (book->type) {
-	case bt_polyglot:
-		polyglot_book_get_move(book, position,
-		    ARRAY_LENGTH(moves), moves);
-		break;
-	case bt_fen:
-		fen_book_get_move(book, position,
-		    ARRAY_LENGTH(moves), moves);
-		break;
-	default:
-		unreachable;
-	}
+	book_get_move_list(book, position, moves);
+
 	if (moves[0] != 0)
 		return moves[pick_half_bell_curve(mlength(moves))];
 	else

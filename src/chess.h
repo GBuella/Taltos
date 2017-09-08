@@ -378,6 +378,13 @@ create_move_g(int from, int to, int result, int captured, bool gives_check)
 	    gives_check);
 }
 
+static inline move
+create_move_pd(int from, int to, bool gives_check)
+{
+	return create_move_t(from, to, mt_pawn_double_push, pawn, 0,
+	    gives_check);
+}
+
 static inline bool
 is_move_valid(move m)
 {

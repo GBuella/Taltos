@@ -258,9 +258,9 @@ cmp(const void *a, const void *b)
 	uint16_t aw = ((const struct entry*)a)->weight;
 	uint16_t bw = ((const struct entry*)b)->weight;
 
-	if (aw > bw)
+	if (aw < bw)
 		return 1;
-	else if (aw < bw)
+	else if (aw > bw)
 		return -1;
 	else
 		return 0;

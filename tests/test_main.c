@@ -12,8 +12,8 @@
 #include "hash.h"
 #include "game.h"
 
-static int prog_argc;
-static const char **prog_argv;
+int prog_argc;
+const char **prog_argv;
 static struct game *g;
 
 int

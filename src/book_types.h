@@ -21,7 +21,6 @@ void polyglot_book_get_move(const struct book*,
 				size_t msize, move[msize]);
 size_t polyglot_book_size(const struct book *book);
 
-
 struct fen_book {
 	size_t count;
 	const char **entries;
@@ -29,7 +28,6 @@ struct fen_book {
 };
 
 int fen_book_open(struct book *book, const char *path);
-int fen_book_parse(struct book *book, const char *data);
 void fen_book_close(struct book *book);
 size_t fen_book_size(const struct book *book);
 

@@ -19,6 +19,9 @@
 
 #include "macros.h"
 
+extern int prog_argc;
+extern const char **prog_argv;
+
 struct game;
 
 const struct game *parse_setboard_from_arg_file(void);

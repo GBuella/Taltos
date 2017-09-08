@@ -145,21 +145,6 @@ fen_book_open(struct book *book, const char *path)
 	return 0;
 }
 
-int
-fen_book_parse(struct book *book, const char *raw)
-{
-	if (raw == NULL)
-		return -1;
-
-	book->type = bt_fen;
-	if ((book->fen_book.data = malloc(strlen(raw) + 1)) == NULL)
-		return -1;
-
-	strcpy(book->fen_book.data, raw);
-
-	return parse_raw(&book->fen_book);
-}
-
 void
 fen_book_get_move(const struct book *book,
 		const struct position *position,
