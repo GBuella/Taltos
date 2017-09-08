@@ -378,6 +378,30 @@ create_move_g(int from, int to, int result, int captured, bool gives_check)
 	    gives_check);
 }
 
+static inline move
+create_move_pd(int from, int to)
+{
+	return create_move_t(from, to, mt_pawn_double_push, pawn, 0, false);
+}
+
+static inline move
+create_move_pdch(int from, int to)
+{
+	return create_move_t(from, to, mt_pawn_double_push, pawn, 0, true);
+}
+
+static inline move
+create_move_pr(int from, int to, int result, int captured)
+{
+	return create_move_t(from, to, mt_promotion, result, captured, false);
+}
+
+static inline move
+create_move_prch(int from, int to, int result, int captured)
+{
+	return create_move_t(from, to, mt_promotion, result, captured, true);
+}
+
 static inline bool
 is_move_valid(move m)
 {
