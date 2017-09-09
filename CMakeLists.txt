@@ -7,7 +7,7 @@ FIND_PACKAGE(Threads)
 
 include_directories(src tests "${PROJECT_BINARY_DIR}")
 
-add_executable(gen_constants tools/gen_constants.c)
+add_executable(gen_constants EXCLUDE_FROM_ALL tools/gen_constants.c)
 add_executable(epd_runner tools/epd_runner.c)
 add_executable(cmp_text tools/cmp_text.c)
 
@@ -33,11 +33,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(cmake/feature_tests.cmake)
 
-add_custom_command(
-	OUTPUT  move_gen_const.inc
-	COMMAND gen_constants > move_gen_const.inc
-	DEPENDS gen_constants)
-
 set(TALTOS_SOURCES
 	src/book.c
 	src/eval.c
@@ -61,7 +56,7 @@ if(NOT TALTOS_CAN_USE_ISO_THREADS)
 	include_directories(src tests tinycthread "${PROJECT_BINARY_DIR}")
 endif()
 
-add_library(taltos_code STATIC move_gen_const.inc ${TALTOS_SOURCES})
+add_library(taltos_code STATIC ${TALTOS_SOURCES})
 
 add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
