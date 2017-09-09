@@ -13,7 +13,6 @@ add_executable(cmp_text tools/cmp_text.c)
 
 # https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(SLIDING_BYTE_LOOKUP "magic bitboards byte lookup" ON)
-option(USE_KNIGHT_LOOKUP_TABLE "lookup table for knight moves" ON)
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)

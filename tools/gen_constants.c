@@ -15,10 +15,8 @@
 static const int king_dirs_h[] = { 1, 1, 1, 0, -1, -1, -1, 0};
 static const int king_dirs_v[] = { -1, 0, 1, 1, 1, 0, -1, -1};
 
-#ifdef USE_KNIGHT_LOOKUP_TABLE
 static const int knight_dirs_h[] = { -2, -1, -2, -1,  2,  1,  2,  1};
 static const int knight_dirs_v[] = { -1, -2,  1,  2, -1, -2,  1,  2};
-#endif
 
 static const int rook_dirs[4] = {EAST, WEST, NORTH, SOUTH};
 
@@ -397,11 +395,9 @@ main(void)
 	gen_simple_table(king_dirs_v, king_dirs_h);
 	print_table(64, masks, "king_moves_table");
 
-#   ifdef USE_KNIGHT_LOOKUP_TABLE
 	memset(masks, 0, sizeof masks);
 	gen_simple_table(knight_dirs_v, knight_dirs_h);
 	print_table(64, masks, "knight_moves_table");
-#   endif
 
 	memset(masks, 0, sizeof masks);
 	gen_pre_masks(rook_dirs, rook_edges_m);

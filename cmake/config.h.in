@@ -50,7 +50,6 @@
 #define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 
 #cmakedefine USE_GLOBAL_REGISTERS
-#cmakedefine USE_KNIGHT_LOOKUP_TABLE
 #cmakedefine SLIDING_BYTE_LOOKUP
 
 #endif
