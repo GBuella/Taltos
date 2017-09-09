@@ -24,12 +24,16 @@ check_c_compiler_flag(-march=native HAS_MARCHNATIVE)
 check_c_compiler_flag(-Wunknown-attributes HAS_WUNKNOWN_ATTR_FLAG)
 check_c_compiler_flag(-Wattributes HAS_WATTR_FLAG)
 check_c_compiler_flag(-mavx HAS_MAVX_FLAG)
-check_c_compiler_flag(-mavx2 HAS_MAVX2_FLAG)
+if(HAS_MAVX2_FLAG)
+	check_c_compiler_flag(-mavx2 HAS_MAVX2_FLAG)
+endif()
 
 if(NOT TALTOS_FORCE_NO_BUILTINS)
 	check_c_compiler_flag(/Oi HAS_OI_FLAG)
 	check_c_compiler_flag(/arch:AVX HAS_ARCH_AVX_FLAG)
-	check_c_compiler_flag(/arch:AVX2 HAS_ARCH_AVX2_FLAG)
+	if(HAS_ARCH_AVX_FLAG)
+		check_c_compiler_flag(/arch:AVX2 HAS_ARCH_AVX2_FLAG)
+	endif()
 endif()
 
 
