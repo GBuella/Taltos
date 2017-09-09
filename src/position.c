@@ -131,23 +131,22 @@ has_potential_ep_captor(struct position *pos, int index)
  * The routine generate_attack_maps generates the attack maps from scratch,
  * while generate_attacks_move updates attack maps during make_move.
  */
-static void generate_player_attacks(struct position*);
-static void generate_opponent_attacks(struct position*);
+static void generate_player_attacks(struct position*, int player);
 static void search_pawn_king_attacks(struct position*);
 static void search_knight_king_attacks(struct position*);
 static void search_bishop_king_attacks(struct position*);
 static void search_rook_king_attacks(struct position*);
-static void generate_player_attacks_move(struct position*, move,
-						uint64_t move_map);
-static void generate_opponent_attacks_move(struct position*, move,
-						uint64_t move_map);
+static void generate_all_rays(struct position*);
+static void update_all_rays(struct position*, move);
 
 static void
 generate_attack_maps(struct position *pos)
 {
+	generate_all_rays(pos);
+
 	// Generating the bitboards in the pos->attack array.
-	generate_player_attacks(pos);
-	generate_opponent_attacks(pos);
+	generate_player_attacks(pos, 0);
+	generate_player_attacks(pos, 1);
 
 	/*
 	 * For a king in check, generate a bitboard of attackers.
@@ -156,13 +155,59 @@ generate_attack_maps(struct position *pos)
 	 * bits in the maps, there they must cleared first.
 	 */
 	pos->king_attack_map = EMPTY;
-	pos->rpin_map = EMPTY;
-	pos->bpin_map = EMPTY;
+	pos->king_danger_map = EMPTY;
 
 	search_pawn_king_attacks(pos);
 	search_knight_king_attacks(pos);
 	search_bishop_king_attacks(pos);
 	search_rook_king_attacks(pos);
+	pos->king_danger_map |= pos->attack[1];
+}
+
+static void
+generate_rays(uint64_t bb[static 64], uint64_t occ,
+				int dir, uint64_t edge)
+{
+	for (int i = 0; i < 64; ++i) {
+		int bit_i = i;
+		uint64_t bit = bit64(bit_i);
+		while ((bit & edge) == EMPTY) {
+			bit_i += dir;
+			bit = bit64(bit_i);
+			bb[i] |= bit;
+			if ((bit & occ) != EMPTY)
+				break;
+		}
+	}
+}
+
+static void
+generate_all_rays(struct position *pos)
+{
+	generate_rays(pos->rays[pr_south], pos->occupied,
+	    SOUTH, RANK_1);
+	generate_rays(pos->rays[pr_north], pos->occupied,
+	    NORTH, RANK_8);
+	generate_rays(pos->rays[pr_west], pos->occupied,
+	    WEST, FILE_A);
+	generate_rays(pos->rays[pr_east], pos->occupied,
+	    EAST, FILE_H);
+	generate_rays(pos->rays[pr_south_east], pos->occupied,
+	    SOUTH + EAST, FILE_H | RANK_1);
+	generate_rays(pos->rays[pr_south_west], pos->occupied,
+	    SOUTH + WEST, FILE_A | RANK_1);
+	generate_rays(pos->rays[pr_north_east], pos->occupied,
+	    NORTH + EAST, FILE_H | RANK_8);
+	generate_rays(pos->rays[pr_north_west], pos->occupied,
+	    NORTH + WEST, FILE_A | RANK_8);
+	for (int i = 0; i < 64; ++i) {
+		pos->rays_bishops[i] =
+		    pos->rays[pr_north_east][i] | pos->rays[pr_north_west][i] |
+		    pos->rays[pr_south_east][i] | pos->rays[pr_south_west][i];
+		pos->rays_rooks[i] =
+		    pos->rays[pr_north][i] | pos->rays[pr_south][i] |
+		    pos->rays[pr_east][i] | pos->rays[pr_west][i];
+	}
 }
 
 static void
@@ -173,74 +218,33 @@ generate_attacks_move(struct position *restrict dst,
 	uint64_t move_map = dst->occupied ^ bswap(src->occupied);
 
 	if (is_capture(m) || is_nonempty(move_map & dst->sliding_attacks[0]))
-		generate_player_attacks_move(dst, m, move_map);
+		generate_player_attacks(dst, 0);
 	else
 		dst->attack[0] = bswap(src->attack[1]);
 
-	generate_opponent_attacks_move(dst, m, move_map);
+	generate_player_attacks(dst, 1);
 }
 
 static uint64_t
-generate_sliding_attacks(uint64_t pieces, uint64_t occupied,
-				struct magical magic[static const 64])
+bishop_attacks(uint64_t bishops, const struct position *pos)
 {
 	uint64_t accumulator = EMPTY;
 
-	for (; is_nonempty(pieces); pieces = reset_lsb(pieces))
-		accumulator |= sliding_map(occupied, magic + bsf(pieces));
+	for (; is_nonempty(bishops); bishops = reset_lsb(bishops))
+		accumulator |= pos->rays_bishops[bsf(bishops)];
 
 	return accumulator;
 }
 
 static uint64_t
-bishop_attacks(uint64_t bishops, uint64_t occupied)
-{
-	return generate_sliding_attacks(bishops, occupied, bishop_magics);
-}
-
-static uint64_t
-rook_attacks(uint64_t rooks, uint64_t occupied)
-{
-	return generate_sliding_attacks(rooks, occupied, rook_magics);
-}
-
-static uint64_t
-generate_sliding_attacks_nonempty(uint64_t pieces, uint64_t occupied,
-					struct magical magic[static const 64])
+rook_attacks(uint64_t rooks, const struct position *pos)
 {
 	uint64_t accumulator = EMPTY;
 
-	do {
-		accumulator |= sliding_map(occupied, magic + bsf(pieces));
-	} while (is_nonempty(pieces = reset_lsb(pieces)));
+	for (; is_nonempty(rooks); rooks = reset_lsb(rooks))
+		accumulator |= pos->rays_rooks[bsf(rooks)];
 
 	return accumulator;
-}
-
-static uint64_t
-queen_attacks_nonempty(uint64_t queens, uint64_t occupied)
-{
-	uint64_t accumulator = EMPTY;
-
-	do {
-		accumulator |= sliding_map(occupied, rook_magics + bsf(queens))
-		    | sliding_map(occupied, bishop_magics + bsf(queens));
-	} while (is_nonempty(queens = reset_lsb(queens)));
-
-	return accumulator;
-}
-
-static uint64_t
-bishop_attacks_nonempty(uint64_t bishops, uint64_t occupied)
-{
-	return
-	    generate_sliding_attacks_nonempty(bishops, occupied, bishop_magics);
-}
-
-static uint64_t
-rook_attacks_nonempty(uint64_t rooks, uint64_t occupied)
-{
-	return generate_sliding_attacks_nonempty(rooks, occupied, rook_magics);
 }
 
 static uint64_t
@@ -254,158 +258,66 @@ knight_attacks(uint64_t knights)
 	return accumulator;
 }
 
-static uint64_t
-knight_attacks_nonempty(uint64_t knights)
+static void
+generate_player_attacks(struct position *pos, int player)
 {
-	uint64_t accumulator = EMPTY;
+	uint64_t *attack = pos->attack + player;
+	uint64_t *sliding_attacks = pos->sliding_attacks + player;
+	const uint64_t *map = pos->map + player;
 
-	do {
-		accumulator |= knight_pattern(bsf(knights));
-	} while (is_nonempty(knights = reset_lsb(knights)));
-
-	return accumulator;
+	if (player == 0)
+		attack[pawn] = pawn_attacks_player(map[pawn]);
+	else
+		attack[pawn] = pawn_attacks_opponent(map[pawn]);
+	attack[king] = king_moves_table[bsf(map[king])];
+	attack[knight] = knight_attacks(map[knight]);
+	attack[bishop] = bishop_attacks(map[bishop], pos);
+	attack[rook] = rook_attacks(map[rook], pos);
+	attack[queen] = bishop_attacks(map[queen], pos);
+	attack[queen] |= rook_attacks(map[queen], pos);
+	*sliding_attacks = attack[bishop];
+	*sliding_attacks |= attack[rook];
+	*sliding_attacks |= attack[queen];
+	attack[0] = *sliding_attacks;
+	attack[0] |= attack[pawn];
+	attack[0] |= attack[knight];
+	attack[0] |= attack[king];
 }
 
 static void
-generate_player_attacks(struct position *pos)
+search_king_sliding_attack(struct position *pos, int rayi, uint64_t bandits)
 {
-	uint64_t all_attacks;
+	uint64_t ray = pos->rays[rayi][pos->king_index];
+	uint64_t bandit = ray & bandits;
+	if (is_empty(bandit))
+		return;
 
-	all_attacks = pos->attack[pawn] =
-	    pawn_attacks_player(pos->map[pawn]);
-	all_attacks |= pos->attack[king] =
-	    king_moves_table[bsf(pos->map[king])];
-	all_attacks |= pos->attack[knight] =
-	    knight_attacks(pos->map[knight]);
-	pos->sliding_attacks[0] = pos->attack[bishop] =
-	    bishop_attacks(pos->map[bishop], pos->occupied);
-	pos->sliding_attacks[0] |= pos->attack[rook] =
-	    rook_attacks(pos->map[rook], pos->occupied);
-	pos->sliding_attacks[0] |= pos->attack[queen] =
-	    bishop_attacks(pos->map[queen], pos->occupied)
-	    | rook_attacks(pos->map[queen], pos->occupied);
-	all_attacks |= pos->sliding_attacks[0];
-	pos->attack[0] = all_attacks;
-}
-
-static void
-generate_opponent_attacks(struct position *pos)
-{
-	uint64_t all_attacks;
-
-	all_attacks = pos->attack[opponent_pawn] =
-	    pawn_attacks_opponent(pos->map[opponent_pawn]);
-	all_attacks |= pos->attack[opponent_king] =
-	    king_moves_table[bsf(pos->map[opponent_king])];
-	all_attacks |= pos->attack[opponent_knight] =
-	    knight_attacks(pos->map[opponent_knight]);
-	uint64_t occupied = pos->occupied & ~pos->map[king];
-	pos->sliding_attacks[1] = pos->attack[opponent_bishop] =
-	    bishop_attacks(pos->map[opponent_bishop], occupied);
-	pos->sliding_attacks[1] |= pos->attack[opponent_rook] =
-	    rook_attacks(pos->map[opponent_rook], occupied);
-	pos->sliding_attacks[1] |= pos->attack[opponent_queen] =
-	    bishop_attacks(pos->map[opponent_queen], occupied)
-	    | rook_attacks(pos->map[opponent_queen], occupied);
-	all_attacks |= pos->sliding_attacks[1];
-	pos->attack[1] = all_attacks;
+	pos->king_attack_map |= ray;
+	pos->king_danger_map |= ray & ~bandit;
+	ray = pos->rays[opposite_ray_index(rayi)][pos->king_index];
+	pos->king_danger_map |= ray;
 }
 
 static void
 search_bishop_king_attacks(struct position *pos)
 {
-	// A queen can attack the king like a bishop can
 	uint64_t bishops = pos->map[opponent_bishop] | pos->map[opponent_queen];
 
-	uint64_t pinnable_pieces = pos->map[0];
-	/*
-	 * An en passant target square can be pinned here, as such a capture
-	 * can leave the king in check.
-	 */
-	if (pos_has_ep_target(pos))
-		pinnable_pieces |= bit64(pos->ep_index);
-
-	// All opponent bishops (or queens) potentially attacking the king
-	bishops &= bishop_pattern_table[pos->king_index];
-	for (; is_nonempty(bishops); bishops = reset_lsb(bishops)) {
-		uint64_t ray = ray_table[pos->king_index][bsf(bishops)];
-		uint64_t ray_occ = ray & pos->occupied;
-
-		/*
-		 * If there is no piece between the king and the bishop,
-		 * the king is in check.
-		 * If there is one piece between them, the piece is pinned.
-		 */
-		if (is_empty(ray_occ))
-			pos->king_attack_map |= ray | lsb(bishops);
-		else if (is_singular(ray_occ)
-		    && is_nonempty(ray & pinnable_pieces))
-			pos->bpin_map |= ray | lsb(bishops);
-	}
+	search_king_sliding_attack(pos, pr_south_east, bishops);
+	search_king_sliding_attack(pos, pr_north_east, bishops);
+	search_king_sliding_attack(pos, pr_south_west, bishops);
+	search_king_sliding_attack(pos, pr_north_west, bishops);
 }
 
 static void
 search_rook_king_attacks(struct position *pos)
 {
 	uint64_t rooks = pos->map[opponent_rook] | pos->map[opponent_queen];
-	uint64_t ep_bit = EMPTY;
 
-	if (pos_has_ep_target(pos))
-		ep_bit = bit64(pos->ep_index);
-
-	// All opponent rooks (or queens) potentially attacking the king
-	rooks &= rook_pattern_table[pos->king_index];
-	for (; is_nonempty(rooks); rooks = reset_lsb(rooks)) {
-		uint64_t ray = ray_table[pos->king_index][bsf(rooks)];
-		uint64_t ray_occ = ray & pos->occupied;
-
-		/*
-		 * Just like in search_bishop_king_attacks:
-		 * If there is no piece between the king and the bishop,
-		 * the king is in check.
-		 * If there is one piece between them, the piece is pinned.
-		 *
-		 * A special case here, is two pieces between the rook and
-		 * the king, where one of them is a pawn, and another is
-		 * the opponent's pawn that can be captured en passant.
-		 */
-		if (is_empty(ray_occ))
-			pos->king_attack_map |= ray | lsb(rooks);
-		else if (is_singular(ray_occ) && is_nonempty(ray & pos->map[0]))
-			pos->rpin_map |= ray | lsb(rooks);
-		else if (is_nonempty(ep_bit & ray)) {
-			/*
-			 * The two pawns between the king and the rook:
-			 *
-			 * ..r.Pp.K
-			 */
-			if (ind_file(pos->ep_index) != file_a
-			    && is_nonempty(pos->map[pawn] & west_of(ep_bit))) {
-				if ((ray & pos->occupied)
-				    == (ep_bit | west_of(ep_bit))) {
-					ep_bit = 0;
-					pos->ep_index = 0;
-				}
-			}
-			/*
-			 * The two pawns between the king and the rook:
-			 *
-			 * ..r.pP.K
-			 *
-			 * at this point in make_move, the en passant index is
-			 * only set, if there is at least one pawn in the
-			 * right place to make the capture, so there is
-			 * no need to check
-			 * if (ind_file(pos->ep_index) != file_h
-			 * && is_nonempty(pos->map[pawn] & east_of(ep_bit)))
-			 */
-			else if ((ray & pos->occupied)
-			    == (ep_bit | east_of(ep_bit))) {
-				ep_bit = 0;
-				pos->ep_index = 0;
-			}
-		}
-	}
+	search_king_sliding_attack(pos, pr_south, rooks);
+	search_king_sliding_attack(pos, pr_north, rooks);
+	search_king_sliding_attack(pos, pr_west, rooks);
+	search_king_sliding_attack(pos, pr_east, rooks);
 }
 
 static void
@@ -422,69 +334,6 @@ search_pawn_king_attacks(struct position *pos)
 	    pawn_attacks_player(pos->map[king]) & pos->map[opponent_pawn];
 }
 
-static void
-generate_player_attacks_move(struct position *pos, move m, uint64_t move_map)
-{
-	uint64_t all_attacks;
-
-	all_attacks = pos->attack[pawn] =
-	    pawn_attacks_player(pos->map[pawn]);
-	all_attacks |= pos->attack[king];
-	if (mcapturedp(m) == knight)
-		pos->attack[knight] = knight_attacks(pos->map[knight]);
-	all_attacks |= pos->attack[knight];
-	if (((mcapturedp(m) & 2) == 0)
-	    || is_nonempty(move_map & pos->sliding_attacks[0])) {
-		pos->sliding_attacks[0] = pos->attack[bishop] =
-		    bishop_attacks(pos->map[bishop], pos->occupied);
-		pos->sliding_attacks[0] |= pos->attack[rook] =
-		    rook_attacks(pos->map[rook], pos->occupied);
-		pos->sliding_attacks[0] |= pos->attack[queen] =
-		    bishop_attacks(pos->map[queen], pos->occupied)
-		    | rook_attacks(pos->map[queen], pos->occupied);
-	}
-	all_attacks |= pos->sliding_attacks[0];
-	pos->attack[0] = all_attacks;
-}
-
-static void
-generate_opponent_attacks_move(struct position *pos, move m, uint64_t move_map)
-{
-	uint64_t occ = pos->occupied & ~pos->map[king];
-	if (mresultp(m) == bishop ||
-	    is_nonempty(move_map & pos->attack[opponent_bishop] & ~EDGES)) {
-		pos->attack[opponent_bishop] =
-		    bishop_attacks_nonempty(pos->map[opponent_bishop], occ);
-	}
-	pos->sliding_attacks[1] = pos->attack[opponent_bishop];
-	if (mresultp(m) == rook ||
-	    is_nonempty(move_map & pos->attack[opponent_rook])) {
-		pos->attack[opponent_rook] =
-		    rook_attacks_nonempty(pos->map[opponent_rook], occ);
-	}
-	pos->sliding_attacks[1] |= pos->attack[opponent_rook];
-	if (mresultp(m) == queen
-	    || is_nonempty(move_map & pos->attack[opponent_queen])) {
-		pos->attack[opponent_queen] =
-		    queen_attacks_nonempty(pos->map[opponent_queen], occ);
-	}
-	pos->sliding_attacks[1] |= pos->attack[opponent_queen];
-
-	pos->attack[opponent_pawn] =
-	    pawn_attacks_opponent(pos->map[opponent_pawn]);
-	if ((mresultp(m) & 2) != 0) {
-		pos->attack[opponent_king] =
-		    king_moves_table[bsf(pos->map[opponent_king])];
-		if (mresultp(m) == knight)
-			pos->attack[opponent_knight] =
-			    knight_attacks_nonempty(pos->map[opponent_knight]);
-	}
-
-	pos->attack[1] = pos->attack[opponent_pawn]
-	    | pos->attack[opponent_king]
-	    | pos->attack[opponent_knight]
-	    | pos->sliding_attacks[1];
-}
 
 
 // Generate the pawn_attack_reach, and half_open_files bitboards
@@ -764,11 +613,21 @@ can_be_valid_ep_index(const struct position *pos, int index)
 static __m256i
 flip_shufflekey_32(void)
 {
-    return _mm256_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
-	                      7,  6,  5,  4,  3,  2,  1,  0,
-	                     15, 14, 13, 12, 11, 10,  9,  8,
-	                      7,  6,  5,  4,  3,  2,  1,  0);
+	return _mm256_setr_epi8(15, 14, 13, 12, 11, 10,  9,  8,
+	                         7,  6,  5,  4,  3,  2,  1,  0,
+	                        15, 14, 13, 12, 11, 10,  9,  8,
+	                         7,  6,  5,  4,  3,  2,  1,  0);
 }
+
+static __m256i
+ray_flip_shufflekey_32(void)
+{
+	return _mm256_setr_epi8( 7,  6,  5,  4,  3,  2,  1,  0,
+	                        15, 14, 13, 12, 11, 10,  9,  8,
+	                         7,  6,  5,  4,  3,  2,  1,  0,
+	                        15, 14, 13, 12, 11, 10,  9,  8);
+}
+
 
 #elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8)
 
@@ -976,6 +835,70 @@ flip_piece_maps(struct position *restrict dst,
 
 
 /*
+ * flip_rays
+ */
+
+#ifdef TALTOS_CAN_USE_INTEL_AVX2
+
+static void
+flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
+{
+	int rs = 0;
+	int rd = 56;
+	do {
+		const __m256i *restrict src32 = (const __m256i*)(src + rs);
+		__m256i *restrict dst32 = (__m256i*)(dst + rd);
+
+		dst32[0] = _mm256_shuffle_epi8(src32[0],
+		    ray_flip_shufflekey_32());
+		dst32[1] = _mm256_shuffle_epi8(src32[1],
+		    ray_flip_shufflekey_32());
+
+		rs += 8;
+		rd -= 8;
+	} while (rs < 64);
+}
+
+#else
+
+static void
+flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
+{
+	int rs = 0;
+	int rd = 56;
+	do {
+		dst[rd + 0] = bswap(src[rs + 0]);
+		dst[rd + 1] = bswap(src[rs + 1]);
+		dst[rd + 2] = bswap(src[rs + 2]);
+		dst[rd + 3] = bswap(src[rs + 3]);
+		dst[rd + 4] = bswap(src[rs + 4]);
+		dst[rd + 5] = bswap(src[rs + 5]);
+		dst[rd + 6] = bswap(src[rs + 6]);
+		dst[rd + 7] = bswap(src[rs + 7]);
+		rs += 8;
+		rd -= 8;
+	} while (rs < 64);
+}
+
+#endif
+
+static void
+flip_rays(struct position *restrict dst, const struct position *restrict src)
+{
+	flip_ray_array(dst->rays[pr_north], src->rays[pr_south]);
+	flip_ray_array(dst->rays[pr_south], src->rays[pr_north]);
+	flip_ray_array(dst->rays[pr_west], src->rays[pr_west]);
+	flip_ray_array(dst->rays[pr_east], src->rays[pr_east]);
+	flip_ray_array(dst->rays[pr_north_east], src->rays[pr_south_east]);
+	flip_ray_array(dst->rays[pr_north_west], src->rays[pr_south_west]);
+	flip_ray_array(dst->rays[pr_south_east], src->rays[pr_north_east]);
+	flip_ray_array(dst->rays[pr_south_west], src->rays[pr_north_west]);
+	flip_ray_array(dst->rays_bishops, src->rays_bishops);
+	flip_ray_array(dst->rays_rooks, src->rays_rooks);
+}
+
+
+/*
  * flip_tail
  * Swapping two pairs of 64 bit values at the end of struct position.
  *
@@ -1084,8 +1007,7 @@ clear_extra_bitboards(struct position *pos)
 #else
 
 	pos->king_attack_map = EMPTY;
-	pos->rpin_map = EMPTY;
-	pos->bpin_map = EMPTY;
+	pos->king_danger_map = EMPTY;
 	pos->ep_index = 0;
 
 #endif
@@ -1096,17 +1018,102 @@ position_flip(struct position *restrict dst,
 		const struct position *restrict src)
 {
 	assert(!is_in_check(src));
+	assert(!pos_has_ep_target(src));
 
 	flip_board(dst, src);
 	dst->attack[0] = bswap(src->attack[1]);
 	dst->attack[1] = bswap(src->attack[0]);
 	flip_piece_maps(dst, src);
+	flip_rays(dst, src);
 	flip_tail(dst, src);
-	clear_extra_bitboards(dst);
+	dst->king_attack_map = EMPTY;
+	dst->king_danger_map = dst->attack[1];
+	dst->ep_index = 0;
 	dst->king_index = bsf(dst->map[king]);
 	dst->occupied = bswap(src->occupied);
-	search_bishop_king_attacks(dst);
-	search_rook_king_attacks(dst);
+}
+
+static void
+append_rays(uint64_t bb[64], uint64_t merged[64], uint64_t which,
+		uint64_t append)
+{
+	while (is_nonempty(which)) {
+		bb[bsf(which)] |= append;
+		merged[bsf(which)] |= append;
+		which = reset_lsb(which);
+	}
+}
+
+static void
+block_rays(uint64_t bb[64], uint64_t merged[64], uint64_t which, uint64_t block)
+{
+	uint64_t mask = ~block;
+	while (is_nonempty(which)) {
+		bb[bsf(which)] &= mask;
+		merged[bsf(which)] &= mask;
+		which = reset_lsb(which);
+	}
+}
+
+static void
+update_rays_empty_square(struct position *pos, int i)
+{
+	append_rays(pos->rays[pr_west], pos->rays_rooks,
+	    pos->rays[pr_east][i], pos->rays[pr_west][i]);
+	append_rays(pos->rays[pr_east], pos->rays_rooks,
+	    pos->rays[pr_west][i], pos->rays[pr_east][i]);
+	append_rays(pos->rays[pr_north], pos->rays_rooks,
+	    pos->rays[pr_south][i], pos->rays[pr_north][i]);
+	append_rays(pos->rays[pr_south], pos->rays_rooks,
+	    pos->rays[pr_north][i], pos->rays[pr_south][i]);
+	append_rays(pos->rays[pr_north_east], pos->rays_bishops,
+	    pos->rays[pr_south_west][i], pos->rays[pr_north_east][i]);
+	append_rays(pos->rays[pr_south_west], pos->rays_bishops,
+	    pos->rays[pr_north_east][i], pos->rays[pr_south_west][i]);
+	append_rays(pos->rays[pr_north_west], pos->rays_bishops,
+	    pos->rays[pr_south_east][i], pos->rays[pr_north_west][i]);
+	append_rays(pos->rays[pr_south_east], pos->rays_bishops,
+	    pos->rays[pr_north_west][i], pos->rays[pr_south_east][i]);
+}
+
+static void
+update_rays_occupied_square(struct position *pos, int i)
+{
+	block_rays(pos->rays[pr_west], pos->rays_rooks,
+	    pos->rays[pr_east][i], pos->rays[pr_west][i]);
+	block_rays(pos->rays[pr_east], pos->rays_rooks,
+	    pos->rays[pr_west][i], pos->rays[pr_east][i]);
+	block_rays(pos->rays[pr_north], pos->rays_rooks,
+	    pos->rays[pr_south][i], pos->rays[pr_north][i]);
+	block_rays(pos->rays[pr_south], pos->rays_rooks,
+	    pos->rays[pr_north][i], pos->rays[pr_south][i]);
+	block_rays(pos->rays[pr_north_east], pos->rays_bishops,
+	    pos->rays[pr_south_west][i], pos->rays[pr_north_east][i]);
+	block_rays(pos->rays[pr_south_west], pos->rays_bishops,
+	    pos->rays[pr_north_east][i], pos->rays[pr_south_west][i]);
+	block_rays(pos->rays[pr_north_west], pos->rays_bishops,
+	    pos->rays[pr_south_east][i], pos->rays[pr_north_west][i]);
+	block_rays(pos->rays[pr_south_east], pos->rays_bishops,
+	    pos->rays[pr_north_west][i], pos->rays[pr_south_east][i]);
+}
+
+static void
+update_all_rays(struct position *pos, move m)
+{
+	update_rays_empty_square(pos, mfrom(m));
+	if (mtype(m) == mt_en_passant) {
+		update_rays_occupied_square(pos, mto(m));
+		update_rays_empty_square(pos, mto(m) + NORTH);
+	}
+	else if (!is_capture(m)) {
+		update_rays_occupied_square(pos, mto(m));
+		if (mtype(m) == mt_castle_kingside) {
+			update_rays_occupied_square(pos, sq_f8);
+		}
+		else if (mtype(m) == mt_castle_queenside) {
+			update_rays_occupied_square(pos, sq_d8);
+		}
+	}
 }
 
 bool
@@ -1225,7 +1232,9 @@ make_move(struct position *restrict dst,
 	flip_board(dst, src);
 	flip_piece_maps(dst, src);
 	clear_extra_bitboards(dst);
+	flip_rays(dst, src);
 	flip_tail(dst, src);
+	update_all_rays(dst, m);
 
 	invariant(value_bounds(dst->material_value));
 	invariant(value_bounds(dst->opponent_material_value));
@@ -1247,9 +1256,12 @@ make_move(struct position *restrict dst,
 	if (mcapturedp(m) == pawn)
 		generate_pawn_reach_maps(dst);
 	dst->occupied = dst->map[0] | dst->map[1];
-	search_bishop_king_attacks(dst);
-	search_rook_king_attacks(dst);
+	if (move_gives_check(m)) {
+		search_bishop_king_attacks(dst);
+		search_rook_king_attacks(dst);
+	}
 	generate_attacks_move(dst, src, m);
+	dst->king_danger_map |= dst->attack[1];
 	z2_xor_move(dst->zhash, m);
 }
 

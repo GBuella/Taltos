@@ -139,4 +139,6 @@ extern struct magical bitboard_magics[128];
 
 extern const uint64_t ray_table[64][64];
 
+extern const uint8_t ray_dir_table[64][64];
+
 #endif

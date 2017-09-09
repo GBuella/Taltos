@@ -11,6 +11,7 @@
 #include "bitboard.h"
 #include "constants.h"
 #include "chess.h"
+#include "position.h"
 
 static const int king_dirs_h[] = { 1, 1, 1, 0, -1, -1, -1, 0};
 static const int king_dirs_v[] = { -1, 0, 1, 1, 1, 0, -1, -1};
@@ -53,6 +54,7 @@ static uint64_t masks[64];
 #define MAGIC_BLOCK_SIZE 4
 static uint64_t magics[64*4];
 static uint8_t attack_index8[64*0x1000];
+static uint8_t ray_dirs[64 * 64];
 static size_t attack_8_size;
 static uint64_t attack_results[64*0x1000];
 static unsigned attack_result_i;
@@ -85,17 +87,36 @@ print_table(size_t size, const uint64_t table[size], const char *name)
 	puts("\n};\n");
 }
 
-static void print_table_2d(size_t s0, size_t s1,
+static void
+print_table_2d(size_t s0, size_t s1,
 		const uint64_t table[s0*s1],
 		const char *name)
 {
 	printf("const uint64_t %s[%zu][%zu] = {\n", name, s0, s1);
 	for (size_t i = 0; i < s0; ++i) {
-		printf("{\n0x%016" PRIX64, table[s0 * i + 0]);
+		printf("{\n 0x%016" PRIX64, table[s0 * i + 0]);
 		for (size_t j = 1; j < s1; ++j) {
 			uint64_t value = table[i * s0 + j];
 			const char *nl = (j % 4 == 0) ? "\n " : "";
 			printf(",%s0x%016" PRIX64, nl, value);
+		}
+		printf("\n}%s\n", (i + 1 < s0) ? "," : "");
+	}
+	puts("\n};\n");
+}
+
+static void
+print_uint8_table_2d(size_t s0, size_t s1,
+		const uint8_t table[s0*s1],
+		const char *name)
+{
+	printf("const uint8_t %s[%zu][%zu] = {\n", name, s0, s1);
+	for (size_t i = 0; i < s0; ++i) {
+		printf("{\n 0x%02" PRIX8, table[s0 * i + 0]);
+		for (size_t j = 1; j < s1; ++j) {
+			uint8_t value = table[i * s0 + j];
+			const char *nl = (j % 8 == 0) ? "\n " : "";
+			printf(", %s0x%02" PRIX8, nl, value);
 		}
 		printf("\n}%s\n", (i + 1 < s0) ? "," : "");
 	}
@@ -187,6 +208,23 @@ add_rays(int r, int f, int r_dir, int f_dir)
 }
 
 static void
+add_ray_dirs(int r, int f, int r_dir, int f_dir, uint8_t constant)
+{
+	int src_i = ind(r, f);
+	int dst_r = r + r_dir;
+	int dst_f = f + f_dir;
+
+	while (is_valid_rank(dst_r) && is_valid_file(dst_f)) {
+		int dst_i = ind(dst_r, dst_f);
+
+		ray_dirs[src_i*64 + dst_i] = constant;
+		dst_r += r_dir;
+		dst_f += f_dir;
+	}
+
+}
+
+static void
 gen_ray_constants(void)
 {
 	memset(attack_results, 0, 64*64 * sizeof *attack_results);
@@ -200,6 +238,26 @@ gen_ray_constants(void)
 		}
 	}
 }
+
+static void
+gen_ray_dir_constants(void)
+{
+	memset(ray_dirs, 0xff, sizeof(ray_dirs));
+
+	for (int r = rank_8; is_valid_rank(r); r += RSOUTH) {
+		for (int f = file_a; is_valid_file(f); f += EAST) {
+			add_ray_dirs(r, f, RSOUTH, 0, pr_south);
+			add_ray_dirs(r, f, RNORTH, 0, pr_north);
+			add_ray_dirs(r, f, 0, WEST, pr_west);
+			add_ray_dirs(r, f, 0, EAST, pr_east);
+			add_ray_dirs(r, f, RSOUTH, EAST, pr_south_east);
+			add_ray_dirs(r, f, RNORTH, EAST, pr_north_east);
+			add_ray_dirs(r, f, RSOUTH, WEST, pr_south_west);
+			add_ray_dirs(r, f, RNORTH, WEST, pr_north_west);
+		}
+	}
+}
+
 
 static void
 fill_attack_boards(int sq_i,
@@ -406,6 +464,9 @@ main(void)
 
 	gen_ray_constants();
 	print_table_2d(64, 64, attack_results, "ray_table");
+
+	gen_ray_dir_constants();
+	print_uint8_table_2d(64, 64, ray_dirs, "ray_dir_table");
 
 	return EXIT_SUCCESS;
 }

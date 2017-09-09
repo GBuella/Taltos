@@ -23,8 +23,7 @@ check_memcmp(const struct position *pos, enum player player)
 
 	assert(memcmp(pos->board, temp->board, sizeof(pos->board)) == 0);
 	assert(pos->king_attack_map == temp->king_attack_map);
-	assert(pos->rpin_map == temp->rpin_map);
-	assert(pos->bpin_map == temp->bpin_map);
+	assert(pos->king_danger_map == temp->king_danger_map);
 	assert(pos->ep_index == temp->ep_index);
 	assert(pos->occupied == temp->occupied);
 	assert(pos->king_index == temp->king_index);
@@ -36,6 +35,11 @@ check_memcmp(const struct position *pos, enum player player)
 	    sizeof(pos->half_open_files)) == 0);
 	assert(memcmp(pos->pawn_attack_reach, temp->pawn_attack_reach,
 	    sizeof(pos->pawn_attack_reach)) == 0);
+	assert(memcmp(pos->rays, temp->rays, sizeof(pos->rays)) == 0);
+	assert(memcmp(pos->rays_bishops, temp->rays_bishops,
+	    sizeof(pos->rays_bishops)) == 0);
+	assert(memcmp(pos->rays_rooks, temp->rays_rooks,
+	    sizeof(pos->rays_rooks)) == 0);
 	assert(pos->cr_king_side == temp->cr_king_side);
 	assert(pos->cr_queen_side == temp->cr_queen_side);
 	assert(pos->material_value == temp->material_value);

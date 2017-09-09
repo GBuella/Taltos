@@ -41,17 +41,45 @@ static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE, "invalid enum");
 static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
 
+enum postion_ray_directions {
+	pr_south,
+	pr_north,
+	pr_west,
+	pr_east,
+	pr_south_east,
+	pr_north_west,
+	pr_south_west,
+	pr_north_east
+};
+
+static inline bool
+is_rook_ray_index(int ray_index)
+{
+	return ray_index < 4;
+}
+
+static inline int
+opposite_ray_index(int ray_index)
+{
+	return ray_index ^ 1;
+}
+
 struct position {
 	alignas(pos_alignment)
 
 	char board[64];
 
 	/*
+	 * king_attack_map
 	 * In case the player to move is in check:
 	 * A bitboard of all pieces that attack the king, and the squares of any
 	 * sliding attack between the king and the attacking rook/queen/bishop.
 	 * These extra squares are valid move destinations for blocking the
-	 * attack, thus moving out of check. E.g. a rook attacking the king:
+	 * attack, thus moving out of check.
+	 *
+	 * king_danger_map
+	 * A map of squares where the king can't move to.
+	 * E.g. a rook attacking the king:
 	 *
 	 *    ........
 	 *    ..r..K..
@@ -62,14 +90,21 @@ struct position {
 	 *    ........
 	 *    ..XXX...
 	 *    ........
+	 *
+	 *  The corresponding part of the king_danger_map:
+	 *
+	 *    ........
+	 *    ...XXXXX
+	 *    ........
+	 *   The squares behind the king are also marked, as moving away
+	 *   from the rook would not mean moving out of check. But the rook
+	 *   itself is not marked, since capturing the rook does mean moving
+	 *   out of check.
 	 */
 	uint64_t king_attack_map;
+	uint64_t king_danger_map;
 
-	// Pins by opponents rooks or queens
-	uint64_t rpin_map;
-
-	// Pins by opponents bishops or queens
-	uint64_t bpin_map;
+	uint64_t padding;
 
 	/*
 	 * Index of a pawn that can be captured en passant.
@@ -150,10 +185,16 @@ struct position {
 	 * ........
 	 */
 
+	alignas(pos_alignment)
+	uint64_t rays[8][64];
+	uint64_t rays_bishops[64];
+	uint64_t rays_rooks[64];
+
+	alignas(pos_alignment)
 
 	/*
-	 * The following four 64 bit contain two symmetric pairs, that can be
-	 * swapped in make_move, as in:
+	 * The following four 64 bit values contain two symmetric pairs, that
+	 * can be swapped in make_move, as in:
 	 *
 	 * new->zhash[0] = old->zhash[1]
 	 * new->zhash[1] = old->zhash[0]
@@ -186,6 +227,7 @@ struct position {
 	int8_t cr_opponent_queen_side;
 	int8_t cr_padding1[2];
 	int32_t opponent_material_value;
+
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
