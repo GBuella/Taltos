@@ -1,0 +1,5 @@
+*.c linguist-language=C
+*.h linguist-language=C
+COPYING linguist-documentation
+src/move_gen_const.inc linguist-generated=true
+src/z_random.inc linguist-generated=true
