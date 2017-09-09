@@ -268,11 +268,7 @@ sliding_map(uint64_t occ, const struct magical *magic)
 	uint64_t index = ((occ & magic->mask) * magic->multiplier);
 	index >>= magic->shift;
 
-#ifdef SLIDING_BYTE_LOOKUP
 	return magic->attack_table[magic->attack_index_table[index]];
-#else
-	return magic->attack_table[index];
-#endif
 }
 
 static inline uint64_t

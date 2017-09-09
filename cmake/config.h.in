@@ -50,6 +50,5 @@
 #define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 
 #cmakedefine USE_GLOBAL_REGISTERS
-#cmakedefine SLIDING_BYTE_LOOKUP
 
 #endif

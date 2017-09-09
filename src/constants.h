@@ -117,15 +117,10 @@ extern const uint64_t rook_pattern_table[64];
 extern const uint64_t king_moves_table[64];
 extern const uint64_t pawns_reach_table[64];
 
-#ifdef SLIDING_BYTE_LOOKUP
 extern const uint8_t bishop_attack_index8[];
 extern const uint8_t rook_attack_index8[];
 extern const uint64_t bishop_magics_raw[4 * 64];
 extern const uint64_t rook_magics_raw[4 * 64];
-#else
-extern const uint64_t bishop_magics_raw[3 * 64];
-extern const uint64_t rook_magics_raw[3 * 64];
-#endif
 extern const uint64_t bishop_magic_attacks[];
 extern const uint64_t rook_magic_attacks[];
 
@@ -133,12 +128,9 @@ struct magical {
 	uint64_t mask;
 	uint64_t multiplier;
 	const uint64_t *attack_table;
-#ifdef SLIDING_BYTE_LOOKUP
 	const uint8_t *attack_index_table;
-#endif
 	int shift;
 };
-
 
 extern struct magical bitboard_magics[128];
 

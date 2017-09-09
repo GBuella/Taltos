@@ -50,15 +50,10 @@ static const uint64_t bishop_edges_m[4] = {
 	FILE_A|RANK_1};
 
 static uint64_t masks[64];
-#ifdef SLIDING_BYTE_LOOKUP
 #define MAGIC_BLOCK_SIZE 4
 static uint64_t magics[64*4];
 static uint8_t attack_index8[64*0x1000];
 static size_t attack_8_size;
-#else
-#define MAGIC_BLOCK_SIZE 3
-static uint64_t magics[64*3];
-#endif
 static uint64_t attack_results[64*0x1000];
 static unsigned attack_result_i;
 
@@ -107,8 +102,6 @@ static void print_table_2d(size_t s0, size_t s1,
 	puts("\n};\n");
 }
 
-#ifdef SLIDING_BYTE_LOOKUP
-
 static void
 print_table_byte(size_t size, const uint8_t table[size], const char *name)
 {
@@ -119,8 +112,6 @@ print_table_byte(size_t size, const uint8_t table[size], const char *name)
 	}
 	puts("\n};\n");
 }
-
-#endif
 
 static void
 gen_pre_mask_ray(int dir, uint64_t edge)
@@ -289,11 +280,6 @@ search_magic(uint64_t *pmagic,
 			pmagic[0] = mask;
 			pmagic[1] = magic;
 			pmagic[2] = (64-width) | (attack_result_i << 8);
-#           ifndef SLIDING_BYTE_LOOKUP
-			for (unsigned i = 0; i <= max; ++i) {
-				results[i] &= ~src;
-			}
-#           endif
 			attack_result_i += max+1;
 			return;
 		}
@@ -333,8 +319,6 @@ gen_rook_patterns(void)
 		masks[i] = (FILE_H << (i & 7)) | (RANK_8 << (i & 0x38));
 	}
 }
-
-#ifdef SLIDING_BYTE_LOOKUP
 
 static void
 transform_sliding_magics(void)
@@ -382,8 +366,6 @@ transform_sliding_magics(void)
 	attack_result_i = attack_offset_new;
 }
 
-#endif
-
 int
 main(void)
 {
@@ -402,10 +384,8 @@ main(void)
 	memset(masks, 0, sizeof masks);
 	gen_pre_masks(rook_dirs, rook_edges_m);
 	gen_magics(rook_dirs, rook_edges_a);
-#   ifdef SLIDING_BYTE_LOOKUP
 	transform_sliding_magics();
 	print_table_byte(attack_8_size, attack_index8, "rook_attack_index8");
-#   endif
 	print_table(64*MAGIC_BLOCK_SIZE, magics, "rook_magics_raw");
 	print_table(attack_result_i, attack_results, "rook_magic_attacks");
 
@@ -413,10 +393,8 @@ main(void)
 	gen_pre_masks(bishop_dirs, bishop_edges_m);
 	/* print_table(64, masks, "bishop_masks"); */
 	gen_magics(bishop_dirs, bishop_edges_a);
-#   ifdef SLIDING_BYTE_LOOKUP
 	transform_sliding_magics();
 	print_table_byte(attack_8_size, attack_index8, "bishop_attack_index8");
-#   endif
 	print_table(64*MAGIC_BLOCK_SIZE, magics, "bishop_magics_raw");
 	print_table(attack_result_i, attack_results, "bishop_magic_attacks");
 
