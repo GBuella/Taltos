@@ -222,18 +222,21 @@ static void fill_attack_boards(int sq_i,
 }
 
 static uint64_t
+prng_32(void)
+{
+	// MLCG, result in interval: [1, 2147483646]
+	// good engouh for this purpose
+	static uint32_t r = 16807;
+
+	r = (uint32_t)(((uint64_t)r * 48271) % 2147483647);
+	return r;
+}
+
+static uint64_t
 random_magic(void)
 {
-	if (RAND_MAX >= INT32_MAX)
-		return (rand() & rand() & rand())
-		    + (((uint64_t)(rand() & rand() &  rand())) << 32);
-	else if (RAND_MAX >= INT16_MAX)
-		return (rand() & rand() & rand())
-		    + (((uint64_t)(rand() & rand() &  rand())) << 16)
-		    + (((uint64_t)(rand() & rand() &  rand())) << 32)
-		    + (((uint64_t)(rand() & rand() &  rand())) << 48);
-	else
-		exit(EXIT_FAILURE);
+	return (prng_32() & prng_32() & prng_32())
+	    + (((prng_32() & prng_32() & prng_32())) << 32);
 }
 
 static void search_magic(uint64_t *pmagic,
