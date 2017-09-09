@@ -42,5 +42,5 @@ generate_simple_tests tests/perftsuite move_order_ test_move_order > \
 	tests/perftsuite/CMakeLists_move_order.txt
 generate_simple_tests tests/perftsuite eval_symmetry_ test_eval_symmetry > \
 	tests/perftsuite/CMakeLists_eval_symmetry.txt
-generate_simple_tests tests/perftsuite zhash_key_ test_zhash_key > \
-	tests/perftsuite/CMakeLists_zhash_key.txt
+generate_simple_tests tests/perftsuite memcmp_ test_memcmp > \
+	tests/perftsuite/CMakeLists_memcmp.txt
