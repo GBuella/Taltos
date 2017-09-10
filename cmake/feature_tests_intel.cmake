@@ -164,7 +164,7 @@ endif()
 if(TALTOS_FORCE_AVX2)
 	set(TALTOS_CAN_USE_INTEL_AVX2 ON)
 else()
-if(NOT TALTOS_CAN_USE_INTEL_AVX)
+if(TALTOS_CAN_USE_INTEL_AVX)
 CHECK_C_SOURCE_COMPILES("
 #include <immintrin.h>
 __m256i something(__m256i x) { return _mm256_shuffle_epi8(x, x); }
