@@ -74,7 +74,12 @@ bsf(uint64_t value)
 
 #ifdef TALTOS_CAN_USE_BUILTIN_CTZLL_64
 
-	result = __builtin_ctzll(value);
+	uint64_t r;
+	asm("tzcntq %1, %0"
+	    : "=r" (r)
+	    : "r" (value));
+	invariant(r < 64);
+	result = (int)r;
 
 #elif defined(TALTOS_CAN_USE_BUILTIN_CTZL_64)
 
