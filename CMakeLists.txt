@@ -17,6 +17,7 @@ option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX "Do not use AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX2 "Do not use AVX2 builtin intrinsics" OFF)
+option(TALTOS_FORCE_NO_SSE "Do not use SSE builtin intrinsics" OFF)
 
 if(TALTOS_FORCE_AVX AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
@@ -67,6 +68,9 @@ endif()
 
 if(HAS_FLAX_VCONVS)
 	target_compile_options(taltos PUBLIC -flax-vector-conversions)
+endif()
+if(HAS_MNO_VZEROUPPER)
+	target_compile_options(taltos_code PUBLIC -mno-vzeroupper)
 endif()
 
 # hack: this gets rid of some declarations in Visual C++ headers

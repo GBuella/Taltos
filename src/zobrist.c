@@ -79,7 +79,7 @@ init_zhash_table_mt_general(int from, int to)
 {
 	for (int p0 = 2; p0 <= 12; p0 += 2) {
 		for (int p1 = 0; p1 <= 12; p1 += 2) {
-			move m = create_move_g(from, to, p0, p1, false);
+			move m = create_move_g(from, to, p0, p1);
 			assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 
 			uint64_t hash = z_random[opponent_of(p0)][from];
@@ -99,7 +99,7 @@ static void
 init_zhash_table_promotion(int from, int to, int p1)
 {
 	for (int p0 = 2; p0 <= 12; p0 += 2) {
-		move m = create_move_t(from, to, mt_promotion, p0, p1, false);
+		move m = create_move_pr(from, to, p0, p1);
 
 		assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 
@@ -118,7 +118,7 @@ init_zhash_table_promotion(int from, int to, int p1)
 static void
 init_zhash_table_double_push(int from, int to)
 {
-	move m = create_move_t(from, to, mt_pawn_double_push, pawn, 0, false);
+	move m = create_move_pd(from, to);
 
 	assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 
@@ -134,7 +134,7 @@ init_zhash_table_double_push(int from, int to)
 static void
 init_zhash_table_ep(int from, int to)
 {
-	move m = create_move_t(from, to, mt_en_passant, pawn, pawn, false);
+	move m = create_move_ep(from, to);
 
 	assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 

@@ -65,11 +65,7 @@ struct position {
 	 */
 	uint64_t king_attack_map;
 
-	// Pins by opponents rooks or queens
-	uint64_t rpin_map;
-
-	// Pins by opponents bishops or queens
-	uint64_t bpin_map;
+	uint64_t padding[2];
 
 	/*
 	 * Index of a pawn that can be captured en passant.
@@ -81,7 +77,8 @@ struct position {
 	uint64_t occupied;
 
 	// The square of the king belonging to the player to move
-	uint64_t king_index;
+	int32_t ki;
+	int32_t opp_ki;
 
 	/*
 	 * The bitboards attack[0] and attack[1] contain maps all squares
@@ -150,7 +147,14 @@ struct position {
 	 * ........
 	 */
 
+	alignas(pos_alignment)
+	uint64_t rq[2]; // map[rook] | map[queen]
+	uint64_t bq[2]; // map[bishop] | map[queen]
 
+	alignas(pos_alignment)
+	uint64_t rays[4][64];
+
+	alignas(pos_alignment)
 	/*
 	 * The following four 64 bit contain two symmetric pairs, that can be
 	 * swapped in make_move, as in:
@@ -198,6 +202,13 @@ static_assert(offsetof(struct position, opponent_material_value) +
 	offsetof(struct position, zhash) == 32,
 	"struct position layout error");
 
+enum position_ray_directions {
+	pr_hor,
+	pr_ver,
+	pr_diag,
+	pr_adiag
+};
+
 
 
 static inline enum piece
@@ -219,6 +230,20 @@ pos_square_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
 	return pos_piece_at(p, i) | pos_player_at(p, i);
+}
+
+static inline uint64_t
+pos_bishop_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return p->rays[pr_diag][i] | p->rays[pr_adiag][i];
+}
+
+static inline uint64_t
+pos_rook_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return p->rays[pr_hor][i] | p->rays[pr_ver][i];
 }
 
 static inline uint64_t
