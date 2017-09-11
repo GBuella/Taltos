@@ -64,12 +64,9 @@ struct position {
 	 *    ........
 	 */
 	uint64_t king_attack_map;
+	uint64_t king_danger_map;
 
-	// Pins by opponents rooks or queens
-	uint64_t rpin_map;
-
-	// Pins by opponents bishops or queens
-	uint64_t bpin_map;
+	uint64_t padding;
 
 	/*
 	 * Index of a pawn that can be captured en passant.
@@ -81,7 +78,8 @@ struct position {
 	uint64_t occupied;
 
 	// The square of the king belonging to the player to move
-	uint64_t king_index;
+	int32_t ki;
+	int32_t opp_ki;
 
 	/*
 	 * The bitboards attack[0] and attack[1] contain maps all squares
@@ -150,7 +148,14 @@ struct position {
 	 * ........
 	 */
 
+	alignas(pos_alignment)
+	uint64_t rq[2]; // map[rook] | map[queen]
+	uint64_t bq[2]; // map[bishop] | map[queen]
 
+	alignas(pos_alignment)
+	uint64_t rays[2][64];
+
+	alignas(pos_alignment)
 	/*
 	 * The following four 64 bit contain two symmetric pairs, that can be
 	 * swapped in make_move, as in:
@@ -186,6 +191,8 @@ struct position {
 	int8_t cr_opponent_queen_side;
 	int8_t cr_padding1[2];
 	int32_t opponent_material_value;
+
+	uint64_t king_pins[2];
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
@@ -197,6 +204,11 @@ static_assert(offsetof(struct position, opponent_material_value) +
 	sizeof(((struct position*)NULL)->opponent_material_value) -
 	offsetof(struct position, zhash) == 32,
 	"struct position layout error");
+
+enum position_ray_directions {
+	pr_bishop,
+	pr_rook,
+};
 
 
 
@@ -222,9 +234,57 @@ pos_square_at(const struct position *p, int i)
 }
 
 static inline uint64_t
+bishop_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return p->rays[pr_bishop][i];
+}
+
+static inline uint64_t
+rook_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return p->rays[pr_rook][i];
+}
+
+static inline uint64_t
+diag_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return bishop_reach(p, i) & diag_masks[i];
+}
+
+static inline uint64_t
+adiag_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return bishop_reach(p, i) & adiag_masks[i];
+}
+
+static inline uint64_t
+hor_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return rook_reach(p, i) & hor_masks[i];
+}
+
+static inline uint64_t
+ver_reach(const struct position *p, int i)
+{
+	invariant(ivalid(i));
+	return rook_reach(p, i) & ver_masks[i];
+}
+
+static inline uint64_t
 pos_king_attackers(const struct position *p)
 {
 	return p->king_attack_map & p->map[1];
+}
+
+static inline uint64_t
+absolute_pins(const struct position *p, int player)
+{
+	return p->king_pins[player] & p->map[player];
 }
 
 static inline int
@@ -260,23 +320,6 @@ file64(int i)
 {
 	invariant(ivalid(i));
 	return FILE_H << (i % 8);
-}
-
-static inline uint64_t
-sliding_map(uint64_t occ, const struct magical *magic)
-{
-	uint64_t index = ((occ & magic->mask) * magic->multiplier);
-	index >>= magic->shift;
-
-	return magic->attack_table[magic->attack_index_table[index]];
-}
-
-static inline uint64_t
-knight_pattern(int i)
-{
-	invariant(ivalid(i));
-
-	return knight_moves_table[i];
 }
 
 static inline uint64_t
@@ -341,7 +384,7 @@ pos_king_index_opponent(const struct position *p)
 static inline uint64_t
 pos_king_knight_attack(const struct position *p)
 {
-	return knight_pattern(pos_king_index_opponent(p)) & p->map[knight];
+	return knight_pattern[p->opp_ki] & p->map[knight];
 }
 
 static inline bool

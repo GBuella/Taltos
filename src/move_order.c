@@ -144,7 +144,7 @@ is_knight_threat(const struct position *pos, move m)
 	victims |= pos->map[opponent_bishop] & ~pos->attack[1];
 	victims |= pos->map[opponent_pawn] & ~pos->attack[1];
 
-	return popcnt(knight_pattern(mto(m)) & victims) > 1; // fork
+	return popcnt(knight_pattern[mto(m)] & victims) > 1; // fork
 }
 
 static bool
@@ -209,7 +209,6 @@ eval_quiet_move(struct move_order *mo, move m)
 	int value = 0;
 	uint64_t from = mfrom64(m);
 	uint64_t to = mto64(m);
-	int opp_ki = bsf(mo->pos->map[opponent_king]);
 
 	if (is_nonempty(mo->pos->attack[opponent_pawn] & from)
 	    && is_empty(mo->pos->attack[opponent_pawn] & to))
@@ -218,14 +217,14 @@ eval_quiet_move(struct move_order *mo, move m)
 	if (mresultp(m) == rook || mresultp(m) == queen) {
 		uint64_t krook;
 
-		krook = rook_pattern_table[opp_ki];
+		krook = rook_masks[mo->pos->opp_ki];
 		if (is_empty(krook & from) && is_nonempty(krook & to))
 			value += 4; // threaten opponent king
 	}
 	if (mresultp(m) == bishop || mresultp(m) == queen) {
 		uint64_t kbishop;
 
-		kbishop = bishop_pattern_table[opp_ki];
+		kbishop = bishop_masks[mo->pos->opp_ki];
 		if (is_empty(kbishop & from) && is_nonempty(kbishop & to))
 			value += 4; // threaten opponent king
 	}
@@ -248,75 +247,12 @@ eval_quiet_move(struct move_order *mo, move m)
 	return value;
 }
 
-static bool
-has_move_defeneder(const struct position *pos, move m,
-			uint64_t rreach, uint64_t breach, uint64_t occ)
-{
-	uint64_t to64 = mto64(m);
-	uint64_t to = mto(m);
-
-	if (is_nonempty(pos->attack[pawn] & to64))
-		return true;
-
-	if (is_nonempty(pos->attack[king] & to64))
-		return true;
-
-	if (is_nonempty(knight_pattern(to) & pos->map[knight] & occ))
-		return true;
-
-	if (is_nonempty(rreach & pos->map[rook] & occ))
-		return true;
-
-	if (is_nonempty(breach & pos->map[bishop] & occ))
-		return true;
-
-	if (is_nonempty(breach & pos->map[queen] & occ))
-		return true;
-
-	if (is_nonempty(rreach & pos->map[queen] & occ))
-		return true;
-
-	return false;
-}
-
-static int
-move_lowest_attacker(const struct position *pos, move m,
-			uint64_t rreach, uint64_t breach)
-{
-	uint64_t to64 = mto64(m);
-
-	if (is_nonempty(pos->attack[opponent_pawn] & to64))
-		return pawn;
-
-	if (is_nonempty(pos->attack[opponent_knight] & to64))
-		return knight;
-
-	if (is_nonempty(breach & pos->map[opponent_bishop]))
-		return bishop;
-
-	if (is_nonempty(rreach & pos->map[opponent_rook]))
-		return rook;
-
-	if (is_nonempty(rreach & pos->map[opponent_queen]))
-		return queen;
-
-	if (is_nonempty(breach & pos->map[opponent_queen]))
-		return queen;
-
-	if (is_nonempty(pos->attack[opponent_king] & to64))
-		return king;
-
-	return 0;
-}
-
 static int
 eval_move_general(struct move_order *mo, move m, bool *tactical)
 {
 	uint64_t to64 = mto64(m);
 	int to = mto(m);
 	int piece = mresultp(m);
-	uint64_t opp_en_prise =
-	    mo->pos->map[1] & ~mo->pos->attack[1] & ~mo->pos->attack[0];
 	uint64_t en_prise =
 	    mo->pos->map[0] & mo->pos->attack[1] & ~mo->pos->attack[0];
 
@@ -389,83 +325,12 @@ eval_move_general(struct move_order *mo, move m, bool *tactical)
 			return -1000 - (piece_value[piece] / 2);
 	}
 
-	uint64_t occ = (mo->pos->occupied ^ mfrom64(m)) | to64;
-	uint64_t breach = sliding_map(occ, bishop_magics + to);
-	uint64_t rreach = sliding_map(occ, rook_magics + to);
-
-	int lowest_opp_defender =
-	    move_lowest_attacker(mo->pos, m, rreach, breach);
-
-	if (lowest_opp_defender != 0) {
-		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)) {
-			int att_value = 1000;
-			if (lowest_opp_defender != king)
-				att_value = piece_value[lowest_opp_defender];
-			if (att_value < piece_value[piece])
-				return -900 - (piece_value[piece] / 4);
-		}
-		else {
-			return -1000 - (piece_value[piece] / 3);
-		}
-	}
-
 	if (is_capture(m)) {
 		*tactical = true;
 		return MVVLVA(m);
 	}
 
 	int base = -140;
-
-
-	if (piece == knight) {
-		uint64_t reach = knight_pattern(to);
-		if (is_nonempty(reach & en_prise))
-			base = -100;
-		else if (is_nonempty(reach & opp_en_prise))
-			base = -110;
-		else if (is_nonempty(reach &mo->pos->map[opponent_queen]))
-			base = -120;
-		else if (is_nonempty(reach &mo->pos->map[opponent_rook]))
-			base = -121;
-	}
-	else if (piece == bishop) {
-		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
-		    && is_nonempty(breach & mo->pos->map[opponent_queen]))
-				base = -100;
-		else if (is_nonempty(breach & en_prise))
-			base = -100;
-		else if (is_nonempty(breach & opp_en_prise))
-			base = -110;
-		else if (is_nonempty(breach & mo->pos->map[opponent_rook]))
-			base = -120;
-	}
-	else if (piece == rook) {
-		if (has_move_defeneder(mo->pos, m, rreach, breach, occ)
-		    && is_nonempty(rreach & mo->pos->map[opponent_queen]))
-				base = -100;
-		else if (is_nonempty(rreach & en_prise))
-			base = -100;
-		else if (is_nonempty(rreach & opp_en_prise))
-			base = -110;
-	}
-	else if (piece == queen) {
-		if (is_nonempty(breach & en_prise))
-			base = -100;
-		else if (is_nonempty(rreach & en_prise))
-			base = -100;
-		else if (is_nonempty(breach & opp_en_prise))
-			base = -110;
-		else if (is_nonempty(rreach & opp_en_prise))
-			base = -110;
-	}
-	else if (piece == king) {
-		uint64_t new_reach = king_moves_table[to];
-		if (is_nonempty(new_reach & en_prise))
-			base = -120;
-		else if (is_nonempty(new_reach & opp_en_prise))
-			base = -121;
-	}
-
 	return base + eval_quiet_move(mo, m);
 }
 
@@ -478,17 +343,10 @@ eval_move(struct move_order *mo, move m, bool *tactical)
 	switch (mtype(m)) {
 		case mt_castle_kingside:
 		case mt_castle_queenside:
-			if (move_gives_check(m))
-				return 1;
-			else
-				return -99;
+			return -99;
 		case mt_promotion:
-			if (is_under_promotion(m)) {
-				if (move_gives_check(m))
-					return -100;
-				else
-					return -2100;
-			}
+			if (is_under_promotion(m))
+				return -2100;
 
 			*tactical = true;
 
@@ -506,17 +364,6 @@ eval_move(struct move_order *mo, move m, bool *tactical)
 	}
 
 	int value = eval_move_general(mo, m, tactical);
-
-	if (move_gives_check(m)) {
-		if (value < - 1000 && is_capture(m))
-			value = -999;
-		else if (value < - 1000 && !is_capture(m))
-			++value;
-		else if (value < 0)
-			value = 1;
-		else
-			++value;
-	}
 
 	return value;
 }
