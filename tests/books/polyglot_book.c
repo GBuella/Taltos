@@ -41,7 +41,7 @@ run_tests(void)
 
 	book_get_move_list(book, &pos, moves);
 	assert(moves[0] == create_move_pd(sq_e2, sq_e4));
-	assert(moves[1] == create_move_g(sq_h2, sq_h3, pawn, 0, false));
+	assert(moves[1] == create_move_g(sq_h2, sq_h3, pawn, 0));
 	assert(moves[2] == 0);
 
 	book_close(book);
