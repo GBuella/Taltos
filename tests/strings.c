@@ -215,9 +215,8 @@ test_fen_basic(void)
 	assert(position_print_fen_full(position, str, 0, 1, 0, white)
 	    == str + strlen(start_position_fen));
 	assert(strcmp(str, start_position_fen) == 0);
-	move = create_move_t(str_to_index("e2", white),
-	    str_to_index("e4", white),
-	    mt_pawn_double_push, pawn, 0, false);
+	move = create_move_pd(str_to_index("e2", white),
+	    str_to_index("e4", white));
 	make_move(next, position, move);
 	assert(position_piece_at(next, str_to_index("e2", black)) == nonpiece);
 	assert(position_piece_at(next, str_to_index("e4", black)) == pawn);
@@ -244,36 +243,36 @@ test_move_str(void)
 	assert(strcmp(str, positions[0].FEN) == 0);
 	assert(end == (str + strlen(positions[0].FEN)));
 	assert(read_move(&pos, "h8h7", &m, black) == 0);
-	assert(m == create_move_g(sq_h1, sq_h2, king, 0, false));
+	assert(m == create_move_g(sq_h1, sq_h2, king, 0));
 	print_move(&pos, m, str, mn_coordinate, black);
 	assert(strcmp(str, "h8h7") == 0);
 	assert(read_move(&pos, "h8g8", &m, black) == 0);
-	assert(m == create_move_g(sq_h1, sq_g1, king, 0, false));
+	assert(m == create_move_g(sq_h1, sq_g1, king, 0));
 	print_move(&pos, m, str, mn_coordinate, black);
 	assert(strcmp(str, "h8g8") == 0);
 	assert(read_move(&pos, "b5b4", &m, black) == 0);
-	assert(m == create_move_g(sq_b4, sq_b5, pawn, 0, false));
+	assert(m == create_move_g(sq_b4, sq_b5, pawn, 0));
 	print_move(&pos, m, str, mn_coordinate, black);
 	assert(strcmp(str, "b5b4") == 0);
 	assert(read_move(&pos, "b5a4", &m, black) == 0);
-	assert(m == create_move_g(sq_b4, sq_a5, pawn, pawn, false));
+	assert(m == create_move_g(sq_b4, sq_a5, pawn, pawn));
 	print_move(&pos, m, str, mn_coordinate, black);
 	assert(strcmp(str, "b5a4") == 0);
 	assert(read_move(&pos, "b5c4", &m, black) != 0);
 	assert(read_move(&pos, "Kh7", &m, black) == 0);
-	assert(m == create_move_g(sq_h1, sq_h2, king, 0, false));
+	assert(m == create_move_g(sq_h1, sq_h2, king, 0));
 	print_move(&pos, m, str, mn_san, black);
 	assert(strcmp(str, "Kh7") == 0);
 	assert(read_move(&pos, "Kg8", &m, black) == 0);
-	assert(m == create_move_g(sq_h1, sq_g1, king, 0, false));
+	assert(m == create_move_g(sq_h1, sq_g1, king, 0));
 	print_move(&pos, m, str, mn_san, black);
 	assert(strcmp(str, "Kg8") == 0);
 	assert(read_move(&pos, "b4", &m, black) == 0);
-	assert(m == create_move_g(sq_b4, sq_b5, pawn, 0, false));
+	assert(m == create_move_g(sq_b4, sq_b5, pawn, 0));
 	print_move(&pos, m, str, mn_san, black);
 	assert(strcmp(str, "b4") == 0);
 	assert(read_move(&pos, "bxa4", &m, black) == 0);
-	assert(m == create_move_g(sq_b4, sq_a5, pawn, pawn, false));
+	assert(m == create_move_g(sq_b4, sq_a5, pawn, pawn));
 	print_move(&pos, m, str, mn_san, black);
 	assert(strcmp(str, "bxa4") == 0);
 	assert(read_move(&pos, "bxc4", &m, black) != 0);
@@ -309,13 +308,11 @@ test_move_str(void)
 	assert(strcmp(str, "O-O") == 0);
 	assert(read_move(&pos, "o-o-o", &m, white) != 0);
 	assert(read_move(&pos, "e5d6", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_e5, sq_d6, mt_en_passant, pawn, pawn, false));
+	assert(m == create_move_ep(sq_e5, sq_d6));
 	print_move(&pos, m, str, mn_coordinate, white);
 	assert(strcmp(str, "e5d6") == 0);
 	assert(read_move(&pos, "exd6", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_e5, sq_d6, mt_en_passant, pawn, pawn, false));
+	assert(m == create_move_ep(sq_e5, sq_d6));
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "exd6e.p.") == 0);
 
@@ -328,19 +325,19 @@ test_move_str(void)
 	assert(strcmp(str, positions[3].FEN) == 0);
 	assert(end == (str + strlen(positions[3].FEN)));
 	assert(read_move(&pos, "o-o", &m, white) == 0);
-	assert(m == mcastle_king_side_check);
+	assert(m == mcastle_king_side);
 	assert(read_move(&pos, "O-O", &m, white) == 0);
-	assert(m == mcastle_king_side_check);
+	assert(m == mcastle_king_side);
 	print_move(&pos, m, str, mn_coordinate, white);
 	assert(strcmp(str, "e1g1") == 0);
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "O-O") == 0);
 	assert(read_move(&pos, "c1b2", &m, white) == 0);
-	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0, true));
+	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0));
 	assert(read_move(&pos, "Bb2", &m, white) == 0);
-	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0, true));
+	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0));
 	assert(read_move(&pos, "Bb2+", &m, white) == 0);
-	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0, true));
+	assert(m == create_move_g(sq_c1, sq_b2, bishop, 0));
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "Bb2+") == 0);
 
@@ -353,48 +350,38 @@ test_move_str(void)
 	assert(strcmp(str, positions[4].FEN) == 0);
 	assert(end == (str + strlen(positions[4].FEN)));
 	assert(read_move(&pos, "c7b8q", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_b8, mt_promotion, queen, knight, false));
+	assert(m == create_move_pr(sq_c7, sq_b8, queen, knight));
 	assert(read_move(&pos, "c7b8Q", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_b8, mt_promotion, queen, knight, false));
+	assert(m == create_move_pr(sq_c7, sq_b8, queen, knight));
 	assert(read_move(&pos, "c7b8n", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_b8, mt_promotion, knight, knight, false));
+	assert(m == create_move_pr(sq_c7, sq_b8, knight, knight));
 	assert(read_move(&pos, "c7b8r", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_b8, mt_promotion, rook, knight, false));
+	assert(m == create_move_pr(sq_c7, sq_b8, rook, knight));
 	assert(read_move(&pos, "c7b8b", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_b8, mt_promotion, bishop, knight, false));
+	assert(m == create_move_pr(sq_c7, sq_b8, bishop, knight));
 	assert(read_move(&pos, "c7d8q", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen, true));
+	assert(m == create_move_pr(sq_c7, sq_d8, queen, queen));
 	assert(read_move(&pos, "c7d8Q", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen, true));
+	assert(m == create_move_pr(sq_c7, sq_d8, queen, queen));
 	assert(read_move(&pos, "cxd8=Q", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen, true));
+	assert(m == create_move_pr(sq_c7, sq_d8, queen, queen));
 	assert(read_move(&pos, "cxd8=Q+", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_d8, mt_promotion, queen, queen, true));
+	assert(m == create_move_pr(sq_c7, sq_d8, queen, queen));
 	assert(read_move(&pos, "cxd8=R+", &m, white) == 0);
-	assert(m ==
-	    create_move_t(sq_c7, sq_d8, mt_promotion, rook, queen, true));
+	assert(m == create_move_pr(sq_c7, sq_d8, rook, queen));
 
 	end = position_read_fen(&pos,
 	    "rnbqkbnr/ppppp2p/5p2/6p1/8/4P3/PPPP1PPP/RNBQKBNR w KQkq -",
 	    NULL, NULL);
 	assert(end != NULL);
 	assert(read_move(&pos, "d1h5", &m, white) == 0);
-	assert(m == create_move_g(sq_d1, sq_h5, queen, 0, true));
+	assert(m == create_move_g(sq_d1, sq_h5, queen, 0));
 	assert(read_move(&pos, "Qh5", &m, white) == 0);
-	assert(m == create_move_g(sq_d1, sq_h5, queen, 0, true));
+	assert(m == create_move_g(sq_d1, sq_h5, queen, 0));
 	assert(read_move(&pos, "Qh5+", &m, white) == 0);
-	assert(m == create_move_g(sq_d1, sq_h5, queen, 0, true));
+	assert(m == create_move_g(sq_d1, sq_h5, queen, 0));
 	assert(read_move(&pos, "Qh5#", &m, white) == 0);
-	assert(m == create_move_g(sq_d1, sq_h5, queen, 0, true));
+	assert(m == create_move_g(sq_d1, sq_h5, queen, 0));
 	print_move(&pos, m, str, mn_san, white);
 	assert(strcmp(str, "Qh5#") == 0);
 }

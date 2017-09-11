@@ -110,33 +110,15 @@
 #define CENTER_SQ	UINT64_C(0x0000001818000000)
 #define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
-extern const uint64_t knight_moves_table[64];
+extern uint64_t knight_pattern[64];
+extern uint64_t king_pattern[64];
+extern uint64_t diag_masks[64];
+extern uint64_t adiag_masks[64];
+extern uint64_t hor_masks[64];
+extern uint64_t ver_masks[64];
+extern uint64_t bishop_masks[64];
+extern uint64_t rook_masks[64];
 
-extern const uint64_t bishop_pattern_table[64];
-extern const uint64_t rook_pattern_table[64];
-extern const uint64_t king_moves_table[64];
-extern const uint64_t pawns_reach_table[64];
-
-extern const uint8_t bishop_attack_index8[];
-extern const uint8_t rook_attack_index8[];
-extern const uint64_t bishop_magics_raw[4 * 64];
-extern const uint64_t rook_magics_raw[4 * 64];
-extern const uint64_t bishop_magic_attacks[];
-extern const uint64_t rook_magic_attacks[];
-
-struct magical {
-	uint64_t mask;
-	uint64_t multiplier;
-	const uint64_t *attack_table;
-	const uint8_t *attack_index_table;
-	int shift;
-};
-
-extern struct magical bitboard_magics[128];
-
-#define rook_magics bitboard_magics
-#define bishop_magics (bitboard_magics + 64)
-
-extern const uint64_t ray_table[64][64];
+void init_constants(void);
 
 #endif
