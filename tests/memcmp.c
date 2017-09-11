@@ -23,11 +23,11 @@ check_memcmp(const struct position *pos, enum player player)
 
 	assert(memcmp(pos->board, temp->board, sizeof(pos->board)) == 0);
 	assert(pos->king_attack_map == temp->king_attack_map);
-	assert(pos->rpin_map == temp->rpin_map);
-	assert(pos->bpin_map == temp->bpin_map);
+	assert(pos->king_danger_map == temp->king_danger_map);
 	assert(pos->ep_index == temp->ep_index);
 	assert(pos->occupied == temp->occupied);
-	assert(pos->king_index == temp->king_index);
+	assert(pos->ki == temp->ki);
+	assert(pos->opp_ki == temp->opp_ki);
 	assert(memcmp(pos->attack, temp->attack, sizeof(pos->attack)) == 0);
 	assert(memcmp(pos->sliding_attacks, temp->sliding_attacks,
 	    sizeof(pos->sliding_attacks)) == 0);
@@ -36,6 +36,8 @@ check_memcmp(const struct position *pos, enum player player)
 	    sizeof(pos->half_open_files)) == 0);
 	assert(memcmp(pos->pawn_attack_reach, temp->pawn_attack_reach,
 	    sizeof(pos->pawn_attack_reach)) == 0);
+	assert(memcmp(pos->rays[0], temp->rays[0], sizeof(pos->rays[0])) == 0);
+	assert(memcmp(pos->rays[1], temp->rays[1], sizeof(pos->rays[1])) == 0);
 	assert(pos->cr_king_side == temp->cr_king_side);
 	assert(pos->cr_queen_side == temp->cr_queen_side);
 	assert(pos->material_value == temp->material_value);
@@ -43,6 +45,8 @@ check_memcmp(const struct position *pos, enum player player)
 	assert(pos->cr_opponent_queen_side == temp->cr_opponent_queen_side);
 	assert(pos->opponent_material_value == temp->opponent_material_value);
 	assert(memcmp(pos->zhash, temp->zhash, sizeof(pos->zhash)) == 0);
+	assert(pos->king_pins[0] == temp->king_pins[0]);
+	assert(pos->king_pins[1] == temp->king_pins[1]);
 }
 
 static void

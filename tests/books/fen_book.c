@@ -24,7 +24,7 @@ run_tests(void)
 
 	{"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RN1QKBNR w KQkq -",
 		{ create_move_pd(sq_e2, sq_e4),
-		    create_move_g(sq_g1, sq_f3, knight, 0, false),
+		    create_move_g(sq_g1, sq_f3, knight, 0),
 		    create_move_pd(sq_d2, sq_d4),
 	            0, }},
 	{ "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -",

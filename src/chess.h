@@ -172,7 +172,6 @@ typedef int32_t move;
  * result piece   : bits 12 - 14
  * captured piece : bits 15 - 17
  * type           : bits 18 - 20
- * check flag     : bit  21
  *
  *
  *
@@ -195,7 +194,6 @@ enum move_bit_offsets {
 	move_bit_off_type_bit1,
 	move_bit_off_type_bit2,
 
-	move_bit_off_check_flag,
 	move_bit_mask_plus_one_shift
 };
 
@@ -224,10 +222,6 @@ is_valid_mt(int t)
 #define MOVE_TYPE_MASK (7 << move_bit_off_type)
 
 enum {
-	move_check_flag = (1 << move_bit_off_check_flag)
-};
-
-enum {
 	mcastle_king_side =
 		(sq_e1 << move_bit_off_from) |
 		(sq_g1 << move_bit_off_to) |
@@ -238,10 +232,7 @@ enum {
 		(sq_e1 << move_bit_off_from) |
 		(sq_c1 << move_bit_off_to) |
 		mt_castle_queenside |
-		(king << (move_bit_off_result - 1)),
-
-	mcastle_king_side_check = mcastle_king_side | move_check_flag,
-	mcastle_queen_side_check = mcastle_queen_side | move_check_flag
+		(king << (move_bit_off_result - 1))
 };
 
 static inline int
@@ -351,12 +342,12 @@ is_capture(move m)
 static inline bool
 move_gives_check(move m)
 {
-	return (m & move_check_flag) != 0;
+	(void) m;
+	return false;
 }
 
 static inline move
-create_move_t(int from, int to, enum move_type t, int result, int captured,
-		bool gives_check)
+create_move_t(int from, int to, enum move_type t, int result, int captured)
 {
 	invariant(ivalid(from));
 	invariant(ivalid(to));
@@ -368,39 +359,31 @@ create_move_t(int from, int to, enum move_type t, int result, int captured,
 	    (to << move_bit_off_to) |
 	    t |
 	    (result << (move_bit_off_result - 1)) |
-	    (captured << (move_bit_off_captured - 1)) |
-	    (gives_check ? move_check_flag : 0);
+	    (captured << (move_bit_off_captured - 1));
 }
 
 static inline move
-create_move_g(int from, int to, int result, int captured, bool gives_check)
+create_move_g(int from, int to, int result, int captured)
 {
-	return create_move_t(from, to, mt_general, result, captured,
-	    gives_check);
+	return create_move_t(from, to, mt_general, result, captured);
 }
 
 static inline move
 create_move_pd(int from, int to)
 {
-	return create_move_t(from, to, mt_pawn_double_push, pawn, 0, false);
-}
-
-static inline move
-create_move_pdch(int from, int to)
-{
-	return create_move_t(from, to, mt_pawn_double_push, pawn, 0, true);
+	return create_move_t(from, to, mt_pawn_double_push, pawn, 0);
 }
 
 static inline move
 create_move_pr(int from, int to, int result, int captured)
 {
-	return create_move_t(from, to, mt_promotion, result, captured, false);
+	return create_move_t(from, to, mt_promotion, result, captured);
 }
 
 static inline move
-create_move_prch(int from, int to, int result, int captured)
+create_move_ep(int from, int to)
 {
-	return create_move_t(from, to, mt_promotion, result, captured, true);
+	return create_move_t(from, to, mt_en_passant, pawn, pawn);
 }
 
 static inline bool
@@ -555,8 +538,6 @@ int position_reset(struct position*,
 	attribute(nonnull(2, 3), warn_unused_result);
 
 void position_destroy(struct position*);
-
-void init_move_gen(void);
 
 bool has_any_legal_move(const struct position*)
 	attribute(nonnull);

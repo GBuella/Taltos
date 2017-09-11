@@ -28,17 +28,6 @@ struct divide_info {
 	bool is_ordered;
 };
 
-static void
-perft_make_move(struct position *child, const struct position *pos, move m)
-{
-	make_move(child, pos, m);
-
-	if (move_gives_check(m) != is_in_check(child)) {
-		fprintf(stderr, "move generator error - check flag\n");
-		abort();
-	}
-}
-
 static uintmax_t
 do_qperft(const struct position *pos, unsigned depth)
 {
@@ -52,7 +41,7 @@ do_qperft(const struct position *pos, unsigned depth)
 		return gen_moves(pos, moves);
 	(void) gen_moves(pos, moves);
 	for (move *i = moves; *i != 0; ++i) {
-		perft_make_move(child, pos, *i);
+		make_move(child, pos, *i);
 		n += do_qperft(child, depth - 1);
 	}
 	return n;
@@ -70,7 +59,7 @@ do_perft(const struct position *pos, unsigned depth)
 	(void) gen_moves(pos, moves);
 	n = 0;
 	for (move *i = moves; *i != 0; ++i) {
-		perft_make_move(child, pos, *i);
+		make_move(child, pos, *i);
 		n += do_perft(child, depth - 1);
 	}
 	return n;

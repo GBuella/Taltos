@@ -42,8 +42,6 @@ run_tests(void)
 	assert(pos.attack[1] ==
 	    (SQ_B8 | SQ_C8 | SQ_D8 | SQ_E8 | SQ_F8 | SQ_G8 | RANK_7 | RANK_6));
 	assert(is_empty(pos.king_attack_map));
-	assert(is_empty(pos.bpin_map));
-	assert(is_empty(pos.rpin_map));
 
 	position_read_fen(&pos,
 	    "rnbqkbnr/pppp1ppp/4p3/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
@@ -84,8 +82,6 @@ run_tests(void)
 	assert(pos.attack[king] ==
 	    bswap(SQ_D8 | SQ_D7 | SQ_E7 | SQ_F7 | SQ_F8));
 	assert(is_empty(pos.king_attack_map));
-	assert(pos.bpin_map == bswap(SQ_D7 | SQ_C6 | SQ_B5));
-	assert(is_empty(pos.rpin_map));
 
 	position_read_fen(&pos,
 	    "rnbqkbnr/ppppp1pp/5p2/7Q/8/4P3/PPPP1PPP/RNB1KBNR b KQkq - 1 2",
@@ -125,8 +121,6 @@ run_tests(void)
 	    bswap(SQ_D8 | SQ_D7 | SQ_E7 | SQ_F7 | SQ_F8));
 	assert(pos.king_attack_map ==
 	    bswap(SQ_F7 | SQ_G6 | SQ_H5));
-	assert(is_empty(pos.bpin_map));
-	assert(is_empty(pos.rpin_map));
 
 	position_read_fen(&pos,
 	    "rnb1kbnr/pppp1ppp/4p3/8/7q/5PP1/PPPPP2P/RNBQKBNR w KQkq - 4 3",
@@ -134,13 +128,9 @@ run_tests(void)
 	assert(pos.attack[pawn] ==
 	    ((RANK_3 | SQ_E4 | SQ_F4| SQ_G4 | SQ_H4) & ~(SQ_H3)));
 	assert(is_empty(pos.king_attack_map));
-	assert(pos.bpin_map == (SQ_F2 | SQ_G3 | SQ_H4));
-	assert(is_empty(pos.rpin_map));
 
 	position_read_fen(&pos,
 	    "rnb1kbnr/pp1ppppp/8/q1p5/1P6/3P4/P1P1PPPP/RNBQKBNR w KQkq - 1 3",
 	    NULL, NULL);
 	assert(is_empty(pos.king_attack_map));
-	assert(pos.bpin_map == (SQ_A5 | SQ_B4 | SQ_C3 | SQ_D2));
-	assert(is_empty(pos.rpin_map));
 }
