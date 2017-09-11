@@ -990,7 +990,7 @@ handle_beta_extension(struct node *node, move m, int value)
 
 	if (value >= node->beta
 	    && !node[-1].is_in_null_move_search
-	    && move_gives_check(m)
+	    && is_in_check(node[1].pos)
 	    && value < mate_value
 	    && node->depth > 0
 	    && !is_capture(m)

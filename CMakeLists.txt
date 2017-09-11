@@ -11,12 +11,12 @@ add_executable(gen_constants EXCLUDE_FROM_ALL tools/gen_constants.c)
 add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.c)
 add_executable(cmp_text tools/cmp_text.c)
 
-# https://chessprogramming.wikispaces.com/Magic+Bitboards#Implementations-Byte%20Lookup
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX "Do not use AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX2 "Do not use AVX2 builtin intrinsics" OFF)
+option(TALTOS_FORCE_NO_SSE "Do not use SSE builtin intrinsics" OFF)
 
 if(TALTOS_FORCE_AVX AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
@@ -35,6 +35,7 @@ include(cmake/feature_tests.cmake)
 
 set(TALTOS_SOURCES
 	src/book.c
+	src/constants.c
 	src/eval.c
 	src/fen.c
 	src/fen_book.c
@@ -67,6 +68,9 @@ endif()
 
 if(HAS_FLAX_VCONVS)
 	target_compile_options(taltos PUBLIC -flax-vector-conversions)
+endif()
+if(HAS_MNO_VZEROUPPER)
+	target_compile_options(taltos_code PUBLIC -mno-vzeroupper)
 endif()
 
 # hack: this gets rid of some declarations in Visual C++ headers
