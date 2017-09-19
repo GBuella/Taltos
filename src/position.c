@@ -759,6 +759,69 @@ flip_ray_array(uint64_t dst[restrict 64] attribute(align_value(pos_alignment)),
 #endif
 
 static void
+generate_reach_table(struct position *pos, uint8_t table[64],
+    			int dir, uint8_t edge)
+{
+	for (int from = 0; from < 64; ++from) {
+		table[from] = from;
+
+		uint64_t bit = bit64(from);
+		if (is_nonempty(edge & bit))
+			continue;
+
+		uint64_t stop = edge | pos->occupied;
+
+		do {
+			table[from] += dir;
+			bit = bit64(table[from]);
+		} while (is_empty(stop & bit));
+	}
+}
+
+static void
+generate_all_reach_tables(struct position *pos)
+{
+	memset(pos->reach, 0, sizeof(pos->reach));
+
+	generate_reach_table(pos, pos->reach[r_west], WEST, FILE_A);
+	generate_reach_table(pos, pos->reach[r_east], EAST, FILE_H);
+	generate_reach_table(pos, pos->reach[r_north], NORTH, RANK_8);
+	generate_reach_table(pos, pos->reach[r_south], SOUTH, RANK_1);
+	generate_reach_table(pos, pos->reach[r_south_east],
+	    SOUTH + EAST, RANK_1 | FILE_H);
+	generate_reach_table(pos, pos->reach[r_north_west],
+	    NORTH + WEST, RANK_8 | FILE_A);
+	generate_reach_table(pos, pos->reach[r_south_west],
+	    SOUTH + WEST, RANK_1 | FILE_A);
+	generate_reach_table(pos, pos->reach[r_north_east],
+	    NORTH + EAST, RANK_8 | FILE_H);
+}
+
+
+static void
+make_move_all_reach_tables(struct position *restrict dst,
+			const struct position *restrict src,
+			move m)
+{
+	make_move_reach_table(dst->reach[r_east],
+	    src->reach[r_east], src->reach[r_west], m);
+	make_move_reach_table(dst->reach[r_west],
+	    src->reach[r_west], src->reach[r_east], m);
+	make_move_reach_table(dst->reach[r_north],
+	    src->reach[r_south], src->reach[r_north], m);
+	make_move_reach_table(dst->reach[r_south],
+	    src->reach[r_north], src->reach[r_south], m);
+	make_move_reach_table(dst->reach[r_south_east],
+	    src->reach[r_north_east], src->reach[r_south_west], m);
+	make_move_reach_table(dst->reach[r_south_west],
+	    src->reach[r_north_west], src->reach[r_south_east], m);
+	make_move_reach_table(dst->reach[r_north_east],
+	    src->reach[r_south_east], src->reach[r_north_west], m);
+	make_move_reach_table(dst->reach[r_north_west],
+	    src->reach[r_south_west], src->reach[r_north_east], m);
+}
+
+static void
 flip_all_rays(struct position *restrict dst, const struct position *restrict src)
 {
 	flip_ray_array(dst->rays[pr_hor], src->rays[pr_hor]);

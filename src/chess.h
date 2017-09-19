@@ -171,7 +171,6 @@ typedef int32_t move;
  * result piece   : bits 12 - 14
  * captured piece : bits 15 - 17
  * type           : bits 18 - 20
- * check flag     : bit  21
  *
  *
  *

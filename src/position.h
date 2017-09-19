@@ -152,7 +152,7 @@ struct position {
 	uint64_t bq[2]; // map[bishop] | map[queen]
 
 	alignas(pos_alignment)
-	uint64_t rays[4][64];
+	uint8_t reach[8][64];
 
 	alignas(pos_alignment)
 	/*
