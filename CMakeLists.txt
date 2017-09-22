@@ -8,6 +8,7 @@ FIND_PACKAGE(Threads)
 include_directories(src tests "${PROJECT_BINARY_DIR}")
 
 add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.c)
+add_executable(bitboard EXCLUDE_FROM_ALL tools/bitboard.c)
 add_executable(cmp_text tools/cmp_text.c)
 
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
