@@ -796,7 +796,7 @@ setup_bounds(struct node *node)
 	return 0;
 }
 
-enum { alpha_not_less_than_beta = 1 };
+enum { alpha_beta_range_too_small = 1 };
 
 static int
 recheck_bounds(struct node *node)
@@ -809,7 +809,16 @@ recheck_bounds(struct node *node)
 
 	if (node->alpha >= node->beta) {
 		node->value = node->lower_bound;
-		return alpha_not_less_than_beta;
+		return alpha_beta_range_too_small;
+	}
+
+	if (node->beta <= -max_value + 2) {
+		node->value = node->beta; // see handle_mate_search
+		return alpha_beta_range_too_small;
+	}
+	else if (node->alpha >= max_value - 2) {
+		node->value = node->alpha;
+		return alpha_beta_range_too_small;
 	}
 
 	return 0;
@@ -910,19 +919,41 @@ reset_child_after_lmr(struct node *node)
 
 enum { mate_search_handled = 1 };
 
+static bool
+is_checkmate(struct node *node)
+{
+	// TODO move this function to move_gen.c, or to position.c
+
+	if (!is_in_check(node->pos))
+		return false;
+
+	return gen_moves(node->pos, node->mo->moves) == 0;
+}
+
 static int
 handle_mate_search(struct node *node)
 {
-	if (node->beta > - mate_value)
-		return 0;
-
 	if (node->beta <= -max_value + 2) {
-		if (!is_in_check(node->pos))
-			node->value = node->beta;
-		else if (gen_moves(node->pos, node->mo->moves) == 0)
+		/*
+		 * Any move would raise alpha above such beta.
+		 * A draw would raise alpha above such beta.
+		 * The only way alpha would not be raised, is if
+		 * this if the player is checkmated.
+		 */
+
+		if (is_checkmate(node))
 			node->value = -max_value;
 		else
 			node->value = node->beta;
+
+		return mate_search_handled;
+	}
+	else if (node->alpha >= max_value - 2) {
+		/*
+		 * Nothin can raise such alpha. A checkmate on
+		 * next move would just return the same value here.
+		 */
+		node->value = node->alpha;
 
 		return mate_search_handled;
 	}
@@ -1013,8 +1044,11 @@ negamax(struct node *node)
 	if (try_null_move_prune(node) == prune_successfull)
 		return;
 
-	if (recheck_bounds(node) == alpha_not_less_than_beta)
+	if (recheck_bounds(node) == alpha_beta_range_too_small)
 		return;
+
+	assert(node->beta > -max_value + 2);
+	assert(node->alpha < max_value - 2);
 
 	do {
 		move_order_pick_next(node->mo);
