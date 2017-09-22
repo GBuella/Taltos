@@ -152,7 +152,7 @@ cleanup_move(char str[])
 		if (*src != '.')
 			*dst++ = *src;
 		++src;
-	} while (*src != '\0' && !isspace(*src));
+	} while (*src != '\0' && !isspace((unsigned char)*src));
 
 	// remove "ep" "exb3ep" -> "exb3"
 	if (dst - str >= 3 && dst[-1] == 'p' && dst[-2] == 'e')
@@ -178,7 +178,7 @@ read_move(const struct position *pos, const char *move_str,
 		move *m, enum player turn)
 {
 	move moves[MOVE_ARRAY_LENGTH];
-	char str[8];
+	char str[8] = {0, };
 
 	if (move_str[0] == '\0')
 		return none_move;
