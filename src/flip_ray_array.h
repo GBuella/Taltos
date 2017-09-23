@@ -1,6 +1,5 @@
-
 /* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0: */
+/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 
 #ifndef TALTOS_FLIP_RAY_ARRAY_H
 #define TALTOS_FLIP_RAY_ARRAY_H

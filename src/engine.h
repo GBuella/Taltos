@@ -1,6 +1,5 @@
-
 /* vim: set filetype=c : */
-/* vim: set noet ts=8 sw=8 cinoptions=(4: */
+/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 
 #ifndef TALTOS_ENGINE_H
 #define TALTOS_ENGINE_H
