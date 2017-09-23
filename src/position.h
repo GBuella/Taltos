@@ -192,6 +192,12 @@ struct position {
 	int32_t opponent_material_value;
 
 	uint64_t king_pins[2];
+
+	// each players pieces not defended by other pieces of the same player
+	uint64_t undefended[2];
+
+	// each players pieces under attack, which might need defense
+	uint64_t defendable_hanging[2];
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
