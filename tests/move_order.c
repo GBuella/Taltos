@@ -17,6 +17,14 @@ static char move_stack[1024];
 static char *move_stack_p = move_stack;
 static enum player turn;
 
+struct data {
+	struct move_order move_order[1];
+	struct position pos[1];
+	move check_moves[MOVE_ARRAY_LENGTH];
+	move original_moves[MOVE_ARRAY_LENGTH];
+	bool move_present[MOVE_ARRAY_LENGTH];
+};
+
 static void
 move_stack_append(move m)
 {
@@ -41,31 +49,28 @@ step_hint_index(void)
 }
 
 static void
-test_tree_walk(const struct position *pos, unsigned depth)
+test_tree_walk(struct data *data, unsigned depth)
 {
-	struct move_order move_order[1];
-	struct position child[1];
-	move check_moves[MOVE_ARRAY_LENGTH];
-	move original_moves[MOVE_ARRAY_LENGTH];
-	bool move_present[MOVE_ARRAY_LENGTH] = {0};
 	unsigned count;
 	move hint_move;
 
 	if (depth == 0)
 		return;
 
-	move_order_setup(move_order, pos, false, 0);
-	count = move_order->count;
+	memset(data->move_present, 0, sizeof(data->move_present));
+
+	move_order_setup(data->move_order, data->pos, false, 0);
+	count = data->move_order->count;
 	if (count == 0)
 		return;
 
 	for (unsigned i = 0; i < count; ++i)
-		original_moves[i] = move_order->moves[i];
+		data->original_moves[i] = data->move_order->moves[i];
 
 	unsigned hindex = random_hint_index % (count + 1);
 	if (hindex > 0) {
-		hint_move = original_moves[hindex - 1];
-		move_order_add_hint(move_order, hint_move, 1);
+		hint_move = data->original_moves[hindex - 1];
+		move_order_add_hint(data->move_order, hint_move, 1);
 	}
 	else {
 		hint_move = 0;
@@ -73,36 +78,37 @@ test_tree_walk(const struct position *pos, unsigned depth)
 
 	step_hint_index();
 
-	if (move_order->count > 13)
-		move_order_add_killer(move_order, move_order->moves[10]);
+	if (data->move_order->count > 13)
+		move_order_add_killer(data->move_order,
+				      data->move_order->moves[10]);
 	else
-		move_order->killers[0] = 0;
+		data->move_order->killers[0] = 0;
 
-	move_order->killers[1] = 0;
+	data->move_order->killers[1] = 0;
 
 	unsigned i = 0;
 	do {
-		move_order_pick_next(move_order);
-		move m = mo_current_move(move_order);
+		move_order_pick_next(data->move_order);
+		move m = mo_current_move(data->move_order);
 		move_stack_append(m);
-		check_moves[i] = m;
-		make_move(child, pos, m);
-		test_tree_walk(child, depth - 1);
+		data->check_moves[i] = m;
+		make_move(data[1].pos, data->pos, m);
+		test_tree_walk(data + 1, depth - 1);
 		++i;
 		move_stack_pop();
-	} while (!move_order_done(move_order));
+	} while (!move_order_done(data->move_order));
 
 	assert(i == count);
-	assert(count == move_order->count);
+	assert(count == data->move_order->count);
 	if (hint_move != 0)
-		assert(move_order->moves[0] == hint_move);
+		assert(data->move_order->moves[0] == hint_move);
 
 	for (unsigned i = 0; i < count; ++i) {
 		unsigned j;
 		for (j = 0; j < count; ++j) {
-			if (original_moves[j] == check_moves[i]) {
-				assert(!move_present[j]);
-				move_present[j] = true;
+			if (data->original_moves[j] == data->check_moves[i]) {
+				assert(!data->move_present[j]);
+				data->move_present[j] = true;
 				break;
 			}
 		}
@@ -118,5 +124,8 @@ run_tests(void)
 	turn = game_turn(g);
 	move_stack[0] = ' ';
 	move_stack_p = move_stack + 1;
-	test_tree_walk(game_current_position(g), 4);
+
+	static struct data data[5];
+	data[0].pos[0] = *(game_current_position(g));
+	test_tree_walk(data, 4);
 }
