@@ -673,23 +673,29 @@ pos_add_piece(struct position *pos, int i, int piece)
 static void
 accumulate_occupancy(struct position *pos)
 {
+	pos->nb[0] = pos->map[knight] | pos->map[bishop];
+	pos->nb[1] = pos->map[opponent_knight] | pos->map[opponent_bishop];
 	pos->rq[0] = pos->map[rook] | pos->map[queen];
-	pos->bq[0] = pos->map[bishop] | pos->map[queen];
 	pos->rq[1] = pos->map[opponent_rook] | pos->map[opponent_queen];
+	pos->all_rq = pos->rq[0] | pos->rq[1];
+	pos->bq[0] = pos->map[bishop] | pos->map[queen];
 	pos->bq[1] = pos->map[opponent_bishop] | pos->map[opponent_queen];
+	pos->all_bq = pos->bq[0] | pos->bq[1];
 	pos->map[0] = pos->map[pawn] | pos->map[knight] | pos->map[king];
 	pos->map[0] |= pos->rq[0] | pos->bq[0];
 	pos->map[1] = pos->map[opponent_pawn];
 	pos->map[1] |= pos->map[opponent_knight];
 	pos->map[1] |= pos->map[opponent_king];
 	pos->map[1] |= pos->rq[1] | pos->bq[1];
-
+	pos->all_kings = pos->map[king] | pos->map[opponent_king];
+	pos->all_knights = pos->map[knight] | pos->map[opponent_knight];
 	pos->occupied = pos->map[0] | pos->map[1];
 }
 
 static void
 accumulate_misc_patterns(struct position *pos, int player)
 {
+
 	int opp = opponent_of(player);
 
 	pos->undefended[player] = pos->map[player] & ~pos->attack[player];
@@ -909,8 +915,11 @@ position_flip(struct position *restrict dst,
 	flip_all_rays(dst, src);
 	flip_tail(dst, src);
 	flip_2_bb_pairs(dst->king_pins, src->king_pins);
-	dst->defendable_hanging[0] = bswap(src->defendable_hanging[1]);
-	dst->defendable_hanging[1] = bswap(src->defendable_hanging[0]);
+	flip_2_bb_pairs(dst->undefended, src->undefended);
+	dst->all_kings = bswap(src->all_kings);
+	dst->all_knights = bswap(src->all_knights);
+	dst->all_rq = bswap(src->all_rq);
+	dst->all_bq = bswap(src->all_bq);
 }
 
 bool
