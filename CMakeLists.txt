@@ -8,6 +8,7 @@ FIND_PACKAGE(Threads)
 include_directories(src constants tests "${PROJECT_BINARY_DIR}")
 
 add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.c)
+add_executable(gen_SEE_table EXCLUDE_FROM_ALL tools/gen_SEE_table.c)
 add_executable(gen_bb_constants EXCLUDE_FROM_ALL tools/gen_bb_constants.c)
 add_executable(bitboard EXCLUDE_FROM_ALL tools/bitboard.c)
 add_executable(cmp_text tools/cmp_text.c)
@@ -42,6 +43,7 @@ set(TALTOS_SOURCES
 	src/game.c
 	src/hash.c
 	src/move.c
+	src/move_desc.c
 	src/move_gen.c
 	src/move_order.c
 	src/perft.c

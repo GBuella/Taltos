@@ -24,6 +24,7 @@
 #include "str_util.h"
 #include "trace.h"
 #include "move_order.h"
+#include "move_desc.h"
 
 struct cmd_entry {
 	const char text[16];
@@ -1575,8 +1576,59 @@ print_move_order(const struct position *pos, enum player player)
 	} while (!move_order_done(&move_order));
 }
 
+static int
+cmp_move(const void *a, const void *b)
+{
+	move ma = *((move*)a);
+	move mb = *((move*)b);
+
+	if (ma > mb)
+		return 1;
+	else if (ma < mb)
+		return -1;
+	else
+		return 0;
+}
+
 static void
-cmd_mo(void)
+print_move_desc(const char *move_str, const struct move_desc *desc)
+{
+	printf("%s\tSEE loss on source square: %d\n",
+	       move_str, desc->src_sq.SEE_loss);
+	printf("\tSEE loss on destination square: %d\n", desc->dst_sq.SEE_loss);
+	printf("\tSEE value: %d\n", desc->SEE_value);
+	printf("\tattack_count_delta: %d\n", desc->attack_count_delta);
+	printf("\tdiscovered_attacks: %d\n", desc->discovered_attacks);
+	if (desc->direct_check)
+		printf("\tdirect check\n");
+	if (desc->discovered_check)
+		printf("\tdiscovered check\n");
+}
+
+static void
+print_move_descs(const struct position *pos, enum player player)
+{
+	move moves[MOVE_ARRAY_LENGTH];
+
+	unsigned count = gen_moves(pos, moves);
+	if (count == 0)
+		return;
+
+	struct move_desc desc;
+	move_desc_setup(&desc);
+	qsort(moves, count, sizeof(moves[0]), cmp_move);
+
+	for (unsigned i = 0; i < count; ++i) {
+		char str[MOVE_STR_BUFFER_LENGTH];
+		printm(pos, moves[i], str, player);
+		describe_move(&desc, pos, moves[i]);
+		print_move_desc(str, &desc);
+		putchar('\n');
+	}
+}
+
+static void
+cmd_with_optional_fen_arg(void (*cmd)(const struct position*, enum player))
 {
 	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
 
@@ -1586,12 +1638,24 @@ cmd_mo(void)
 			(void) fprintf(stderr, "Unable to parse FEN\n");
 			return;
 		}
-		print_move_order(game_current_position(g), game_turn(g));
+		cmd(game_current_position(g), game_turn(g));
 		game_destroy(g);
 	}
 	else {
-		print_move_order(current_position(), turn());
+		cmd(current_position(), turn());
 	}
+}
+
+static void
+cmd_md(void)
+{
+	cmd_with_optional_fen_arg(print_move_descs);
+}
+
+static void
+cmd_mo(void)
+{
+	cmd_with_optional_fen_arg(print_move_order);
 }
 
 static void
@@ -1679,7 +1743,8 @@ static struct cmd_entry cmd_list[] = {
 	{"stop",         cmd_stop,               NULL},
 	{"mo",           cmd_mo,                 NULL},
 	{"nodes",        cmd_nodes,              NULL},
-	{"booksize",     cmd_booksize,           NULL}
+	{"booksize",     cmd_booksize,           NULL},
+	{"md",           cmd_md,                 NULL}
 /* END CSTYLED */
 };
 

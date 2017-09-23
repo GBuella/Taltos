@@ -43,7 +43,7 @@ static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
 struct position {
 	alignas(pos_alignment)
 
-	char board[64];
+	unsigned char board[64];
 
 	/*
 	 * In case the player to move is in check:
@@ -191,13 +191,22 @@ struct position {
 	int8_t cr_padding1[2];
 	int32_t opponent_material_value;
 
+	// pinned pieces
 	uint64_t king_pins[2];
+
+	// knights and bishops
+	uint64_t nb[2];
 
 	// each players pieces not defended by other pieces of the same player
 	uint64_t undefended[2];
 
 	// each players pieces under attack, which might need defense
 	uint64_t defendable_hanging[2];
+
+	uint64_t all_kings;
+	uint64_t all_knights;
+	uint64_t all_rq;
+	uint64_t all_bq;
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
