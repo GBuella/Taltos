@@ -445,6 +445,8 @@ static bool kings_attacks_valid(const struct position*);
 
 static void accumulate_occupancy(struct position*);
 
+static void accumulate_misc_patterns(struct position*, int player);
+
 int
 position_reset(struct position *pos,
 		const char board[static 64],
@@ -494,6 +496,8 @@ position_reset(struct position *pos,
 		return -1;
 	search_king_attacks(pos);
 	search_pins(pos);
+	accumulate_misc_patterns(pos, 0);
+	accumulate_misc_patterns(pos, 1);
 	setup_zhash(pos);
 	return 0;
 }
@@ -679,6 +683,32 @@ accumulate_occupancy(struct position *pos)
 	pos->map[1] |= pos->rq[1] | pos->bq[1];
 
 	pos->occupied = pos->map[0] | pos->map[1];
+}
+
+static void
+accumulate_misc_patterns(struct position *pos, int player)
+{
+	int opp = opponent_of(player);
+
+	pos->undefended[player] = pos->map[player] & ~pos->attack[player];
+
+	uint64_t defendable;
+	defendable = pos->map[player + queen] & pos->attack[opp];
+
+	defendable &= ~pos->attack[opp + rook];
+
+	defendable = pos->map[player + rook] & pos->attack[opp];
+
+	defendable &= ~pos->attack[opp + bishop];
+	defendable &= ~pos->attack[opp + knight];
+
+	defendable |= pos->map[player + knight] & pos->attack[opp];
+	defendable |= pos->map[player + bishop] & pos->attack[opp];
+	defendable |= pos->map[player + pawn] & pos->attack[opp];
+
+	defendable &= ~pos->attack[opp + pawn];
+
+	pos->defendable_hanging[player] = defendable;
 }
 
 static int
@@ -876,8 +906,9 @@ position_flip(struct position *restrict dst,
 	flip_2_bb_pairs(dst->rq, src->rq);
 	flip_all_rays(dst, src);
 	flip_tail(dst, src);
-	dst->king_pins[0] = bswap(src->king_pins[1]);
-	dst->king_pins[1] = bswap(src->king_pins[0]);
+	flip_2_bb_pairs(dst->king_pins, src->king_pins);
+	dst->defendable_hanging[0] = bswap(src->defendable_hanging[1]);
+	dst->defendable_hanging[1] = bswap(src->defendable_hanging[0]);
 }
 
 bool
@@ -1017,6 +1048,8 @@ make_move(struct position *restrict dst,
 	search_pins(dst);
 	generate_player_attacks(dst);
 	generate_opponent_attacks(dst);
+	accumulate_misc_patterns(dst, 0);
+	accumulate_misc_patterns(dst, 1);
 	z2_xor_move(dst->zhash, m);
 }
 

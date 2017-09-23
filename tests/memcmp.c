@@ -46,6 +46,10 @@ position_memcmp(const struct position *pos0, enum player player)
 	assert(memcmp(pos0->zhash, pos1->zhash, sizeof(pos0->zhash)) == 0);
 	assert(pos0->king_pins[0] == pos1->king_pins[0]);
 	assert(pos0->king_pins[1] == pos1->king_pins[1]);
+	assert(pos0->undefended[0] == pos1->undefended[0]);
+	assert(pos0->defendable_hanging[1] == pos1->defendable_hanging[1]);
+	assert(pos0->defendable_hanging[0] == pos1->defendable_hanging[0]);
+	assert(pos0->undefended[1] == pos1->undefended[1]);
 }
 
 static void
