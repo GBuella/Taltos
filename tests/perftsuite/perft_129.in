@@ -1,0 +1,6 @@
+setboard 8/8/6K1/8/R1p2k2/8/1P6/8 w - -
+echo 8/8/6K1/8/R1p2k2/8/1P6/8 w - -
+qperft 1
+qperft 2
+qperft 3
+qperft 4

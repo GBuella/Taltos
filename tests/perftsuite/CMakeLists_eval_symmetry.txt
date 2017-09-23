@@ -381,3 +381,12 @@ add_test(NAME "eval_symmetry_perft_125"
 
 add_test(NAME "eval_symmetry_perft_126"
 	COMMAND $<TARGET_FILE:test_eval_symmetry> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_126.in)
+
+add_test(NAME "eval_symmetry_perft_127"
+	COMMAND $<TARGET_FILE:test_eval_symmetry> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_127.in)
+
+add_test(NAME "eval_symmetry_perft_128"
+	COMMAND $<TARGET_FILE:test_eval_symmetry> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_128.in)
+
+add_test(NAME "eval_symmetry_perft_129"
+	COMMAND $<TARGET_FILE:test_eval_symmetry> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_129.in)
