@@ -1,4 +1,3 @@
-
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=(0,t0: */
 
