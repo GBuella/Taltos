@@ -138,19 +138,6 @@ static void search_king_attacks(struct position*);
 static void search_pins(struct position*);
 
 static void
-generate_attack_maps(struct position *pos)
-{
-	// Generating the bitboards in the pos->rays array.
-	generate_all_rays(pos);
-
-	// Generating the bitboards in the pos->attack array.
-	generate_player_attacks(pos);
-	generate_opponent_attacks(pos);
-
-	search_king_attacks(pos);
-}
-
-static void
 search_player_king_pins(struct position *pos, int player)
 {
 	uint64_t accumulator = EMPTY;
@@ -452,6 +439,8 @@ static bool castle_rights_valid(const struct position*);
 // Checks for valid placement - and existence - of the two kings
 static bool kings_valid(const struct position*);
 
+static bool kings_attacks_valid(const struct position*);
+
 static void accumulate_occupancy(struct position*);
 
 int
@@ -494,10 +483,15 @@ position_reset(struct position *pos,
 		return -1;
 	if (!castle_rights_valid(pos))
 		return -1;
-	generate_attack_maps(pos);
-	search_pins(pos);
+	generate_all_rays(pos);
+	generate_player_attacks(pos);
+	generate_opponent_attacks(pos);
 	generate_pawn_reach_maps(pos);
 	generate_opponent_pawn_reach_maps(pos);
+	if (!kings_attacks_valid(pos))
+		return -1;
+	search_king_attacks(pos);
+	search_pins(pos);
 	setup_zhash(pos);
 	return 0;
 }
@@ -576,6 +570,29 @@ kings_valid(const struct position *pos)
 	int k0 = bsf(pos->map[king]);
 	uint64_t k1 = pos->map[opponent_king];
 	if (is_nonempty(king_pattern[k0] & k1))
+		return false;
+
+	return true;
+}
+
+static bool
+kings_attacks_valid(const struct position *pos)
+{
+	if (is_nonempty(pos->attack[0] & pos->map[opponent_king]))
+		return false;
+
+	uint64_t k = pos->map[king];
+
+	if (popcnt(pawn_attacks_player(k) & pos->map[opponent_pawn]) > 1)
+		return false;
+
+	if (popcnt(pos->rays[pr_bishop][pos->ki] & pos->bq[1]) > 1)
+		return false;
+
+	if (popcnt(pos->rays[pr_rook][pos->ki] & pos->rq[1]) > 1)
+		return false;
+
+	if (popcnt(knight_pattern[pos->ki] & pos->map[opponent_knight]) > 1)
 		return false;
 
 	return true;
