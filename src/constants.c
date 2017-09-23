@@ -16,6 +16,7 @@ uint64_t hor_masks[64];
 uint64_t ver_masks[64];
 uint64_t bishop_masks[64];
 uint64_t rook_masks[64];
+uint8_t directions_table[64 * 64];
 
 static const int king_dirs_h[] = { 1, 1, 1, 0, -1, -1, -1, 0};
 static const int king_dirs_v[] = { -1, 0, 1, 1, 1, 0, -1, -1};
@@ -86,6 +87,25 @@ gen_masks(uint64_t table[64], int dir_count,
 		gen_ray_64(table, dirs[i], edges[i]);
 }
 
+static void
+gen_directions_table(void)
+{
+	for (int i = 0; i < 64; ++i) {
+		for (int j = 0; j < 64; ++j) {
+			if (is_nonempty(hor_masks[i] & bit64(j)))
+				directions_table[i * 64 + j] = horizontal;
+			else if (is_nonempty(ver_masks[i] & bit64(j)))
+				directions_table[i * 64 + j] = vertical;
+			else if (is_nonempty(diag_masks[i] & bit64(j)))
+				directions_table[i * 64 + j] = diagonal;
+			else if (is_nonempty(adiag_masks[i] & bit64(j)))
+				directions_table[i * 64 + j] = anti_diagonal;
+			else
+				directions_table[i * 64 + j] = dir_none;
+		}
+	}
+}
+
 void
 init_constants(void)
 {
@@ -97,4 +117,5 @@ init_constants(void)
 	gen_masks(ver_masks, 2, rook_dirs + 2, rook_edges + 2);
 	gen_masks(bishop_masks, 4, bishop_dirs, bishop_edges);
 	gen_masks(rook_masks, 4, rook_dirs, rook_edges);
+	gen_directions_table();
 }

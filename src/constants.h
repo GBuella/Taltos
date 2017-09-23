@@ -117,6 +117,7 @@ extern uint64_t hor_masks[64];
 extern uint64_t ver_masks[64];
 extern uint64_t bishop_masks[64];
 extern uint64_t rook_masks[64];
+extern uint8_t directions_table[64 * 64];
 
 void init_constants(void);
 

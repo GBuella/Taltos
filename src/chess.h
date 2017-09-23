@@ -26,6 +26,14 @@ enum piece {
 	queen =		12
 };
 
+enum direction {
+	dir_none,
+	horizontal,
+	vertical,
+	diagonal,
+	anti_diagonal,
+};
+
 enum {
 	opponent_pawn = pawn|1,
 	opponent_rook = rook|1,
