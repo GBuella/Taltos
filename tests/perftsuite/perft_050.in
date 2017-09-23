@@ -1,8 +1,7 @@
-setboard B6b/8/8/8/2K5/5k2/8/b6B b - - 0 1
-echo B6b/8/8/8/2K5/5k2/8/b6B b - - 0 1
+setboard B6b/8/8/8/2K5/4k3/8/b6B b - - 0 1
+echo B6b/8/8/8/2K5/4k3/8/b6B b - - 0 1
 qperft 1
 qperft 2
 qperft 3
 qperft 4
 qperft 5
-qperft 6
