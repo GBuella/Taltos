@@ -124,6 +124,21 @@ test_invalid_fens(void)
 	assert(is_invalid(
 	    "rnbq1bnr/pppppppp/8/4kK2/8/8/PPPPPPP1/RNBQ1BNR w - -"));
 
+	// opponent king is in check
+	assert(is_invalid("B6b/8/8/8/2K5/5k2/8/b6B w - -"));
+
+	// two bishops attacking king
+	assert(is_invalid("B6b/8/8/8/2K5/5k2/8/b6B b - - 0 1"));
+
+	// two rooks attacking king
+	assert(is_invalid("8/8/4R3/1K6/4k3/8/4Q3/8 b - - 0 1"));
+
+	// two pawns attacking king
+	assert(is_invalid("8/8/8/1K6/4k3/3P1P2/8/8 b - - 0 1"));
+
+	// two knights attacking king
+	assert(is_invalid("8/8/3N4/1K4N1/4k3/8/8/8 b - - 0 1"));
+
 	// invalid castling rights
 	assert(is_invalid(
 	    "1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q -"));
