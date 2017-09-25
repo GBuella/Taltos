@@ -30,12 +30,29 @@ index_to_rank_ch(int index, enum player turn)
 }
 
 char*
-index_to_str(char str[static 2], int index, enum player turn)
+print_index(char str[static 2], int index, enum player turn)
 {
 	assert(str != NULL);
 	*str++ = index_to_file_ch(index);
 	*str++ = index_to_rank_ch(index, turn);
 	return str;
+}
+
+const char*
+index_to_str(int index, enum player turn)
+{
+	static const char strs[64][3] = {
+		"h8", "g8", "f8", "e8", "d8", "c8", "b8", "a8",
+		"h7", "g7", "f7", "e7", "d7", "c7", "b7", "a7",
+		"h6", "g6", "f6", "e6", "d6", "c6", "b6", "a6",
+		"h5", "g5", "f5", "e5", "d5", "c5", "b5", "a5",
+		"h4", "g4", "f4", "e4", "d4", "c4", "b4", "a4",
+		"h3", "g3", "f3", "e3", "d3", "c3", "b3", "a3",
+		"h2", "g2", "f2", "e2", "d2", "c2", "b2", "a2",
+		"h1", "g1", "f1", "e1", "d1", "c1", "b1", "a1"
+	};
+
+	return strs[(turn == black) ? flip_i(index) : index];
 }
 
 char
@@ -53,12 +70,155 @@ piece_to_char(enum piece p)
 	}
 }
 
+const char*
+piece_name(enum piece p)
+{
+	switch (p) {
+	case pawn: return "pawn";
+	case rook: return "rook";
+	case knight: return "knight";
+	case bishop: return "bishop";
+	case queen: return "queen";
+	case king: return "king";
+	case 0: return " ";
+	default: assert(0); return " ";
+	}
+}
+
+const char*
+piece_name_plural(enum piece p)
+{
+	switch (p) {
+	case pawn: return "pawns";
+	case rook: return "rooks";
+	case knight: return "knights";
+	case bishop: return "bishops";
+	case queen: return "queens";
+	case king: return "kings";
+	case 0: return " ";
+	default: assert(0); return " ";
+	}
+}
+
+const char*
+square_to_str_ascii(enum piece p, enum player pl)
+{
+	if (pl == white) {
+		switch (p) {
+		case pawn:
+			return "P";
+		case knight:
+			return "N";
+		case bishop:
+			return "B";
+		case rook:
+			return "R";
+		case queen:
+			return "Q";
+		case king:
+			return "K";
+		case nonpiece:
+			return " ";
+		default:
+			assert(false);
+			return " ";
+		}
+	}
+	else {
+		switch (p) {
+		case pawn:
+			return "p";
+		case knight:
+			return "n";
+		case bishop:
+			return "b";
+		case rook:
+			return "r";
+		case queen:
+			return "q";
+		case king:
+			return "k";
+		case nonpiece:
+			return " ";
+		default:
+			assert(false);
+			return " ";
+		}
+	}
+
+}
+
 char
 square_to_char(enum piece p, enum player pl)
 {
 	char pc = piece_to_char(p);
 
 	return (pl == black) ? pc : (char)toupper((unsigned char)pc);
+}
+
+const char*
+square_to_str_unicode(enum piece p, enum player pl)
+{
+	if (pl == white) {
+		switch (p) {
+		case pawn:
+			return "\U00002659";
+		case knight:
+			return "\U00002658";
+		case bishop:
+			return "\U00002657";
+		case rook:
+			return "\U00002656";
+		case queen:
+			return "\U00002655";
+		case king:
+			return "\U00002654";
+		case nonpiece:
+			return " ";
+		default:
+			assert(0);
+			return " ";
+		}
+	}
+	else {
+		switch (p) {
+		case pawn:
+			return "\U0000265f";
+		case knight:
+			return "\U0000265e";
+		case bishop:
+			return "\U0000265d";
+		case rook:
+			return "\U0000265c";
+		case queen:
+			return "\U0000265b";
+		case king:
+			return "\U0000265a";
+		case nonpiece:
+			return " ";
+		default:
+			assert(0);
+			return " ";
+		}
+	}
+}
+
+const char*
+square_to_str(enum piece p, enum player pl, bool use_unicode)
+{
+	if (use_unicode)
+		return square_to_str_unicode(p, pl);
+	else
+		return square_to_str_ascii(p, pl);
+}
+
+char*
+print_square(char *buf, enum piece p, enum player pl, bool use_unicode)
+{
+	const char *str = square_to_str(p, pl, use_unicode);
+
+	strcpy(buf, str);
+	return buf + strlen(str);
 }
 
 enum piece
@@ -190,7 +350,8 @@ print_nice_ns(uintmax_t n, bool use_unicode)
 void
 board_print(char str[static BOARD_BUFFER_LENGTH],
 		const struct position *pos,
-		enum player turn)
+		enum player turn,
+		bool use_unicode)
 {
 	for (int rank = rank_8; is_valid_rank(rank); rank += RSOUTH) {
 		for (int file = file_a; is_valid_file(file); file += EAST) {
@@ -202,7 +363,11 @@ board_print(char str[static BOARD_BUFFER_LENGTH],
 
 			if (turn == black)
 				pl = opponent_of(pl);
-			*str++ = square_to_char(p, pl);
+
+			if (use_unicode)
+				*str++ = ' ';
+
+			str = print_square(str, p, pl, use_unicode);
 		}
 		*str++ = '\n';
 	}

@@ -70,8 +70,9 @@ print_san_check(const struct position *pos, move m, char *str)
 	return str;
 }
 
-static char*
-print_san_move(const struct position *pos, move m, char *str, enum player turn)
+char*
+print_san_move_internal(const struct position *pos, move m, char *str,
+			enum player turn, bool use_unicode)
 {
 	int piece = pos_piece_at(pos, mfrom(m));
 
@@ -79,14 +80,20 @@ print_san_move(const struct position *pos, move m, char *str, enum player turn)
 		return str + sprintf(str, "O-O");
 	else if (mtype(m) == mt_castle_queenside)
 		return str + sprintf(str, "O-O-O");
+
 	if (piece != pawn)
-		*str++ = (char)toupper((unsigned char)piece_to_char(piece));
+		str = print_square(str, piece, white, use_unicode);
+
 	str = print_san_move_from(pos, m, str, turn);
+
 	if (is_capture(m))
 		*str++ = 'x';
-	str = index_to_str(str, mto(m), turn);
+
+	str = print_index(str, mto(m), turn);
+
 	if (mtype(m) == mt_en_passant)
 		return str + sprintf(str, "e.p.");
+
 	str = print_san_promotion(m, str);
 	str = print_san_check(pos, m, str);
 	*str = '\0';
@@ -94,11 +101,24 @@ print_san_move(const struct position *pos, move m, char *str, enum player turn)
 }
 
 char*
+print_san_move(const struct position *pos, move m, char *str, enum player turn)
+{
+	return print_san_move_internal(pos, m, str, turn, false);
+}
+
+char*
+print_fan_move(const struct position *pos, move m, char *str,
+		       enum player turn)
+{
+	return print_san_move_internal(pos, m, str, turn, true);
+}
+
+char*
 print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH],
 		enum player turn)
 {
-	str = index_to_str(str, mfrom(m), turn);
-	str = index_to_str(str, mto(m), turn);
+	str = print_index(str, mfrom(m), turn);
+	str = print_index(str, mto(m), turn);
 	if (is_promotion(m))
 		*str++ = tolower((unsigned char)piece_to_char(mresultp(m)));
 	*str = '\0';
@@ -117,6 +137,9 @@ print_move(const struct position *pos, move m,
 	switch (t) {
 	case mn_coordinate:
 		return print_coor_move(m, str, turn);
+		break;
+	case mn_fan:
+		return print_fan_move(pos, m, str, turn);
 		break;
 	default:
 	case mn_san:
