@@ -11,10 +11,18 @@
 
 char index_to_file_ch(int);
 char index_to_rank_ch(int, enum player);
-char *index_to_str(char[static 2], int index, enum player player)
+char *print_index(char[static 2], int index, enum player player)
 	attribute(nonnull, returns_nonnull);
+const char *index_to_str(int index, enum player turn)
+	attribute(returns_nonnull);
 char piece_to_char(enum piece);
+const char *piece_name(enum piece);
+const char *piece_name_plural(enum piece);
 char square_to_char(enum piece, enum player);
+const char *square_to_str_ascii(enum piece, enum player);
+const char *square_to_str_unicode(enum piece, enum player);
+const char *square_to_str(enum piece, enum player, bool use_unicode);
+char *print_square(char*, enum piece, enum player, bool use_unicode);
 enum piece char_to_piece(char);
 bool is_file(char);
 bool is_rank(char);
@@ -31,7 +39,8 @@ int print_nice_count(uintmax_t);
 int print_nice_ns(uintmax_t, bool use_unicode);
 void board_print(char[static BOARD_BUFFER_LENGTH],
 		const struct position*,
-		enum player turn)
+		enum player turn,
+		bool use_unicode)
 	attribute(nonnull);
 
 #endif

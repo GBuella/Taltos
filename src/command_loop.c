@@ -188,6 +188,12 @@ get_single_response(void)
 	return game_get_single_response(game);
 }
 
+static char*
+printm(const struct position *pos, move m, char *str, enum player pl)
+{
+	return print_move(pos, m, str, conf->move_not, pl);
+}
+
 static void
 add_move(move m)
 {
@@ -423,9 +429,7 @@ operator_move(move m)
 }
 
 static void
-print_move_path(const struct game *original_game,
-		const move *m,
-		enum move_notation_type mn)
+print_move_path(const struct game *original_game, const move *m)
 {
 	char str[MOVE_STR_BUFFER_LENGTH];
 	bool first = true;
@@ -441,8 +445,7 @@ print_move_path(const struct game *original_game,
 				printf("... ");
 		}
 		first = false;
-		(void) print_move(game_current_position(g),
-		    *m, str, mn, game_turn(g));
+		(void) printm(game_current_position(g), *m, str, game_turn(g));
 		printf("%s ", str);
 		if (game_append(g, *m) != 0)
 			INTERNAL_ERROR();
@@ -563,7 +566,7 @@ print_current_result(struct engine_result res)
 
 	if (is_uci)
 		printf("pv ");
-	print_move_path(game, res.pv, conf->move_not);
+	print_move_path(game, res.pv);
 	putchar('\n');
 
 	mtx_unlock(&stdout_mutex);
@@ -786,7 +789,7 @@ cmd_printboard(void)
 
 	mtx_lock(&game_mutex);
 
-	(void) board_print(str, current_position(), turn());
+	(void) board_print(str, current_position(), turn(), conf->use_unicode);
 
 	mtx_unlock(&game_mutex);
 
@@ -856,7 +859,7 @@ cmd_hint(void)
 	mtx_lock(&game_mutex);
 
 	if (engine_get_best_move(&m) == 0) {
-		print_move(current_position(), m, str, conf->move_not, turn());
+		printm(current_position(), m, str, turn());
 		printf("Hint: %s\n", str);
 	}
 
@@ -1129,6 +1132,8 @@ cmd_setmovenot(void)
 		conf->move_not = mn_coordinate;
 	else if (strcmp(str, "san") == 0)
 		conf->move_not = mn_san;
+	else if (conf->use_unicode && strcmp(str, "fan") == 0)
+		conf->move_not = mn_fan;
 	else
 		param_error();
 }
@@ -1142,6 +1147,9 @@ cmd_getmovenot(void)
 			break;
 		case mn_san:
 			puts("Using Standard algebraic notation");
+			break;
+		case mn_fan:
+			puts("Using Figurine algebraic notation");
 			break;
 		default:
 			break;
@@ -1562,7 +1570,7 @@ print_move_order(const struct position *pos, enum player player)
 		move m = mo_current_move(&move_order);
 		int value = mo_current_move_value(&move_order);
 
-		(void) print_move(pos, m, buf, conf->move_not, player);
+		(void) printm(pos, m, buf, player);
 
 		printf("#%u %s %d\n", move_order.index, buf, value);
 	} while (!move_order_done(&move_order));

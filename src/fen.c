@@ -117,7 +117,7 @@ static char*
 FEN_print_ep_target(char *str, int ep_index, enum player turn)
 {
 	if (ep_index != 0)
-		str = index_to_str(str, ep_index + NORTH, turn);
+		str = print_index(str, ep_index + NORTH, turn);
 	else
 		*str++ = '-';
 

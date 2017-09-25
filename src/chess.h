@@ -14,7 +14,8 @@
 
 enum move_notation_type {
 	mn_coordinate,
-	mn_san
+	mn_san,
+	mn_fan
 };
 
 enum piece {
@@ -463,6 +464,12 @@ int read_move(const struct position*, const char*, move*, enum player)
 
 char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], enum player)
 	attribute(nonnull, returns_nonnull);
+
+char *print_san_move(const struct position *pos, move m, char *str,
+		     enum player turn);
+
+char *print_fan_move(const struct position *pos, move m, char *str,
+		     enum player turn);
 
 char *print_move(const struct position*,
 		move,
