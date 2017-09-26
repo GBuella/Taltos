@@ -10,6 +10,7 @@ include_directories(src constants tests "${PROJECT_BINARY_DIR}")
 add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.c)
 add_executable(gen_SEE_table EXCLUDE_FROM_ALL tools/gen_SEE_table.c)
 add_executable(gen_bb_constants EXCLUDE_FROM_ALL tools/gen_bb_constants.c)
+add_executable(pdump EXCLUDE_FROM_ALL tools/pdump.c)
 add_executable(bitboard EXCLUDE_FROM_ALL tools/bitboard.c)
 add_executable(cmp_text tools/cmp_text.c)
 
@@ -63,6 +64,8 @@ add_library(taltos_code STATIC ${TALTOS_SOURCES})
 
 add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
 target_link_libraries(taltos taltos_code)
+
+target_link_libraries(pdump taltos_code)
 
 if(TALTOS_CAN_USE_LOG2_WITH_LIBM)
 	target_link_libraries(taltos m)
