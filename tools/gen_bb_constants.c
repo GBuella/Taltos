@@ -4,6 +4,7 @@
 #include "chess.h"
 #include "bitboard.h"
 #include "constants.h"
+#include "position.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@ static uint64_t l_hor_masks[64];
 static uint64_t l_ver_masks[64];
 static uint64_t l_bishop_masks[64];
 static uint64_t l_rook_masks[64];
+static uint64_t l_pawn_attacks_north[64];
 
 static const int king_dirs_h[] = { 1, 1, 1, 0, -1, -1, -1, 0};
 static const int king_dirs_v[] = { -1, 0, 1, 1, 1, 0, -1, -1};
@@ -88,6 +90,13 @@ gen_masks(uint64_t table[64], int dir_count,
 }
 
 static void
+gen_pawn_attacks(void)
+{
+	for (int i = 8; i < 64 - 8; ++i)
+		l_pawn_attacks_north[i] = pawn_reach_north(bit64(i));
+}
+
+static void
 print_uint64(uint64_t value)
 {
 	printf("UINT64_C(0x%016" PRIx64 ")", value);
@@ -120,6 +129,7 @@ gen_tables(void)
 	gen_masks(l_ver_masks, 2, rook_dirs + 2, rook_edges + 2);
 	gen_masks(l_bishop_masks, 4, bishop_dirs, bishop_edges);
 	gen_masks(l_rook_masks, 4, rook_dirs, rook_edges);
+	gen_pawn_attacks();
 }
 
 static void
@@ -140,6 +150,8 @@ print_tables(void)
 	print_table(l_bishop_masks, "bishop_masks");
 	putchar('\n');
 	print_table(l_rook_masks, "rook_masks");
+	putchar('\n');
+	print_table(l_pawn_attacks_north, "pawn_attacks_north");
 }
 
 static void
