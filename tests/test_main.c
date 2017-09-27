@@ -22,7 +22,6 @@ main(int argc, const char **argv)
 	prog_argc = argc;
 	prog_argv = argv;
 
-	init_constants();
 	init_zhash_table();
 
 	run_tests();

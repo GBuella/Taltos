@@ -1,5 +1,7 @@
-
 /* vim: set filetype=c : */
+
+#ifndef TALTOS_Z_RANDOM_INC
+#define TALTOS_Z_RANDOM_INC
 
 #include <stdint.h>
 
@@ -425,6 +427,6 @@ const uint64_t z_random[14][64] = {
 		UINT64_C(0xFCB6BE43A9F2FE9B), UINT64_C(0x08DE8A1C7797DA9B),
 		UINT64_C(0x8F9887E6078735A1), UINT64_C(0xB5B4071DBFC73A66)
 	}
-
-
 };
+
+#endif
