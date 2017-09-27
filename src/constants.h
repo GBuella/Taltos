@@ -109,15 +109,13 @@
 #define CENTER_SQ	UINT64_C(0x0000001818000000)
 #define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
-extern uint64_t knight_pattern[64];
-extern uint64_t king_pattern[64];
-extern uint64_t diag_masks[64];
-extern uint64_t adiag_masks[64];
-extern uint64_t hor_masks[64];
-extern uint64_t ver_masks[64];
-extern uint64_t bishop_masks[64];
-extern uint64_t rook_masks[64];
-
-void init_constants(void);
+extern const uint64_t knight_pattern[64];
+extern const uint64_t king_pattern[64];
+extern const uint64_t diag_masks[64];
+extern const uint64_t adiag_masks[64];
+extern const uint64_t hor_masks[64];
+extern const uint64_t ver_masks[64];
+extern const uint64_t bishop_masks[64];
+extern const uint64_t rook_masks[64];
 
 #endif

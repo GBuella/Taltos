@@ -13,6 +13,8 @@
 #include "flip_board_pairs.h"
 #include "flip_ray_array.h"
 
+#include "bitboard_constants.inc"
+
 
 /* Little getter functions, used in bookkeeping - non performance critical */
 
