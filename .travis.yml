@@ -60,7 +60,7 @@ matrix:
           packages:
             - gcc-6
       env:
-        - COVERITY=1 BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=gcc-6" CMAKE_EXTRA_ARGS="-DCMAKE_C_FLAGS=-coverage"
+        - CODECOV=1 BUILD_TYPE=RelWithDebInfo MATRIX_EVAL="CC=gcc-6" CMAKE_EXTRA_ARGS="-DCMAKE_C_FLAGS=-coverage"
 
     - os: linux
       dist: trusty
@@ -93,4 +93,4 @@ script:
     - make VERBOSE=1 && ctest --output-on-failure -j2 $CTEST_ARGS
 
 after_success:
-    - if [[ $COVERITY -eq 1 ]]; then bash <(curl -s https://codecov.io/bash) ; fi
+    - if [[ $CODECOV -eq 1 ]]; then bash <(curl -s https://codecov.io/bash) ; fi
