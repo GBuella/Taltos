@@ -19,6 +19,12 @@
 
 #define NODES_PER_CANCEL_TEST 10000
 
+#ifndef NDEBUG
+#define TRACK_DEBUG_MOVE_STACK
+#endif
+
+// define TRACK_DEBUG_MOVE_STACK
+
 #define NON_VALUE INT_MIN
 
 enum { node_array_length = MAX_PLY + MAX_Q_PLY + 32 };
@@ -85,14 +91,14 @@ struct node {
 
 	bool is_in_null_move_search;
 	bool null_move_search_failed;
+	bool mate_threat_detected;
+
 };
 
 static void
 debug_trace_tree_init(struct node *node)
 {
-#ifdef NDEBUG
-	(void) node;
-#else
+#ifdef TRACK_DEBUG_MOVE_STACK
 	if (node->root_distance == 0) {
 		node->debug_player_to_move =
 		    node->common->debug_root_player_to_move;
@@ -104,16 +110,15 @@ debug_trace_tree_init(struct node *node)
 		node->debug_player_to_move =
 		    opponent_of(node[-1].debug_player_to_move);
 	}
+#else
+	(void) node;
 #endif
 }
 
 static void
 debug_trace_tree_push_move(struct node *node, move m)
 {
-#ifdef NDEBUG
-	(void) node;
-	(void) m;
-#else
+#ifdef TRACK_DEBUG_MOVE_STACK
 	assert(node->common->debug_move_stack_end[0] == '\0');
 
 	*(node->common->debug_move_stack_end++) = ' ';
@@ -127,16 +132,16 @@ debug_trace_tree_push_move(struct node *node, move m)
 		strcpy(node->common->debug_move_stack_end, "null");
 		node->common->debug_move_stack_end += 4;
 	}
-
+#else
+	(void) node;
+	(void) m;
 #endif
 }
 
 static void
 debug_trace_tree_pop_move(struct node *node)
 {
-#ifdef NDEBUG
-	(void) node;
-#else
+#ifdef TRACK_DEBUG_MOVE_STACK
 	assert(node->common->debug_move_stack_end
 	    > node->common->debug_move_stack);
 
@@ -146,6 +151,8 @@ debug_trace_tree_pop_move(struct node *node)
 		node->common->debug_move_stack_end--;
 
 	node->common->debug_move_stack_end[0] = '\0';
+#else
+	(void) node;
 #endif
 }
 
@@ -173,13 +180,18 @@ hash_current_node_value(const struct node *node)
 	entry = ht_set_depth(HT_NULL, node->depth);
 
 	if (node->best_move == 0) {
-		if (node->alpha < 0 || node->repetition_affected_any == 0)
-			entry = ht_set_value(entry,
-			    vt_upper_bound, node->alpha);
+		int value = node->alpha;
+		if (node->value <= -mate_value && !is_qsearch(node))
+			value = node->value;
+		if (value < 0 || node->repetition_affected_any == 0)
+			entry = ht_set_value(entry, vt_upper_bound, value);
 	}
 	else if (node->value >= node->beta) {
-		if (node->beta > 0 || node->repetition_affected_best == 0)
-			entry = ht_set_value(entry, vt_lower_bound, node->beta);
+		int value = node->beta;
+		if (node->value >= mate_value)
+			value = node->value;
+		if (value > 0 || node->repetition_affected_best == 0)
+			entry = ht_set_value(entry, vt_lower_bound, value);
 	}
 	else {
 		int type = 0;
@@ -247,14 +259,13 @@ get_static_value(struct node *node)
 }
 
 static int LMR[20 * PLY][64];
-static unsigned LMP[3 * PLY + 1] = { 0, 6, 6, 10, 12, 16, 20};
+//static unsigned LMP[5 * PLY + 1] = { 0, 6, 6, 10, 12, 14, 16, 20, 24, 28, 32};
+//static int LMP[6 * PLY] = { 0, 2, 2, 4, 4, 9, 13, 16, 19, 21, 24, 27};
+static int LMP[6 * PLY] = { 0, 2, 2, 3, 3, 5, 8, 11, 14, 18, 22, 26};
 
 static int
 get_LMR_factor(struct node *node)
 {
-	if (!node->common->sd.settings.use_LMR)
-		return 0;
-
 	if (node->LMR_subject_index == -1) {
 		if (node->mo->index >= 1
 		    && mo_current_move_value(node->mo) < 0) {
@@ -268,10 +279,11 @@ get_LMR_factor(struct node *node)
 		node->LMR_subject_index++;
 	}
 
-	if (is_in_check(node[0].pos)
-	    || is_in_check(node[1].pos)
-	    || (node->depth <= PLY)
-	    || (node->non_pawn_move_count < 7 && node->mo->count < 10))
+	if (!node->common->sd.settings.use_LMR)
+		return 0;
+
+	//if (node->depth <= PLY || move_gives_check(mo_current_move(node->mo)))
+	if (node->depth <= 2 * PLY)
 		return 0;
 
 	int d = node->depth;
@@ -283,11 +295,16 @@ get_LMR_factor(struct node *node)
 		index = (int)ARRAY_LENGTH(LMR[node->depth]) - 1;
 
 	int r = LMR[d][index];
-	if (node->expected_type == PV_node && r > 0)
+	if (move_gives_check(mo_current_move(node->mo)))
+		r -= 4 * PLY;
+	else if (node->expected_type == PV_node)
 		--r;
-	else if (mo_current_move_value(node->mo) < - 1000)
+	else if (node->depth - PLY - r > 3 * PLY
+	    && mo_current_move_value(node->mo) < - 1000)
 		++r;
 
+	if (r < 0)
+		r = 0;
 	return r;
 }
 
@@ -315,7 +332,10 @@ fail_high(struct node *node)
 static void
 check_node_count_limit(struct nodes_common_data *data)
 {
-	if (data->result.node_count == data->sd.node_count_limit)
+	if (data->sd.node_count_limit == 0)
+		return;
+
+	if (data->result.node_count > data->sd.node_count_limit)
 		longjmp(data->terminate_jmp_buf, 1);
 }
 
@@ -347,6 +367,7 @@ node_init(struct node *node)
 
 	node->is_in_null_move_search = false;
 	node->null_move_search_failed = false;
+	node->mate_threat_detected = false;
 	node->repetition_affected_any = 0;
 	node->repetition_affected_best = 0;
 	node->non_pawn_move_count = 0;
@@ -378,6 +399,21 @@ node_init(struct node *node)
 static int
 negamax_child(struct node *node)
 {
+	/*
+	if (node[1].alpha < -mate_value && node[1].alpha > -max_value)
+		node[1].alpha--;
+	else if (node[1].alpha > mate_value && node[1].alpha < max_value)
+		node[1].alpha++;
+
+	if (node[1].beta < -mate_value && node[1].beta > -max_value)
+		node[1].beta--;
+	else if (node[1].beta > mate_value && node[1].beta < max_value)
+		node[1].beta++;
+	*/
+
+	if (node[1].beta < -mate_value && node[1].beta > -max_value)
+		node[1].beta--;
+
 	negamax(node + 1);
 
 	if (node->forced_pv == 0)
@@ -398,6 +434,8 @@ negamax_child(struct node *node)
 	 */
 	if (value > mate_value)
 		return value - 1;
+	//else if (value < -mate_value)
+	//	return value + 1;
 	else
 		return value;
 }
@@ -478,9 +516,9 @@ try_null_move_prune(struct node *node)
 	if ((node->root_distance == 0)
 	    || node[-1].is_in_null_move_search
 	    || (node->expected_type == PV_node)
-	    || (advantage < - 100)
+	    || (advantage < - 300)
 	    || (node->depth <= 4 * PLY)
-	    || (node->depth > 7 * PLY && advantage < 0)
+	    || (node->depth > 8 * PLY && advantage < - 100)
 	    || is_in_check(node->pos)
 	    || (node->mo->count < 18))
 		return 0;
@@ -524,6 +562,16 @@ try_null_move_prune(struct node *node)
 	}
 	else {
 		node->null_move_search_failed = true;
+		if (value <= -mate_value)
+			node->mate_threat_detected = true;
+		/*
+		if (value <= -mate_value) {
+			if (node->depth >= 7 * PLY)
+				node->depth += PLY;
+			else
+				node->depth++;
+		}
+		*/
 	}
 
 	return 0;
@@ -596,6 +644,10 @@ check_hash_value(struct node *node, ht_entry entry)
 				}
 			}
 		}
+
+		if (ht_depth(entry) <= 0)
+			return 0;
+
 		if (ht_value_is_upper_bound(entry)) {
 			if (ht_value(entry) <= -mate_value) {
 				if (!node->has_repetition_in_history) {
@@ -705,7 +757,8 @@ setup_moves(struct node *node)
 		if (is_qsearch(node))
 			node->value = node->lower_bound;  // leaf node
 		else if (is_in_check(node->pos)) {
-			node->value = -max_value;  // checkmate
+				//puts("checkmate");
+			node->value = -max_value - 1;  // checkmate
 		}
 		else {
 			node->value = 0;   // stalemate
@@ -738,12 +791,13 @@ search_more_moves(const struct node *node)
 	if (node->alpha >= node->beta)
 		return false;
 
-	if (node->root_distance > 3
-	    && node->value > - mate_value
-	    && !is_in_check(node->pos)
-	    && node->depth > 0 && node->depth < (int)ARRAY_LENGTH(LMP)) {
-		if (mo_current_move_value(node->mo) <= 0) {
-			if (node->mo->index >= LMP[node->depth])
+	if (node->common->sd.settings.use_LMP) {
+		if (node->root_distance > 3
+		    && node->value > - mate_value
+		    //&& !is_in_check(node->pos)
+		    && node->depth > 0
+		    && node->depth < (int)ARRAY_LENGTH(LMP)) {
+			if (node->LMR_subject_index >= LMP[node->depth])
 				return false;
 		}
 	}
@@ -922,19 +976,37 @@ handle_beta_extension(struct node *node, move m, int value)
 	if (!node->common->sd.settings.use_beta_extensions)
 		return value;
 
-	if (value >= node->beta
-	    && !node[-1].is_in_null_move_search
-	    && move_gives_check(m)
-	    && value < mate_value
-	    && node->depth > 0
-	    && !is_capture(m)
-	    && !is_promotion(m)
-	    && mtype(m) != mt_castle_kingside
-	    && mtype(m) != mt_castle_queenside) {
+	if (value < node->beta || node[-1].is_in_null_move_search)
+		return value;
+
+	/*
+	if (node->mate_threat_detected) {
 		node[1].alpha = -node->beta;
 		node[1].beta = -node->alpha;
 		node[1].depth = node->depth;
-		return  negamax_child(node);
+		return negamax_child(node);
+	}
+	*/
+
+	if (node->depth <= 0)
+		return value;
+
+	if ((node->mate_threat_detected && value > -mate_value)
+	    ||
+	    ((move_gives_check(m) || is_in_check(node->pos))
+	    && value < mate_value
+	    && !is_capture(m)
+	    && !is_promotion(m)
+	    && mo_current_move_value(node->mo) >= 0
+	    && mtype(m) != mt_castle_kingside
+	    && mtype(m) != mt_castle_queenside)) {
+		node[1].alpha = -node->beta;
+		node[1].beta = -node->alpha;
+		if (node->depth > 6 * PLY)
+			node[1].depth = node->depth - (PLY / 2);
+		else
+			node[1].depth = node->depth;
+		return negamax_child(node);
 	}
 	else {
 		return value;
@@ -944,7 +1016,7 @@ handle_beta_extension(struct node *node, move m, int value)
 static void
 negamax(struct node *node)
 {
-	assert(node->alpha < node->beta);
+	assert(node->alpha <= node->beta);
 
 	node_init(node);
 
@@ -962,6 +1034,11 @@ negamax(struct node *node)
 	if (setup_moves(node) == no_legal_moves)
 		return;
 
+	if (node->alpha >= node->beta) {
+		node->value = node->beta;
+		return;
+	}
+
 	if (node->forced_pv == 0) {
 		if (fetch_hash_value(node) == hash_cutoff)
 			return;
@@ -978,8 +1055,16 @@ negamax(struct node *node)
 	if (recheck_bounds(node) == alpha_not_less_than_beta)
 		return;
 
+	unsigned mated_moves = 0;
+
 	do {
 		move_order_pick_next(node->mo);
+
+		if (node->depth <= 0
+		   //&& (node->mo->index > 0 || !is_in_check(node->pos))
+		   && !is_in_check(node->pos)
+		   && mo_current_move_value(node->mo) < -1000)
+			break;
 
 		move m = mo_current_move(node->mo);
 
@@ -994,13 +1079,21 @@ negamax(struct node *node)
 				reset_child_after_lmr(node);
 				value = negamax_child(node);
 			}
+			/*
 			else {
 				debug_trace_tree_pop_move(node);
 				continue;
 			}
+			*/
 		}
 
 		value = handle_beta_extension(node, m, value);
+
+		if (node->depth > 2 * PLY && value <= -mate_value) {
+			++mated_moves;
+			if (mated_moves > 2)
+				node->mate_threat_detected = true;
+		}
 
 		if (value > node->value) {
 			node->value = value;
@@ -1279,16 +1372,21 @@ search(const struct position *root_pos,
 void
 init_search(void)
 {
-	static const int min_depth = (2 * PLY) - 1;
+	//static const int min_depth = (2 * PLY) - 1;
+	static const int min_depth = 2 * PLY;
 
-	for (int d = min_depth + 1; d < (int)ARRAY_LENGTH(LMR); ++d) {
+	for (int d = min_depth + PLY + 1; d < (int)ARRAY_LENGTH(LMR); ++d) {
 		for (int i = 0; i < (int)ARRAY_LENGTH(LMR[d]); ++i) {
-			double x = d * (i + 1);
-			int r = (int)(log2((x / 22) + 1) * PLY);
+			double x = (d - min_depth - PLY) * (((double)i + 2) * 2.3);
+			//double x = (d * (i + 1) * 1.8);
+			int r = (int)(log2((x / 20) + 1) * PLY);
 
-			if (r > d - min_depth)
-				r = d - min_depth;
+			if (d - PLY - r < min_depth)
+				r = d - PLY - min_depth;
+			//if (r > d - min_depth)
+			//	r = d - min_depth;
 			LMR[d][i] = r;
+			//printf("LMR[%d][%d] = %d\n", d, i, r);
 		}
 	}
 }

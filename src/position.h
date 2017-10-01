@@ -287,13 +287,7 @@ knight_pattern(int i)
 {
 	invariant(ivalid(i));
 
-#ifdef USE_KNIGHT_LOOKUP_TABLE
 	return knight_moves_table[i];
-#else
-	static const uint64_t pattern = UINT64_C(0x0442800000028440);
-	static const uint64_t mask = UINT64_C(0x00003f3f3f3f3f3f);
-	return rol(pattern, i) & (mask << ((i & 0x24) >> 1));
-#endif
 }
 
 static inline attribute(artificial) uint64_t

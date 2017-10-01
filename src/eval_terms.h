@@ -233,16 +233,39 @@ opponent_pawns_on_center4(const struct position *pos)
 }
 
 static inline uint64_t
-center4_attacks(const struct position *pos)
+knight_center_attacks(const struct position *pos)
 {
-	return (pos->attack[knight] | pos->attack[bishop]) & CENTER4_SQ;
+	return pos->attack[knight] & CENTER_SQ;
 }
 
 static inline uint64_t
-opponent_center4_attacks(const struct position *pos)
+opponent_knight_center_attacks(const struct position *pos)
 {
-	return (pos->attack[opponent_knight] | pos->attack[opponent_bishop])
-	    & CENTER4_SQ;
+	return pos->attack[opponent_knight] & CENTER_SQ;
+}
+
+static inline uint64_t
+knight_center4_attacks(const struct position *pos)
+{
+	return pos->attack[knight] & CENTER4_SQ;
+}
+
+static inline uint64_t
+opponent_knight_center4_attacks(const struct position *pos)
+{
+	return pos->attack[opponent_knight] & CENTER4_SQ;
+}
+
+static inline uint64_t
+bishop_center4_attacks(const struct position *pos)
+{
+	return pos->attack[bishop] & CENTER4_SQ;
+}
+
+static inline uint64_t
+opponent_bishop_center4_attacks(const struct position *pos)
+{
+	return pos->attack[opponent_bishop] & CENTER4_SQ;
 }
 
 static inline bool

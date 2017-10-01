@@ -110,14 +110,16 @@
 #define CENTER_SQ	UINT64_C(0x0000001818000000)
 #define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
-#ifdef USE_KNIGHT_LOOKUP_TABLE
 extern const uint64_t knight_moves_table[64];
-#endif
 
 extern const uint64_t bishop_pattern_table[64];
 extern const uint64_t rook_pattern_table[64];
 extern const uint64_t king_moves_table[64];
 extern const uint64_t pawns_reach_table[64];
+
+extern uint64_t king_reach_2_table[64];
+extern uint64_t king_reach_4_table[64];
+extern uint64_t knight_reach_2_table[64];
 
 #ifdef SLIDING_BYTE_LOOKUP
 extern const uint8_t bishop_attack_index8[];

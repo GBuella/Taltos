@@ -501,7 +501,7 @@ int position_reset(struct position*,
 
 void position_destroy(struct position*);
 
-void init_move_gen(void);
+void init_constants(void);
 
 bool has_any_legal_move(const struct position*)
 	attribute(nonnull);

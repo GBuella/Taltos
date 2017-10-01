@@ -41,7 +41,8 @@ main(int argc, char **argv)
 	(void) argc;
 	setup_defaults();
 	trace_init(argv);
-	init_move_gen();
+	init_constants();
+	init_move_order();
 	init_search();
 	process_args(argv);
 	init_book(&book);
@@ -86,6 +87,9 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_NO_LMR");
 	conf.search.use_LMR = (env == NULL || env[0] == '0');
 
+	env = getenv("TALTOS_USE_NO_LMP");
+	conf.search.use_LMP = (env == NULL || env[0] == '0');
+
 	env = getenv("TALTOS_USE_NO_NULLM");
 	conf.search.use_null_moves = (env == NULL || env[0] == '0');
 
@@ -123,6 +127,8 @@ setup_display_name(void)
 
 	if (!conf.search.use_LMR)
 		strcat(name, "-noLMR");
+	if (!conf.search.use_LMP)
+		strcat(name, "-noLMP");
 	if (!conf.search.use_null_moves)
 		strcat(name, "-nonullm");
 
@@ -197,6 +203,9 @@ process_args(char **arg)
 		}
 		else if (strcmp(*arg, "--nolmr") == 0) {
 			conf.search.use_LMR = false;
+		}
+		else if (strcmp(*arg, "--nolmp") == 0) {
+			conf.search.use_LMP = false;
 		}
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;

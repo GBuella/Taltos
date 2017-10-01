@@ -521,6 +521,7 @@ iterative_deepening(void *arg)
 	engine_result.first = true;
 
 	setup_search(data);
+	int iteration = 0;
 	while ((data->sd.depth_limit == -1 && data->sd.depth < MAX_PLY)
 	    || (data->sd.depth <= data->sd.depth_limit * PLY)) {
 		struct search_result result;
@@ -545,11 +546,21 @@ iterative_deepening(void *arg)
 		}
 		if (abs(result.value) >= mate_value)
 			break;
-		data->sd.depth++;
+
+		if (engine_result.sresult.node_count < 600000)
+			data->sd.depth += PLY;
+		else
+			data->sd.depth++;
+
+		++iteration;
+		if (iteration % 4 == 0) {
+			move_order_swap_history();
+	//		puts("move_order_swap_history");
+		}
 	}
 
 	if (engine_result.sresult.node_count <= UINT_MAX) {
-		tracef("repro: nodes %u\n",
+		tracef("repro: nodes %u",
 		    (unsigned)engine_result.sresult.node_count);
 		trace("repro: search_sync");
 	}

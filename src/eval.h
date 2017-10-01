@@ -9,8 +9,8 @@
 #include <stdint.h>
 
 enum {
-	max_value = 30000,
-	mate_value = (max_value - MAX_PLY),
+	max_value = 0x1fffe,
+	mate_value = 0x14000,
 	pawn_value = 100,
 	knight_value = 300,
 	bishop_value = 300,

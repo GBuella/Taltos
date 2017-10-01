@@ -58,7 +58,9 @@ check_eval_symmetry(const struct position *pos)
 	CHECK_TERM(rook_batteries);
 	CHECK_TERM(pawns_on_center);
 	CHECK_TERM(pawns_on_center4);
-	CHECK_TERM(center4_attacks);
+	CHECK_TERM(knight_center_attacks);
+	CHECK_TERM(knight_center4_attacks);
+	CHECK_TERM(bishop_center4_attacks);
 	CHECK_BOOL_TERM(has_bishop_pair);
 	assert(pawns_on_white(pos) == bswap(pawns_on_black(flipped)));
 	assert(pawns_on_white(flipped) == bswap(pawns_on_black(pos)));

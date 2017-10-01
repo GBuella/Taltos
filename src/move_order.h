@@ -26,6 +26,8 @@ struct move_order {
 	int pos_threats;
 	const struct position *pos;
 	int history_side;
+	int prev_from;
+	int revealed_attack;
 };
 
 void move_order_setup(struct move_order*, const struct position*,
@@ -94,5 +96,7 @@ void move_order_adjust_history_on_cutoff(const struct move_order*)
 void move_order_enable_history(void);
 void move_order_disable_history(void);
 void move_order_swap_history(void);
+
+void init_move_order(void);
 
 #endif

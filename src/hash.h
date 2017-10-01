@@ -36,13 +36,26 @@ typedef uint64_t ht_entry;
  * best move    : bits 16 - 26
  * reserved     : bits 27 - 30
  * no_null      : bits 31 - 31
- * value        : bits 32 - 47
- * depth        : bits 48 - 63
+ * value        : bits 32 - 50
+ * depth        : bits 51 - 63
  *
  * This pattern depends on the bits used by move type.
  */
 
+struct ht_entry {
+	uint32_t best_move : 30;
+	uint32_t is_lower_bound : 1;
+	uint32_t is_upper_bound : 1;
+	uint32_t value : 22;
+	uint32_t no_null : 1;
+	uint32_t depth : 9;
+};
+
+static_assert(sizeof(ht_entry) == sizeof(uint64_t), "unexpected struct size");
+
 #define HT_NO_NULL_FLAG (1u << 31)
+#define HT_MAX_VALUE (1 << (51 - 32 - 1))
+#define HT_MAX_DEPTH ((1 << (64 - 51)) - 1)
 
 static_assert(
 	(MOVE_MASK & VALUE_TYPE_MASK) == 0,
@@ -71,24 +84,25 @@ ht_set_depth(ht_entry e, int depth)
 
 	if (depth < 0)
 		return e;
-	return e | (((ht_entry)depth) << (32 + 16));
+	return e | (((ht_entry)depth) << 51);
 }
 
 static inline attribute(artificial) ht_entry
 ht_set_value(ht_entry e, enum value_type vt, int value)
 {
-	invariant(value >= -0x7fff && value < 0x7fff);
+	invariant(value >= -MAX_VALUE);
+	invariant(value <= MAX_VALUE);
 	invariant((vt & VALUE_TYPE_MASK) == vt);
 
 	e |= (ht_entry)vt;
-	e |= (((ht_entry)(value + 0x7fff)) << 32);
+	e |= (((ht_entry)(value + MAX_VALUE)) << 32);
 	return e;
 }
 
 static inline attribute(artificial) ht_entry
 ht_clear_value(ht_entry e)
 {
-	return e & ~(VALUE_TYPE_MASK | (UINT64_C(0xffff) << 32));
+	return e & ~(VALUE_TYPE_MASK | (UINT64_C(0x3ffff) << 32));
 }
 
 static inline attribute(artificial) bool
@@ -113,7 +127,7 @@ ht_set_no_move(ht_entry e)
 static inline attribute(artificial) int
 ht_depth(ht_entry e)
 {
-	return (unsigned)(e >> (32 + 16));
+	return (unsigned)(e >> (32 + 18));
 }
 
 static inline attribute(artificial) enum value_type
@@ -137,7 +151,7 @@ ht_value_is_upper_bound(ht_entry e)
 static inline attribute(artificial) int
 ht_value(ht_entry e)
 {
-	return (int)(((e >> 32) % 0x10000) - 0x7fff);
+	return (int)(((e >> 32) % 0x40000)) - 0x1ffff;
 }
 
 static inline attribute(artificial) ht_entry

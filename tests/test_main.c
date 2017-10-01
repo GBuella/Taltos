@@ -10,6 +10,7 @@
 #include "tests.h"
 
 #include "game.h"
+#include "move_order.h"
 
 static int prog_argc;
 static const char **prog_argv;
@@ -21,7 +22,8 @@ main(int argc, const char **argv)
 	prog_argc = argc;
 	prog_argv = argv;
 
-	init_move_gen();
+	init_constants();
+	init_move_order();
 
 	run_tests();
 

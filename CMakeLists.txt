@@ -39,6 +39,7 @@ add_custom_command(
 
 set(TALTOS_SOURCES
 	src/book.c
+	src/constants.c
 	src/eval.c
 	src/fen.c
 	src/fen_book.c
