@@ -1573,7 +1573,7 @@ print_move_order(const struct position *pos, enum player player)
 
 		(void) printm(pos, m, buf, player);
 
-		printf("#%u %s %d\n", move_order.index, buf, value);
+		printf("#%u %s %d\n", move_order.picked_count, buf, value);
 	} while (!move_order_done(&move_order));
 }
 

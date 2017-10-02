@@ -212,7 +212,7 @@ handle_node_types(struct node *node)
 
 	switch (node->expected_type) {
 	case PV_node:
-		if (node->mo->index == 0)
+		if (node->mo->picked_count == 1)
 			child->expected_type = PV_node;
 		else
 			child->expected_type = cut_node;
@@ -221,7 +221,7 @@ handle_node_types(struct node *node)
 		child->expected_type = cut_node;
 		break;
 	case cut_node:
-		if (node->mo->index > 0) {
+		if (node->mo->picked_count > 1) {
 			node->expected_type = all_node;
 			child->expected_type = cut_node;
 		}
@@ -254,9 +254,12 @@ get_LMR_factor(struct node *node)
 	if (!node->common->sd.settings.use_LMR)
 		return 0;
 
+	if (node->value <= -mate_value)
+		return 0;
+
 	if (node->LMR_subject_index == -1) {
-		if (node->mo->index >= 1
-		    && mo_current_move_value(node->mo) < 0) {
+		if (node->mo->picked_count > 1
+		    && mo_current_move_value(node->mo) <= 0) {
 			node->LMR_subject_index = 0;
 		}
 		else {
@@ -295,7 +298,7 @@ fail_high(struct node *node)
 {
 	if (node->depth > 0 && !move_order_done(node->mo)) {
 		node->common->result.cutoff_count++;
-		if (node->mo->index == 0)
+		if (node->mo->picked_count == 1)
 			node->common->result.first_move_cutoff_count++;
 	}
 	if (!mo_current_move_is_tactical(node->mo))
@@ -747,6 +750,15 @@ search_more_moves(const struct node *node)
 	if (node->alpha >= max_value - 1)
 		return false;
 
+	if (is_qsearch(node)) {
+		if (mo_current_move_value(node->mo) <= 0)
+			return false;
+		if (node->depth <= -3 * PLY) {
+			if (mo_current_move_value(node->mo) <= 200)
+				return false;
+		}
+	}
+
 	if (!node->common->sd.settings.use_LMP)
 		return true;
 
@@ -755,7 +767,7 @@ search_more_moves(const struct node *node)
 	    && !is_in_check(node->pos)
 	    && node->depth > 0 && node->depth < (int)ARRAY_LENGTH(LMP)) {
 		if (mo_current_move_value(node->mo) <= 0) {
-			if (node->mo->index >= LMP[node->depth])
+			if (node->mo->picked_count > LMP[node->depth])
 				return false;
 		}
 	}

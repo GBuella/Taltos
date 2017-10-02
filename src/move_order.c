@@ -9,6 +9,38 @@
 #include "move_order.h"
 #include "constants.h"
 
+enum {
+	killer_value = 70
+};
+
+static int64_t
+create_entry(move move, int16_t value, bool is_check)
+{
+	int64_t entry = move;
+	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
+	if (is_check)
+		entry |= bit64(mo_entry_check_flag_bit);
+
+	return entry;
+}
+
+static int64_t
+create_hint_entry(move move, int16_t value, bool is_check)
+{
+	int64_t entry = create_entry(move, value, is_check);
+	entry |= bit64(mo_entry_hint_flag_bit);
+
+	return entry;
+}
+
+static int64_t
+reset_entry_value(int64_t entry, int16_t value)
+{
+	entry &= (bit64(64 - mo_entry_value_bits) - 1);
+	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
+	return entry;
+}
+
 static bool use_history;
 
 struct history_value {
@@ -27,48 +59,69 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	else
 		mo->count = gen_moves(pos, mo->moves);
 
-	mo->index = 0;
+	mo->raw_move_count = mo->count;
+	mo->entry_count = 0;
+	mo->picked_count = 0;
 	mo->is_started = false;
 	mo->is_already_sorted = false;
 	mo->hint_count = 0;
 	mo->pos = pos;
 	mo->history_side = hside;
+	mo->strong_capture_entries_added = false;
+	move_desc_setup(&mo->desc);
 }
 
 static void
-insert(struct move_order *mo, unsigned i, move m, int value, bool tactical)
+insert_at(struct move_order *mo, unsigned i, int64_t entry)
 {
-	invariant(i < mo->count);
+	invariant(i >= mo->picked_count);
+	invariant(i <= mo->entry_count);
 
-	while (i > 0 && mo->value[i - 1] < value) {
-		mo->moves[i] = mo->moves[i - 1];
-		mo->value[i] = mo->value[i - 1];
-		mo->tactical[i] = mo->tactical[i - 1];
+	while (i > mo->picked_count && mo->entries[i - 1] < entry) {
+		mo->entries[i] = mo->entries[i - 1];
 		--i;
 	}
+	mo->entries[i] = entry;
+}
 
-	mo->moves[i] = m;
-	mo->value[i] = value;
-	mo->tactical[i] = tactical;
+static void
+insert(struct move_order *mo, int64_t entry)
+{
+	insert_at(mo, mo->entry_count, entry);
+	mo->entry_count++;
+}
+
+static void
+remove_raw_move(struct move_order *mo, unsigned i)
+{
+	invariant(mo->raw_move_count > 0);
+	invariant(i < mo->raw_move_count);
+
+	mo->moves[i] = mo->moves[mo->raw_move_count - 1];
+	mo->raw_move_count--;
 }
 
 static int
-add_hint(struct move_order *mo, move hint_move, int value)
+add_hint(struct move_order *mo, move hint_move, int16_t value)
 {
 	if (hint_move == 0)
 		return 0;
 
-	for (unsigned i = 0; i < mo->count; ++i) {
+	for (unsigned i = mo->picked_count; i < mo->entry_count; ++i) {
+		int64_t entry = mo->entries[i];
+		if (mo_entry_move(entry) == hint_move) {
+			if (mo_entry_value(entry) < value) {
+				entry = reset_entry_value(entry, value);
+				insert_at(mo, i, entry);
+			}
+			return 0;
+		}
+	}
+
+	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
 		if (mo->moves[i] == hint_move) {
-			if (i >= mo->hint_count) {
-				mo->moves[i] = mo->moves[mo->hint_count];
-				insert(mo, mo->hint_count, hint_move,
-				    value, false);
-				mo->hint_count++;
-			}
-			else if (mo->value[i] < value) {
-				mo->value[i] = value;
-			}
+			remove_raw_move(mo, i);
+			insert(mo, create_hint_entry(hint_move, value, false));
 			return 0;
 		}
 	}
@@ -83,14 +136,14 @@ move_order_add_weak_hint(struct move_order *mo, move hint_move)
 }
 
 int
-move_order_add_hint(struct move_order *mo, move hint_move, int priority)
+move_order_add_hint(struct move_order *mo, move hint_move, int16_t priority)
 {
 	assert(priority >= 0);
 
 	if (hint_move == 0)
 		return 0;
 
-	return add_hint(mo, hint_move, INT_MAX - priority);
+	return add_hint(mo, hint_move, INT16_MAX - priority);
 }
 
 void
@@ -112,316 +165,105 @@ is_killer(const struct move_order *mo, move m)
 }
 
 static bool
-is_knight_threat(const struct position *pos, move m)
+is_strong_capture(const struct position *pos, move m)
 {
-	if (mresultp(m) != knight)
+	if (!is_capture(m))
 		return false;
 
-	if (is_nonempty(pos->attack[opponent_pawn] & mto64(m)))
-		return false;
-	if (is_nonempty(pos->attack[opponent_knight] & mto64(m)))
-		return false;
-	if (is_nonempty(pos->attack[opponent_bishop] & mto64(m)))
-		return false;
+	if (mcapturedp(m) == queen)
+		return true;
 
-	if (is_nonempty(pos->attack[opponent_rook] & mto64(m))
-	    || is_nonempty(pos->attack[opponent_queen] & mto64(m))) {
-		if (is_empty(pos->attack[pawn] & mto64(m)))
-			return false;
-	}
-	else if (is_nonempty(pos->attack[opponent_king] & mto64(m))) {
-		uint64_t defend = pos->attack[pawn];
-		defend |= pos->sliding_attacks[0];
-		defend |= pos->attack[king];
-		if (is_empty(defend & mto64(m)))
+	if (mresultp(m) == queen) {
+		if (is_nonempty(pos->attack[1] && mto64(m)))
 			return false;
 	}
 
-	uint64_t victims = pos->map[opponent_king];
-	victims |= pos->map[opponent_rook];
-	victims |= pos->map[opponent_queen];
-	victims |= pos->map[opponent_bishop] & ~pos->attack[1];
-	victims |= pos->map[opponent_pawn] & ~pos->attack[1];
+	if (mcapturedp(m) == rook)
+		return true;
 
-	return popcnt(knight_pattern[mto(m)] & victims) > 1; // fork
-}
-
-static bool
-is_passed_pawn_push(const struct position *pos, move m)
-{
-	invariant(mresultp(m) == pawn);
-	invariant(!is_capture(m));
-
-	uint64_t to = mto64(m);
-	if (is_nonempty(to & (RANK_5 | RANK_6 | RANK_7))) {
-		uint64_t blockers = north_of(to) | north_of(north_of(to));
-		blockers &= pos->map[1];
-		if (is_empty(blockers) &&
-		    is_empty(to & pos->pawn_attack_reach[1]))
+	if (is_empty(pos->rq[0]) && is_empty(pos->rq[1])) {
+		if (mcapturedp(m) != pawn)
 			return true;
 	}
 
 	return false;
 }
 
-static bool
-is_pawn_fork(const struct position *pos, move m)
+static void
+add_strong_capture_entries(struct move_order *mo)
 {
-	invariant(mresultp(m) == pawn);
-	invariant(!is_capture(m));
-
-	if (is_capture(m))
-		return false;
-
-	if (is_nonempty(pos->attack[1] & mto64(m))) {
-		if (is_empty(pos->attack[pawn] & mto64(m)))
-			return false;
+	for (unsigned i = 0; i < mo->raw_move_count; ) {
+		move m = mo->moves[i];
+		if (is_strong_capture(mo->pos, m)) {
+			remove_raw_move(mo, i);
+			int value = piece_value[mcapturedp(m)];
+			value -= piece_value[mresultp(m)] / 20;
+			insert(mo, create_entry(m, value, false));
+		}
+		else {
+			++i;
+		}
 	}
-
-	uint64_t victims = pos->map[1] & ~pos->map[opponent_pawn];
-	if (popcnt(pawn_attacks_player(mto64(m)) & victims) > 1)
-		return true;
-
-	return false;
+	mo->strong_capture_entries_added = true;
 }
 
-static int
-MVVLVA(move m)
+static int16_t
+move_history_value(const struct move_order *mo, move m)
 {
-	return piece_value[mcapturedp(m)] - (piece_value[mresultp(m)] / 10);
-}
+	const struct history_value *h0 =
+	    &(history[0][mresultp(m) + mo->history_side][mto(m)]);
+	const struct history_value *h1 =
+	    &(history[1][mresultp(m) + mo->history_side][mto(m)]);
 
-static char quiet_move_sq_table[64] = {
-	4, 4, 4, 4, 4, 4, 4, 4,
-	3, 3, 3, 3, 3, 3, 3, 3,
-	0, 1, 2, 3, 3, 2, 1, 0,
-	0, 1, 2, 3, 3, 2, 1, 0,
-	0, 1, 2, 3, 3, 2, 1, 0,
-	0, 1, 2, 2, 2, 2, 1, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0
-};
+	int16_t value = 0;
 
-static int
-eval_quiet_move(struct move_order *mo, move m)
-{
-	int value = 0;
-	uint64_t from = mfrom64(m);
-	uint64_t to = mto64(m);
-
-	if (is_nonempty(mo->pos->attack[opponent_pawn] & from)
-	    && is_empty(mo->pos->attack[opponent_pawn] & to))
-		value += 5; // attacked by pawn, fleeing
-
-	if (mresultp(m) == rook || mresultp(m) == queen) {
-		uint64_t krook;
-
-		krook = rook_masks[mo->pos->opp_ki];
-		if (is_empty(krook & from) && is_nonempty(krook & to))
-			value += 4; // threaten opponent king
-	}
-	if (mresultp(m) == bishop || mresultp(m) == queen) {
-		uint64_t kbishop;
-
-		kbishop = bishop_masks[mo->pos->opp_ki];
-		if (is_empty(kbishop & from) && is_nonempty(kbishop & to))
-			value += 4; // threaten opponent king
-	}
-
-	value += quiet_move_sq_table[mfrom(m)];
-	value += quiet_move_sq_table[mto(m)];
-
-	if (use_history) {
-		const struct history_value *h0 =
-		    &(history[0][mresultp(m) + mo->history_side][mto(m)]);
-		const struct history_value *h1 =
-		    &(history[1][mresultp(m) + mo->history_side][mto(m)]);
-
-		value +=
-		    (int)((h0->cutoff_count * 15) / (h0->occurence + 20));
-		value +=
-		    (int)((h1->cutoff_count * 60) / (h1->occurence + 100));
-	}
-
-	return value;
-}
-
-static int
-eval_move_general(struct move_order *mo, move m, bool *tactical)
-{
-	uint64_t to64 = mto64(m);
-	int to = mto(m);
-	int piece = mresultp(m);
-	uint64_t en_prise =
-	    mo->pos->map[0] & mo->pos->attack[1] & ~mo->pos->attack[0];
-
-	if (mresultp(m) == pawn) {
-		if (is_capture(m)) {
-			*tactical = true;
-			return piece_value[mcapturedp(m)] - 10;
-		}
-
-		if (is_passed_pawn_push(mo->pos, m)
-		    || is_pawn_fork(mo->pos, m)) {
-			*tactical = true;
-			return 3;
-		}
-
-		// en-prise
-		if (is_nonempty(mo->pos->attack[1] & to64)
-		    && is_empty(mo->pos->attack[0] & to64))
-			return -1001;
-
-		if (is_nonempty(mo->pos->attack[pawn] & to64)) {
-			// threat to a non-pawn piece, while being defended
-			// by another pawn
-			uint64_t victims = mo->pos->map[1];
-			victims &= ~mo->pos->map[opponent_pawn];
-			if (is_nonempty(pawn_attacks_player(to64) & victims))
-				return -2;
-		}
-		else if (is_empty(mo->pos->attack[1] & to64)) {
-			// threat to a non-pawn piece, while not being
-			// attacked in return
-			if (is_nonempty(
-			    pawn_attacks_player(to64) & mo->pos->map[1]))
-				return -2;
-		}
-
-		int base = -140;
-		if (is_nonempty(pawn_attacks_player(to64) & en_prise))
-			base = -110;
-		else if (to == sq_b3
-		    && is_nonempty(mo->pos->map[pawn] & SQ_C2)
-		    && is_nonempty(mo->pos->map[opponent_bishop] & SQ_A2))
-			base = -120;
-		else if (to == sq_g3
-		    && is_nonempty(mo->pos->map[pawn] & SQ_F2)
-		    && is_nonempty(mo->pos->map[opponent_bishop] & SQ_H2))
-			base = -120;
-
-		return base + eval_quiet_move(mo, m);
-	}
-
-	if (is_knight_threat(mo->pos, m)) {
-		*tactical = true;
-		return 3;
-	}
-
-	if (is_capture(m)) {
-		if (is_empty(mo->pos->attack[1] & to64)) {
-			*tactical = true;
-			return piece_value[mcapturedp(m)];
-		}
-		if (piece_value[mcapturedp(m)] >= piece_value[piece]) {
-			*tactical = true;
-			return MVVLVA(m);
-		}
-	}
-
-	if (is_nonempty(to64 & mo->pos->attack[opponent_pawn])) {
-		if (piece != pawn)
-			return -1000 - (piece_value[piece] / 2);
-	}
-
-	if (is_capture(m)) {
-		*tactical = true;
-		return MVVLVA(m);
-	}
-
-	int base = -140;
-	return base + eval_quiet_move(mo, m);
-}
-
-static int
-eval_move(struct move_order *mo, move m, bool *tactical)
-{
-	uint64_t to = mto64(m);
-
-	// filter out some special moves first
-	switch (mtype(m)) {
-		case mt_castle_kingside:
-		case mt_castle_queenside:
-			return -99;
-		case mt_promotion:
-			if (is_under_promotion(m))
-				return -2100;
-
-			*tactical = true;
-
-			if (is_nonempty(mo->pos->attack[1] & to))
-				return 1;
-			else
-				return queen_value;
-
-		case mt_en_passant:
-			*tactical = true;
-			return 80;
-
-		default:
-			break;
-	}
-
-	int value = eval_move_general(mo, m, tactical);
+	value += (int16_t)((h0->cutoff_count * 15) / (h0->occurence + 20));
+	value += (int16_t)((h1->cutoff_count * 60) / (h1->occurence + 100));
 
 	return value;
 }
 
 static void
-eval_moves(struct move_order *mo)
+add_all_entries(struct move_order *mo)
 {
-	invariant(mo->count > 0);
+	static const int16_t base = -60;
 
-	if (mo->is_already_sorted)
-		return;
-
-	for (unsigned i = mo->hint_count; i < mo->count; ++i) {
+	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
 		move m = mo->moves[i];
-		(void) is_killer;
 		if (is_killer(mo, m)) {
-			insert(mo, i, m, 2, false);
+			insert(mo, create_entry(m, killer_value, false));
 		}
 		else {
-			bool tactical = false;
-			int value;
+			describe_move(&mo->desc, mo->pos, m);
+			bool check = mo->desc.direct_check;
+			check |= mo->desc.discovered_check;
 
-			value = eval_move(mo, m, &tactical);
-			insert(mo, i, m, value, tactical);
+			int16_t value = base;
+			value += mo->desc.value;
+			if (use_history)
+				value += move_history_value(mo, m);
+			if (is_capture(m))
+				value += 30;
+			insert(mo, create_entry(m, value, check));
 		}
 	}
-
-	mo->is_already_sorted = true;
-}
-
-void
-move_order_reset(struct move_order *mo)
-{
-	mo->is_started = false;
-	mo->index = 0;
-}
-
-void
-move_order_reset_to(struct move_order *mo, unsigned i)
-{
-	mo->is_started = true;
-	mo->index = i;
+	mo->raw_move_count = 0;
 }
 
 void
 move_order_pick_next(struct move_order *mo)
 {
-	assert(!move_order_done(mo));
+	invariant(!move_order_done(mo));
 
-	if (!mo->is_started) {
-		assert(mo->index == 0);
-		mo->is_started = true;
-	}
-	else {
-		mo->index++;
+	while (mo->picked_count == mo->entry_count) {
+		if (!mo->strong_capture_entries_added)
+			add_strong_capture_entries(mo);
+		else
+			add_all_entries(mo);
 	}
 
-	if (mo->index == mo->hint_count || mo->value[mo->index] < 10000)
-		eval_moves(mo);
+	invariant(mo->picked_count < mo->entry_count);
+	mo->picked_count++;
 }
 
 void
@@ -454,7 +296,7 @@ move_order_adjust_history_on_cutoff(const struct move_order *mo)
 	if (mo->count == 1)
 		return;
 
-	move best = mo->moves[mo->index];
+	move best = mo_current_move(mo);
 	int side = mo->history_side;
 	if (is_capture(best)) {
 		if (piece_value[mcapturedp(best)] >=
@@ -464,13 +306,13 @@ move_order_adjust_history_on_cutoff(const struct move_order *mo)
 			return;
 	}
 
-	for (unsigned i = 0; i <= mo->index; ++i) {
-		move m = mo->moves[i];
+	for (unsigned i = 0; i < mo->picked_count; ++i) {
+		move m = mo_entry_move(mo->entries[i]);
 		struct history_value *h =
 		    &(history[1][mresultp(m) + side][mto(m)]);
 
 		h->occurence++;
-		if (i == mo->index)
+		if (i + 1 == mo->picked_count)
 			h->cutoff_count++;
 	}
 }
