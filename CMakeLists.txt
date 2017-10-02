@@ -35,6 +35,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(cmake/feature_tests.cmake)
+include(cmake/ctags.cmake)
 
 set(TALTOS_SOURCES
 	src/book.c
