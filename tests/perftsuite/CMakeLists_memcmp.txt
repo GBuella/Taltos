@@ -390,3 +390,6 @@ add_test(NAME "memcmp_perft_128"
 
 add_test(NAME "memcmp_perft_129"
 	COMMAND $<TARGET_FILE:test_memcmp> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_129.in)
+
+add_test(NAME "memcmp_perft_130"
+	COMMAND $<TARGET_FILE:test_memcmp> ${PROJECT_SOURCE_DIR}/tests/perftsuite/perft_130.in)

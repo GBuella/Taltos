@@ -1,0 +1,6 @@
+setboard 1nbk2nr/rppP1pp1/7p/8/8/7P/1qP1PPP1/1N1QKBNR w K - 16 9
+echo 1nbk2nr/rppP1pp1/7p/8/8/7P/1qP1PPP1/1N1QKBNR w K - 16 9
+qperft 1
+qperft 2
+qperft 3
+qperft 4
