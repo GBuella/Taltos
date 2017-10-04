@@ -248,8 +248,8 @@ static void
 set_uci(void)
 {
 	is_uci = true;
-	puts("id name Taltos");
-	puts("id author Gabor Buella");
+	printf("id name %s%s", conf->display_name, conf->display_name_postfix);
+	printf("id author %s", author_name);
 	printf("option name Hash type spin default %u min %u max %u\n",
 	    conf->hash_table_size_mb, ht_min_size_mb(), ht_max_size_mb());
 	puts("uciok");
@@ -973,7 +973,8 @@ cmd_protover(void)
 	for (const char **f = features; *f != NULL; ++f)
 		printf(" %s", *f);
 
-	printf(" myname=\"%s\"\n", conf->display_name);
+	printf(" myname=\"%s%s\"\n",
+	       conf->display_name, conf->display_name_postfix);
 	puts("feature done=1");
 
 	mtx_unlock(&stdout_mutex);

@@ -48,7 +48,10 @@ struct taltos_conf {
 	bool use_unicode;
 	struct search_settings search;
 	const char *display_name;
+	const char *display_name_postfix;
 };
+
+const char *author_name;
 
 noreturn void loop_cli(struct taltos_conf*, struct book*);
 

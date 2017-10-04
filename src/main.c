@@ -28,6 +28,9 @@ static void init_book(struct book **book);
 static void setup_defaults(void);
 static void setup_display_name(void);
 
+const char *author_name = "Gabor Buella";
+static const char *author_name_unicode = "G\U000000e1bor Buella";
+
 int
 main(int argc, char **argv)
 {
@@ -114,6 +117,7 @@ setup_defaults(void)
 	    (env == NULL || env[0] == '0');
 
 	conf.display_name = "Taltos";
+	conf.display_name_postfix = NULL;
 }
 
 static void
@@ -187,6 +191,7 @@ process_args(char **arg)
 		}
 		else if (strcmp(*arg, "--unicode") == 0) {
 			conf.use_unicode = true;
+			author_name = author_name_unicode;
 		}
 		else if (strcmp(*arg, "--help") == 0
 		    || strcmp(*arg, "-h") == 0) {
@@ -220,6 +225,9 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--hash") == 0) {
 			set_default_hash_size(*++arg);
 		}
+		else if (strcmp(*arg, "--name_postfix") == 0) {
+			conf.display_name_postfix = *++arg;
+		}
 		else {
 			fprintf(stderr, "Uknown option: \"%s\"\n", *arg);
 			usage(EXIT_FAILURE);
@@ -231,7 +239,7 @@ static void
 usage(int status)
 {
 	fprintf((status == EXIT_SUCCESS) ? stdout : stderr,
-	    "taltos chess engine\n"
+	    "taltos chess engine by %s\n"
 	    "usage: %s [options]\n"
 	    "OPTIONS:\n"
 	    "  -t                  print time after quitting\n"
@@ -246,8 +254,9 @@ usage(int status)
 	    "  --noSRC             strict repetition checking during search\n"
 	    "  --AM                Use advanced move ordering - 1 ply search\n"
 	    "  --HH                Use move history heuristics\n"
-	    "  --PVC               PV cleanup - attempt to report cleaner PV\n",
-	    progname);
+	    "  --PVC               PV cleanup - attempt to report cleaner PV\n"
+	    "  --name_postfix      Append string to display name\n",
+	    author_name, progname);
 	exit(status);
 }
 
