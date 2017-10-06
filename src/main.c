@@ -83,7 +83,15 @@ setup_defaults(void)
 
 	conf.book_path = NULL;   // book path, none by default
 	conf.book_type = bt_empty;  // use the empty book by default
-	conf.use_unicode = false;
+
+	const char *e = getenv("LANG");
+	if (e != NULL && strstr(e, "UTF-8") != NULL) {
+		conf.use_unicode = true;
+		author_name = author_name_unicode;
+	}
+	else {
+		conf.use_unicode = false;
+	}
 
 	env = getenv("TALTOS_USE_NO_LMR");
 	conf.search.use_LMR = (env == NULL || env[0] == '0');
