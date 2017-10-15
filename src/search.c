@@ -31,7 +31,7 @@ enum node_type {
 struct nodes_common_data {
 	struct search_result result;
 	jmp_buf terminate_jmp_buf;
-	volatile atomic_flag *run_flag;
+	volatile bool *run_flag;
 	struct search_description sd;
 
 	enum player debug_root_player_to_move;
@@ -334,7 +334,7 @@ check_time_limit(struct nodes_common_data *data)
 static void
 check_run_flag(struct nodes_common_data *data)
 {
-	if (!atomic_flag_test_and_set(data->run_flag))
+	if (!*data->run_flag)
 		longjmp(data->terminate_jmp_buf, 1);
 }
 
@@ -1320,7 +1320,7 @@ struct search_result
 search(const struct position *root_pos,
 	enum player debug_player_to_move,
 	struct search_description sd,
-	volatile atomic_flag *run_flag,
+	volatile bool *run_flag,
 	const move *prev_pv)
 {
 	struct node *nodes;

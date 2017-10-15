@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdatomic.h>
 
 #include "chess.h"
 #include "position.h"
@@ -58,7 +57,7 @@ void init_search(void);
 struct search_result search(const struct position*,
 				enum player debug_player_to_move,
 				struct search_description,
-				volatile atomic_flag *run_flag,
+				volatile bool *run_flag,
 				const move *prev_pv)
 	attribute(nonnull);
 

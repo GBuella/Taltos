@@ -258,7 +258,7 @@ struct search_thread_data {
 	 * still needs to run, and cleared by the engine
 	 * to signal to the search thread that it needs to stop.
 	 */
-	atomic_flag run_flag;
+	bool run_flag;
 
 	/*
 	 * The is_started_flag is checked by the engine.
@@ -346,14 +346,14 @@ join_all_threads(bool signal_stop)
 		mtx_lock(&engine_mutex);
 		if (thread->is_started_flag) {
 			thread->is_started_flag = false;
+			(void) signal_stop;
 			if (signal_stop)
-				atomic_flag_clear(&(thread->run_flag));
+				thread->run_flag = false;
 			mtx_unlock(&engine_mutex);
 			tracef("thrd_join search thread #%u", i);
 			thrd_join(thread->thr, NULL);
 			tracef("thrd_join search thread #%u - done", i);
-			if (!signal_stop)
-				atomic_flag_clear(&(thread->run_flag));
+			thread->run_flag = false;
 		}
 		else {
 			mtx_unlock(&engine_mutex);
@@ -647,7 +647,7 @@ think(bool infinite, bool single_thread)
 	threads[0].is_started_flag = true;
 	threads[0].export_best_move = true;
 	threads[0].sd.settings = horse->search;
-	(void) atomic_flag_test_and_set(&(threads[0].run_flag));
+	threads[0].run_flag = true;
 
 	thrd_create(&threads[0].thr, iterative_deepening, &threads[0]);
 
