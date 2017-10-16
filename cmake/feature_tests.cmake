@@ -24,6 +24,7 @@ check_c_compiler_flag(-march=native HAS_MARCHNATIVE)
 check_c_compiler_flag(-Wunknown-attributes HAS_WUNKNOWN_ATTR_FLAG)
 check_c_compiler_flag(-Wattributes HAS_WATTR_FLAG)
 check_c_compiler_flag(-mavx HAS_MAVX_FLAG)
+check_c_compiler_flag(-wd188 HAS_WD188)
 if(HAS_MAVX2_FLAG)
 	check_c_compiler_flag(-mavx2 HAS_MAVX2_FLAG)
 endif()
@@ -44,6 +45,10 @@ endif()
 
 if(HAS_OI_FLAG)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Oi")
+endif()
+
+if(HAS_WD188)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -wd188")
 endif()
 
 if(TALTOS_FORCE_NO_AVX)
