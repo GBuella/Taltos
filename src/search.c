@@ -6,6 +6,7 @@
 #include <setjmp.h>
 #include <time.h>
 #include <threads.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "macros.h"
