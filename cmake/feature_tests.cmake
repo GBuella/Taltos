@@ -20,6 +20,7 @@ check_c_compiler_flag(-Werror HAS_WERROR)
 check_c_compiler_flag(-Wall HAS_WALL)
 check_c_compiler_flag(-Wextra HAS_WEXTRA)
 check_c_compiler_flag(-pedantic HAS_PEDANTIC)
+check_c_compiler_flag(-Wno-format HAS_NOFORMAT)
 check_c_compiler_flag(-march=native HAS_MARCHNATIVE)
 check_c_compiler_flag(-Wunknown-attributes HAS_WUNKNOWN_ATTR_FLAG)
 check_c_compiler_flag(-Wattributes HAS_WATTR_FLAG)
@@ -194,3 +195,43 @@ endif()
 set(CMAKE_REQUIRED_LIBRARIES ${orig_req_libs})
 endif()
 
+if(HAS_PEDANTIC AND HAS_WERROR AND HAS_NOFORMAT)
+
+CHECK_C_SOURCE_COMPILES("
+#include <stdio.h>
+#include <stdint.h>
+int main(void) {
+	intmax_t n = 123;
+	(void) printf(\"%j\", n);
+	return 0;
+}
+"
+ TALTOS_CAN_USE_ISOC_FORMATS)
+
+if(NOT TALTOS_CAN_USE_ISOC_FORMATS)
+
+set(orig_req_flags "${CMAKE_REQUIRED_FLAGS}")
+set(CMAKE_REQUIRED_FLAGS "${orig_req_flags} -Wno-format")
+
+CHECK_C_SOURCE_COMPILES("
+#define __USE_MINGW_ANSI_STDIO 1
+#include <stdio.h>
+#include <stdint.h>
+int main(void) {
+	intmax_t n = 123;
+	(void) printf(\"%j\", n);
+	return 0;
+}
+"
+ TALTOS_CAN_USE_MINGW_ISOC_FORMATS)
+
+set(CMAKE_REQUIRED_FLAGS ${orig_req_flags})
+
+endif()
+
+if(TALTOS_CAN_USE_MINGW_ISOC_FORMATS)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__USE_MINGW_ANSI_STDIO")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format")
+endif()
+
+endif()
