@@ -597,7 +597,12 @@ kings_attacks_valid(const struct position *pos)
 	if (popcnt(pos->rays[pr_bishop][pos->ki] & pos->bq[1]) > 1)
 		return false;
 
-	if (popcnt(pos->rays[pr_rook][pos->ki] & pos->rq[1]) > 1)
+	uint64_t rq_attackers = pos->rays[pr_rook][pos->ki] & pos->rq[1];
+
+	if (popcnt(rq_attackers) > 2)
+		return false;
+
+	if (popcnt(rq_attackers & ~RANK_1) > 1)
 		return false;
 
 	if (popcnt(knight_pattern[pos->ki] & pos->map[opponent_knight]) > 1)
