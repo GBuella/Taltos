@@ -36,7 +36,9 @@
 
 #else
 
-#define unreachable assert(0)
+#include <stdlib.h>
+
+#define unreachable abort()
 #define invariant assert
 
 #endif
