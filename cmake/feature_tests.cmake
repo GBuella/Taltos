@@ -26,7 +26,7 @@ check_c_compiler_flag(-Wunknown-attributes HAS_WUNKNOWN_ATTR_FLAG)
 check_c_compiler_flag(-Wattributes HAS_WATTR_FLAG)
 check_c_compiler_flag(-mavx HAS_MAVX_FLAG)
 check_c_compiler_flag(-wd188 HAS_WD188)
-if(HAS_MAVX2_FLAG)
+if(HAS_MAVX_FLAG)
 	check_c_compiler_flag(-mavx2 HAS_MAVX2_FLAG)
 endif()
 
