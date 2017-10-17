@@ -17,19 +17,6 @@ int main() {
 "
  TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
 
-if(TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX)
-CHECK_C_SOURCE_RUNS("
-static int x;
-static __attribute__((constructor)) void some(void) {
-    x = 7;
-}
-int main() {
-    return (x == 7) ? 0 : 1;
-}
-"
- TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE)
-endif()
-
 if(NOT TALTOS_FORCE_NO_BUILTINS)
 
 CHECK_C_SOURCE_COMPILES("

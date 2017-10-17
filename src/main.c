@@ -17,6 +17,7 @@
 #include "trace.h"
 #include "search.h"
 #include "move_order.h"
+#include "util.h"
 
 static const char *progname;
 static struct taltos_conf conf;
@@ -41,6 +42,7 @@ main(int argc, char **argv)
 
 	conf.mutex = &conf_mutex;
 	(void) argc;
+	util_init();
 	setup_defaults();
 	trace_init(argv);
 	init_zhash_table();

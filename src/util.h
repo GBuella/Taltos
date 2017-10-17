@@ -61,4 +61,6 @@ char *xstrtok_r(char *restrict str, const char *restrict sep,
 		char **restrict lasts)
 	attribute(nonnull(2, 3));
 
+void util_init(void);
+
 #endif

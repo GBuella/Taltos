@@ -178,30 +178,10 @@ xnow(void)
 #endif
 }
 
-#if defined(TALTOS_CAN_USE_MACH_ABS_TIME) \
-	&& defined(TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE)
-
+#ifdef TALTOS_CAN_USE_MACH_ABS_TIME
 static mach_timebase_info_data_t timebase_info;
-
-static attribute(constructor) void
-init_timebase(void)
-{
-	if (mach_timebase_info(&timebase_info) != KERN_SUCCESS)
-		abort();
-}
-
-#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER) \
-	&& defined(TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE)
-
+#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
 static LARGE_INTEGER pcounter_frequency;
-
-static attribute(constructor) void
-init_timebase(void)
-{
-	if (!QueryPerformanceFrequency(&pcounter_frequency))
-		abort();
-}
-
 #endif
 
 uintmax_t
@@ -210,14 +190,6 @@ xseconds_since(taltos_systime some_time_ago)
 #ifdef TALTOS_CAN_USE_MACH_ABS_TIME
 
 	uint64_t now = mach_absolute_time();
-
-#ifndef TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE
-	mach_timebase_info_data_t timebase_info;
-	if (mach_timebase_info(&timebase_info) != KERN_SUCCESS) {
-		puts("Error calling mach_timebase_info", stderr);
-		abort();
-	}
-#endif
 
 	return (now - some_time_ago) * timebase_info.numer / timebase_info.denom
 	    / 10000000;
@@ -236,14 +208,6 @@ xseconds_since(taltos_systime some_time_ago)
 	return now.tv_sec * 100 + now.tv_nsec / 10000000;
 
 #elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
-
-
-#ifndef TALTOS_CAN_USE_CONSTRUCTOR_ATTRIBUTE
-	LARGE_INTEGER pcounter_frequency;
-
-	if (!QueryPerformanceFrequency(&pcounter_frequency))
-		abort();
-#endif
 
 	return (xnow() - some_time_ago) / (pcounter_frequency.QuadPart / 100);
 
@@ -292,4 +256,16 @@ xstrtok_r(char *restrict str, const char *restrict sep, char **restrict lasts)
 	else {
 		return NULL;
 	}
+}
+
+void
+util_init(void)
+{
+#if defined(TALTOS_CAN_USE_MACH_ABS_TIME)
+	if (mach_timebase_info(&timebase_info) != KERN_SUCCESS)
+		abort();
+#elif defined(TALTOS_CAN_USE_W_PERFCOUNTER)
+	if (!QueryPerformanceFrequency(&pcounter_frequency))
+		abort();
+#endif
 }
