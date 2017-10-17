@@ -90,6 +90,8 @@ test_tree_walk(struct data *data, unsigned depth)
 	do {
 		move_order_pick_next(data->move_order);
 		move m = mo_current_move(data->move_order);
+		if (hint_move != 0 && i == 0)
+			assert(m == hint_move);
 		move_stack_append(m);
 		data->check_moves[i] = m;
 		make_move(data[1].pos, data->pos, m);
@@ -100,8 +102,6 @@ test_tree_walk(struct data *data, unsigned depth)
 
 	assert(i == count);
 	assert(count == data->move_order->count);
-	if (hint_move != 0)
-		assert(data->move_order->moves[0] == hint_move);
 
 	for (unsigned i = 0; i < count; ++i) {
 		unsigned j;
