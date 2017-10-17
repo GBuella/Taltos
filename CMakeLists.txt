@@ -20,6 +20,7 @@ option(TALTOS_FORCE_AVX2 "Force using AVX2 builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX "Do not use AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX2 "Do not use AVX2 builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_SSE "Do not use SSE builtin intrinsics" OFF)
+option(TALTOS_BUILD_TESTS "Build tests" ON)
 
 if(TALTOS_FORCE_AVX AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
@@ -94,5 +95,7 @@ add_custom_target(cstyle
 	-pc ${PROJECT_SOURCE_DIR}/src/*
 	${PROJECT_SOURCE_DIR}/tests/*.{h,c})
 
+if(TALTOS_BUILD_TESTS)
 enable_testing()
 add_subdirectory(tests)
+endif()
