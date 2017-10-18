@@ -247,7 +247,7 @@ get_static_value(struct node *node)
 }
 
 static int LMR[20 * PLY][64];
-static const unsigned LMP[3 * PLY + 1] = { 0, 6, 6, 10, 12, 16, 20};
+static const unsigned LMP[] = {0, 2, 2, 6, 6, 18, 19, 20, 22, 24, 26};
 
 static int
 get_LMR_factor(struct node *node)
