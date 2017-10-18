@@ -279,7 +279,7 @@ get_LMR_factor(struct node *node)
 
 	int d = node->depth;
 	if (d >= (int)ARRAY_LENGTH(LMR))
-		d = (int)ARRAY_LENGTH(LMR);
+		d = (int)ARRAY_LENGTH(LMR) - 1;
 
 	int index = node->LMR_subject_index;
 	if (index >= (int)ARRAY_LENGTH(LMR[node->depth]))
