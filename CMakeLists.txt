@@ -1,6 +1,6 @@
 # vim: set filetype=cmake :
 # vim: set noet ts=8 sw=8 cinoptions=+4,(4: #
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 project(taltos C)
 
 FIND_PACKAGE(Threads)
