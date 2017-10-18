@@ -247,7 +247,7 @@ get_static_value(struct node *node)
 }
 
 static int LMR[20 * PLY][64];
-static unsigned LMP[3 * PLY + 1] = { 0, 6, 6, 10, 12, 16, 20};
+static const unsigned LMP[3 * PLY + 1] = { 0, 6, 6, 10, 12, 16, 20};
 
 static int
 get_LMR_factor(struct node *node)
@@ -751,29 +751,42 @@ search_more_moves(const struct node *node)
 	if (node->alpha >= max_value - 1)
 		return false;
 
+	return true;
+}
+
+static bool
+can_prune_moves(const struct node *node)
+{
+	if (is_in_check(node->pos))
+		return false;
+
 	if (is_qsearch(node)) {
 		if (mo_current_move_value(node->mo) <= 0)
-			return false;
+			return true;
 		if (node->depth <= -3 * PLY) {
 			if (mo_current_move_value(node->mo) <= 200)
-				return false;
+				return true;
 		}
+
+		return false;
 	}
 
 	if (!node->common->sd.settings.use_LMP)
-		return true;
+		return false;
+
+	if (node->non_pawn_move_count < 4 && node->mo->count < 6)
+		return false;
 
 	if (node->root_distance > 3
 	    && node->value > - mate_value
-	    && !is_in_check(node->pos)
-	    && node->depth > 0 && node->depth < (int)ARRAY_LENGTH(LMP)) {
+	    && node->depth < (int)ARRAY_LENGTH(LMP)) {
 		if (mo_current_move_value(node->mo) <= 0) {
 			if (node->mo->picked_count > LMP[node->depth])
-				return false;
+				return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 enum { stand_pat_cutoff = 1 };
@@ -1064,6 +1077,9 @@ negamax(struct node *node)
 
 	do {
 		move_order_pick_next(node->mo);
+
+		if (can_prune_moves(node))
+			break;
 
 		move m = mo_current_move(node->mo);
 
