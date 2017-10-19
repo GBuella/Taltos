@@ -164,11 +164,25 @@ is_killer(const struct move_order *mo, move m)
 	return false;
 }
 
+/*
+ * Strong captures, that remove strong pieces from the board, thus
+ * resulting in smaller subtrees than other moves.
+ */
 static bool
 is_strong_capture(const struct position *pos, move m)
 {
 	if (!is_capture(m))
 		return false;
+
+	if (ind_rank(mto(m)) == rank_1) {
+		/*
+		 * Such a capture would introduce a new queen on the
+		 * next move (when the pawns recaptures), and enlarge
+		 * the searchtree, instead of shrinking it.
+		 */
+		if (is_nonempty(mto64(m) & pos->attack[opponent_pawn]))
+			return false;
+	}
 
 	if (mcapturedp(m) == queen)
 		return true;
@@ -226,7 +240,7 @@ move_history_value(const struct move_order *mo, move m)
 static void
 add_all_entries(struct move_order *mo)
 {
-	static const int16_t base = -60;
+	static const int16_t base = -100;
 
 	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
 		move m = mo->moves[i];

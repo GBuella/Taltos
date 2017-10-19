@@ -188,7 +188,8 @@ find_discovered_attacks(struct move_desc *desc, const struct position *pos)
 	for (uint64_t r = reach & pos->rq[1]; is_nonempty(r); r = reset_lsb(r))
 		discovered |= reach & rook_masks[bsf(r)] & pos->map[0];
 
-	desc->discovered_attacks = popcnt(discovered);
+	desc->discovered_attacks = popcnt(discovered & pos->map[1]);
+	desc->discovered_attacks_on_friendly = popcnt(discovered & pos->map[0]);
 	discovered &= pos->map[opponent_king];
 	desc->discovered_check = is_nonempty(discovered);
 }
@@ -237,6 +238,46 @@ new_direct_attacks_value(const struct move_desc *desc,
 	return value;
 }
 
+static bool
+is_passed_pawn(const struct move_square_desc *sq, const struct position *pos)
+{
+	if (sq->piece != pawn)
+		return false;
+
+	uint64_t p = bit64(sq->index);
+	p &= (RANK_7 | RANK_6 | RANK_5 | RANK_4);
+	p &= ~pos->pawn_attack_reach[1];
+	if (is_empty(p))
+		return false;
+
+	p &= ~kogge_stone_south(pos->map[1]);
+
+	return is_nonempty(p);
+}
+
+static bool
+unblocks_passed_pawn(const struct position *pos, move m)
+{
+	if (mresultp(m) == pawn)
+		return false;
+
+	if (ind_file(mfrom(m)) == ind_file(mto(m)))
+		return false;
+
+	uint64_t p = pos->map[pawn] & south_of(mto64(m));
+	if (is_empty(p))
+		return false;
+
+	p &= (RANK_7 | RANK_6 | RANK_5 | RANK_4);
+	p &= ~pos->pawn_attack_reach[1];
+	if (is_empty(p))
+		return false;
+
+	p &= ~kogge_stone_south(pos->map[1]);
+
+	return is_nonempty(p);
+}
+
 static char move_dest_table[64] = {
 	4, 4, 4, 4, 4, 4, 4, 4,
 	3, 3, 3, 3, 3, 3, 3, 3,
@@ -265,18 +306,40 @@ describe_move(struct move_desc *desc, const struct position *pos, move m)
 	find_attacks(desc, pos);
 	compute_SEE_value(desc);
 	desc->value = desc->SEE_value;
-	if (desc->dst_sq.SEE_loss == 0 || desc->discovered_check)
+	if (is_empty(desc->dst_sq.attackers && pos->map[1]) || desc->discovered_check)
 		desc->value += new_direct_attacks_value(desc, pos);
+	else if (desc->dst_sq.SEE_loss == 0)
+		desc->value += new_direct_attacks_value(desc, pos) / 2;
 
-	desc->value -= popcnt(desc->discovered_attacks);
+	desc->value += desc->discovered_attacks;
+	desc->value -= desc->discovered_attacks_on_friendly;
 
 	if (desc->direct_check) {
 		uint64_t att = desc->discovered_attacks & pos->map[1];
 		att &= pos->undefended[1];
 		desc->value += popcnt(att) * 100;
 		desc->value += popcnt(att & pos->rq[1]) * 100;
-		desc->value += 10;
 	}
 
 	desc->value += move_dest_table[mto(m)];
+
+	if (desc->direct_check || desc->discovered_check) {
+		if (is_empty(desc->dst_sq.attackers & pos->map[1]))
+			desc->value += 201;
+		else
+			desc->value += 100;
+	}
+	else if (is_passed_pawn(&desc->dst_sq, pos)) {
+		desc->value += 180;
+		if (desc->dst_sq.SEE_loss == 0) {
+			desc->value += 181;
+			if (ind_rank(mto(m)) == rank_7)
+				desc->value += 50;
+			else if (ind_rank(mto(m)) == rank_6)
+				desc->value += 20;
+		}
+	}
+	else if (desc->SEE_value >= 0 && unblocks_passed_pawn(pos, m)) {
+		desc->value += 200;
+	}
 }

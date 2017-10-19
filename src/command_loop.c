@@ -1608,6 +1608,7 @@ print_move_desc(const char *move_str, const struct move_desc *desc)
 	printf("\tSEE value: %d\n", desc->SEE_value);
 	printf("\tattack_count_delta: %d\n", desc->attack_count_delta);
 	printf("\tdiscovered_attacks: %d\n", desc->discovered_attacks);
+	printf("\tvalue: %d\n", desc->value);
 	if (desc->direct_check)
 		printf("\tdirect check\n");
 	if (desc->discovered_check)

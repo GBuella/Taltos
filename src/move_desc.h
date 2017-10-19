@@ -22,6 +22,7 @@ struct move_desc {
 
 	int attack_count_delta;
 	int discovered_attacks;
+	int discovered_attacks_on_friendly;
 	bool direct_check;
 	bool discovered_check;
 
