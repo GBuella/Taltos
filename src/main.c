@@ -116,9 +116,9 @@ setup_defaults(void)
 	    conf.search.use_strict_repetition_check
 	    || (env != NULL && env[0] != '0');
 
-	env = getenv("TALTOS_USE_NOHH");
+	env = getenv("TALTOS_USE_HH");
 	conf.search.use_history_heuristics =
-	    (env == NULL || env[0] == '0');
+	    (env != NULL && env[0] != '0');
 
 	env = getenv("TALTOS_USE_NOBE");
 	conf.search.use_beta_extensions =
@@ -224,8 +224,8 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--AM") == 0) {
 			conf.search.use_advanced_move_order = true;
 		}
-		else if (strcmp(*arg, "--noHH") == 0) {
-			conf.search.use_history_heuristics = false;
+		else if (strcmp(*arg, "--HH") == 0) {
+			conf.search.use_history_heuristics = true;
 		}
 		else if (strcmp(*arg, "--noBE") == 0) {
 			conf.search.use_beta_extensions = false;
