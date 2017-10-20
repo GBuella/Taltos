@@ -107,14 +107,18 @@ setup_defaults(void)
 	env = getenv("TALTOS_USE_PVC");
 	conf.search.use_pv_cleanup = (env != NULL && env[0] != '0');
 
-	env = getenv("TALTOS_USE_NOSRC");
+	env = getenv("TALTOS_USE_SRC");
 	conf.search.use_strict_repetition_check =
-	    (env == NULL || env[0] == '0');
+	    (env != NULL && env[0] != '0');
 
-	env = getenv("TALTOS_USE_RC");
-	conf.search.use_repetition_check =
-	    conf.search.use_strict_repetition_check
-	    || (env != NULL && env[0] != '0');
+	if (conf.search.use_strict_repetition_check) {
+		conf.search.use_repetition_check = true;
+	}
+	else {
+		env = getenv("TALTOS_USE_NORC");
+		conf.search.use_repetition_check =
+		    (env == NULL || env[0] == '0');
+	}
 
 	env = getenv("TALTOS_USE_HH");
 	conf.search.use_history_heuristics =
@@ -214,9 +218,9 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--nonullm") == 0) {
 			conf.search.use_null_moves = false;
 		}
-		else if (strcmp(*arg, "--noSRC") == 0) {
-			conf.search.use_repetition_check = false;
-			conf.search.use_strict_repetition_check = false;
+		else if (strcmp(*arg, "--SRC") == 0) {
+			conf.search.use_repetition_check = true;
+			conf.search.use_strict_repetition_check = true;
 		}
 		else if (strcmp(*arg, "--PVC") == 0) {
 			conf.search.use_pv_cleanup = true;
@@ -259,7 +263,7 @@ usage(int status)
 	    "  --nolmr             do not use LMR heuristics\n"
 	    "  --nolmp             do not use LMP heuristics\n"
 	    "  --nonullm           do not use null move heuristics\n"
-	    "  --noSRC             strict repetition checking during search\n"
+	    "  --SRC               strict repetition checking during search\n"
 	    "  --AM                Use advanced move ordering - 1 ply search\n"
 	    "  --HH                Use move history heuristics\n"
 	    "  --PVC               PV cleanup - attempt to report cleaner PV\n"
