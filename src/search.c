@@ -1017,7 +1017,9 @@ handle_beta_extension(struct node *node, move m, int value)
 	    && !node[-1].is_in_null_move_search
 	    && is_in_check(node[1].pos)
 	    && value < mate_value
-	    && node->depth > 0
+	    && node->depth > PLY
+	    && node->depth < 10 * PLY
+	    && node->mo->picked_count > 1
 	    && !is_capture(m)
 	    && !is_promotion(m)
 	    && mtype(m) != mt_castle_kingside
