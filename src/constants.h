@@ -119,19 +119,6 @@ extern const uint64_t ver_masks[64];
 extern const uint64_t bishop_masks[64];
 extern const uint64_t rook_masks[64];
 extern const uint64_t pawn_attacks_north[64];
-
-static inline uint64_t
-pawn_att_north(int i)
-{
-	invariant(i >= 0 && i < 64);
-	return pawn_attacks_north[i];
-}
-
-static inline uint64_t
-pawn_att_south(int i)
-{
-	invariant(i >= 0 && i < 64);
-	return pawn_attacks_north[i] << 16;
-}
+extern const uint64_t pawn_attacks_south[64];
 
 #endif
