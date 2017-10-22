@@ -9,10 +9,6 @@
 #include "move_order.h"
 #include "constants.h"
 
-enum {
-	killer_value = 70
-};
-
 static int64_t
 create_entry(move move, int16_t value, bool is_check)
 {

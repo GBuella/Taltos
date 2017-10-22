@@ -43,6 +43,10 @@ mo_entry_is_hint(int64_t entry)
 	return (entry & bit64(mo_entry_hint_flag_bit)) != 0;
 }
 
+enum {
+	killer_value = 70
+};
+
 struct move_order {
 	move moves[MOVE_ARRAY_LENGTH];
 	unsigned raw_move_count;
@@ -86,13 +90,6 @@ static inline int16_t
 mo_current_move_value(const struct move_order *mo)
 {
 	return mo_entry_value(mo_current_entry(mo));
-}
-
-static inline bool
-mo_current_move_is_tactical(const struct move_order *mo)
-{
-	return mo_entry_gives_check(mo_current_entry(mo))
-	    || is_capture(mo_entry_move(mo_current_entry(mo)));
 }
 
 int move_order_add_weak_hint(struct move_order*, move hint_move)

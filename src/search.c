@@ -302,7 +302,7 @@ fail_high(struct node *node)
 		if (node->mo->picked_count == 1)
 			node->common->result.first_move_cutoff_count++;
 	}
-	if (!mo_current_move_is_tactical(node->mo))
+	if (mo_current_move_value(node->mo) < killer_value)
 		move_order_add_killer(node->mo, node->best_move);
 
 	if (node->depth > 2 * PLY)
