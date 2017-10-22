@@ -560,8 +560,6 @@ print_current_result(struct engine_result res)
 			print_verbose_search_info(res);
 		(void) print_nice_count(res.sresult.node_count);
 		printf("N\t");
-		(void) print_nice_count(res.sresult.qnode_count);
-		printf("N\t");
 	}
 
 	if (is_uci)
