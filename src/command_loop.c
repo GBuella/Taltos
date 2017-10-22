@@ -1606,8 +1606,8 @@ print_move_desc(const char *move_str, const struct move_desc *desc)
 	printf("\tattacks on destination square: 0x%016" PRIx64 "\n",
 	       desc->dst_sq.attackers);
 	printf("\tSEE value: %d\n", desc->SEE_value);
-	printf("\tattack_count_delta: %d\n", desc->attack_count_delta);
-	printf("\tdiscovered_attacks: %d\n", desc->discovered_attacks);
+	printf("\tdiscovered_attacks: 0x%016" PRIx64 "\n",
+	       desc->discovered_attacks);
 	printf("\tvalue: %d\n", desc->value);
 	if (desc->direct_check)
 		printf("\tdirect check\n");

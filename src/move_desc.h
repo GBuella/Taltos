@@ -20,9 +20,7 @@ struct move_desc {
 	move move;
 	int value;
 
-	int attack_count_delta;
-	int discovered_attacks;
-	int discovered_attacks_on_friendly;
+	uint64_t discovered_attacks;
 	bool direct_check;
 	bool discovered_check;
 
@@ -39,5 +37,7 @@ move_desc_setup(struct move_desc *desc)
 }
 
 void describe_move(struct move_desc*, const struct position*, move);
+
+void find_hanging_pieces(struct position*);
 
 #endif

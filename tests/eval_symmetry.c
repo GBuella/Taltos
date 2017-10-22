@@ -142,5 +142,5 @@ run_tests(void)
 {
 	const struct game *g = parse_setboard_from_arg_file();
 
-	test_tree_walk(game_current_position(g), 4);
+	test_tree_walk(game_current_position(g), 3);
 }

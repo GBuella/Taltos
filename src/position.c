@@ -9,6 +9,7 @@
 #include "hash.h"
 #include "util.h"
 #include "eval.h"
+#include "move_desc.h"
 #include "flip_chess_board.h"
 #include "flip_board_pairs.h"
 #include "flip_ray_array.h"
@@ -501,6 +502,7 @@ position_reset(struct position *pos,
 	accumulate_misc_patterns(pos, 0);
 	accumulate_misc_patterns(pos, 1);
 	setup_zhash(pos);
+	find_hanging_pieces(pos);
 	return 0;
 }
 
@@ -700,28 +702,7 @@ accumulate_occupancy(struct position *pos)
 static void
 accumulate_misc_patterns(struct position *pos, int player)
 {
-
-	int opp = opponent_of(player);
-
 	pos->undefended[player] = pos->map[player] & ~pos->attack[player];
-
-	uint64_t defendable;
-	defendable = pos->map[player + queen] & pos->attack[opp];
-
-	defendable &= ~pos->attack[opp + rook];
-
-	defendable = pos->map[player + rook] & pos->attack[opp];
-
-	defendable &= ~pos->attack[opp + bishop];
-	defendable &= ~pos->attack[opp + knight];
-
-	defendable |= pos->map[player + knight] & pos->attack[opp];
-	defendable |= pos->map[player + bishop] & pos->attack[opp];
-	defendable |= pos->map[player + pawn] & pos->attack[opp];
-
-	defendable &= ~pos->attack[opp + pawn];
-
-	pos->defendable_hanging[player] = defendable;
 }
 
 static int
@@ -920,11 +901,14 @@ position_flip(struct position *restrict dst,
 	flip_all_rays(dst, src);
 	flip_tail(dst, src);
 	flip_2_bb_pairs(dst->king_pins, src->king_pins);
-	flip_2_bb_pairs(dst->undefended, src->undefended);
+	dst->undefended[0] = bswap(src->undefended[1]);
+	dst->undefended[1] = bswap(src->undefended[0]);
 	dst->all_kings = bswap(src->all_kings);
 	dst->all_knights = bswap(src->all_knights);
 	dst->all_rq = bswap(src->all_rq);
 	dst->all_bq = bswap(src->all_bq);
+	flip_chess_board(dst->hanging, src->hanging);
+	dst->hanging_map = bswap(src->hanging_map);
 }
 
 bool
@@ -1067,6 +1051,7 @@ make_move(struct position *restrict dst,
 	accumulate_misc_patterns(dst, 0);
 	accumulate_misc_patterns(dst, 1);
 	z2_xor_move(dst->zhash, m);
+	find_hanging_pieces(dst);
 }
 
 void

@@ -47,9 +47,10 @@ position_memcmp(const struct position *pos0, enum player player)
 	assert(pos0->king_pins[0] == pos1->king_pins[0]);
 	assert(pos0->king_pins[1] == pos1->king_pins[1]);
 	assert(pos0->undefended[0] == pos1->undefended[0]);
-	assert(pos0->defendable_hanging[1] == pos1->defendable_hanging[1]);
-	assert(pos0->defendable_hanging[0] == pos1->defendable_hanging[0]);
 	assert(pos0->undefended[1] == pos1->undefended[1]);
+	assert(memcmp(pos0->hanging, pos1->hanging,
+		      sizeof(pos0->hanging)) == 0);
+	assert(pos0->hanging_map == pos1->hanging_map);
 }
 
 static void
@@ -94,5 +95,5 @@ run_tests(void)
 {
 	const struct game *g = parse_setboard_from_arg_file();
 
-	test_tree_walk(game_current_position(g), 4, game_turn(g));
+	test_tree_walk(game_current_position(g), 3, game_turn(g));
 }

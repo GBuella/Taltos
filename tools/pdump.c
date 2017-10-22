@@ -16,12 +16,12 @@ static void
 dump_board(void)
 {
 	for (int rank = 0; rank <= 7; ++rank) {
-		for (int file = 0; file < 7; ++file) {
+		for (int file = 7; file >= 0; --file) {
 			char p = pos->board[rank * 8 + file];
 			printf("%02hhx ", p);
 		}
 		printf("   ");
-		for (int file = 0; file < 7; ++file) {
+		for (int file = 7; file >= 0; --file) {
 			char p = pos->board[rank * 8 + file];
 			if (p == 0)
 				putchar('.');
@@ -29,6 +29,18 @@ dump_board(void)
 				putchar(piece_to_char(p));
 			else
 				putchar('X');
+		}
+		putchar('\n');
+	}
+}
+
+static void
+dump_hanging_board(void)
+{
+	for (int rank = 0; rank <= 7; ++rank) {
+		for (int file = 7; file >= 0; --file) {
+			char p = pos->hanging[rank * 8 + file];
+			printf("%02hhx ", p);
 		}
 		putchar('\n');
 	}
@@ -227,9 +239,13 @@ main(int argc, char **argv)
 	       offsetof(struct position, undefended));
 	dump_bitboard_pairs(1, pos->undefended);
 
-	printf("\noffset 0x%zx: .defendable_hanging\n",
-	       offsetof(struct position, defendable_hanging));
-	dump_bitboard_pairs(1, pos->defendable_hanging);
+	printf("\noffset 0x%zx: .hanging\n",
+	       offsetof(struct position, hanging));
+	dump_hanging_board();
+
+	printf("\noffset 0x%zx: .hanging_map\n",
+	       offsetof(struct position, hanging_map));
+	printf(" 0x%016" PRIx64 "\n", pos->hanging_map);
 
 	game_destroy(g);
 

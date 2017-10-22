@@ -200,13 +200,14 @@ struct position {
 	// each players pieces not defended by other pieces of the same player
 	uint64_t undefended[2];
 
-	// each players pieces under attack, which might need defense
-	uint64_t defendable_hanging[2];
-
 	uint64_t all_kings;
 	uint64_t all_knights;
 	uint64_t all_rq;
 	uint64_t all_bq;
+
+	alignas(64)
+	uint8_t hanging[64];
+	uint64_t hanging_map;
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +

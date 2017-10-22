@@ -127,5 +127,5 @@ run_tests(void)
 
 	static struct data data[5];
 	data[0].pos[0] = *(game_current_position(g));
-	test_tree_walk(data, 4);
+	test_tree_walk(data, 3);
 }
