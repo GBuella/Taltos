@@ -616,6 +616,10 @@ loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
 
 	while (true) {
 		if (fgets(line, sizeof line, stdin) == NULL) {
+#ifdef EINTR
+			if (errno == EINTR)
+				continue;
+#endif
 			if (exit_on_done)
 				wait_thinking();
 			exit(EXIT_SUCCESS);
