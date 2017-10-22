@@ -64,6 +64,7 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	mo->pos = pos;
 	mo->history_side = hside;
 	mo->strong_capture_entries_added = false;
+	mo->LMR_subject_index = -1;
 	move_desc_setup(&mo->desc);
 }
 
@@ -128,7 +129,7 @@ add_hint(struct move_order *mo, move hint_move, int16_t value)
 int
 move_order_add_weak_hint(struct move_order *mo, move hint_move)
 {
-	return add_hint(mo, hint_move, -1);
+	return add_hint(mo, hint_move, 3000);
 }
 
 int
@@ -208,7 +209,7 @@ add_strong_capture_entries(struct move_order *mo)
 		move m = mo->moves[i];
 		if (is_strong_capture(mo->pos, m)) {
 			remove_raw_move(mo, i);
-			int value = 30 + piece_value[mcapturedp(m)];
+			int value = 1000 + piece_value[mcapturedp(m)];
 			if (is_nonempty(mto64(m) & mo->pos->attack[1]))
 				value -= piece_value[mresultp(m)] / 20;
 			insert(mo, create_entry(m, value, false));
@@ -277,6 +278,9 @@ move_order_pick_next(struct move_order *mo)
 
 	invariant(mo->picked_count < mo->entry_count);
 	mo->picked_count++;
+
+	if (mo->picked_count > 1 && mo_current_move_value(mo) < 0)
+		mo->LMR_subject_index++;
 }
 
 void

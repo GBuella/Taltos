@@ -81,8 +81,6 @@ struct node {
 	int repetition_affected_best;
 	int repetition_affected_any;
 
-	int LMR_subject_index;
-
 	bool is_in_null_move_search;
 	bool null_move_search_failed;
 };
@@ -258,18 +256,8 @@ get_LMR_factor(struct node *node)
 	if (node->value <= -mate_value)
 		return 0;
 
-	if (node->LMR_subject_index == -1) {
-		if (node->mo->picked_count > 1
-		    && mo_current_move_value(node->mo) <= 0) {
-			node->LMR_subject_index = 0;
-		}
-		else {
-			return 0;
-		}
-	}
-	else {
-		node->LMR_subject_index++;
-	}
+	if (node->mo->LMR_subject_index < 0)
+		return 0;
 
 	if (is_in_check(node[0].pos)
 	    || is_in_check(node[1].pos)
@@ -281,7 +269,7 @@ get_LMR_factor(struct node *node)
 	if (d >= (int)ARRAY_LENGTH(LMR))
 		d = (int)ARRAY_LENGTH(LMR) - 1;
 
-	int index = node->LMR_subject_index;
+	int index = node->mo->LMR_subject_index;
 	if (index >= (int)ARRAY_LENGTH(LMR[node->depth]))
 		index = (int)ARRAY_LENGTH(LMR[node->depth]) - 1;
 
@@ -354,7 +342,6 @@ node_init(struct node *node)
 	node->repetition_affected_best = 0;
 	node->non_pawn_move_count = 0;
 	node->non_pawn_move_piece_count = 0;
-	node->LMR_subject_index = -1;
 
 	node->pv[0] = 0;
 
