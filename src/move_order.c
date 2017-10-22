@@ -170,6 +170,15 @@ is_strong_capture(const struct position *pos, move m)
 	if (!is_capture(m))
 		return false;
 
+	if (mcapturedp(m) == queen)
+		return true;
+
+	if (mtype(m) == mt_en_passant)
+		return true;
+
+	if (mtype(m) == mt_promotion)
+		return mresultp(m) == queen;
+
 	if (ind_rank(mto(m)) == rank_1) {
 		/*
 		 * Such a capture would introduce a new queen on the
@@ -180,21 +189,14 @@ is_strong_capture(const struct position *pos, move m)
 			return false;
 	}
 
-	if (mcapturedp(m) == queen)
-		return true;
-
-	if (mresultp(m) == queen) {
-		if (is_nonempty(pos->attack[1] && mto64(m)))
-			return false;
-	}
-
 	if (mcapturedp(m) == rook)
 		return true;
 
-	if (is_empty(pos->rq[0]) && is_empty(pos->rq[1])) {
-		if (mcapturedp(m) != pawn)
-			return true;
-	}
+	if (is_empty(mto64(m) & pos->attack[1]))
+		return true;
+
+	if (piece_value[mcapturedp(m)] >= piece_value[mresultp(m)])
+		return true;
 
 	return false;
 }
@@ -206,8 +208,9 @@ add_strong_capture_entries(struct move_order *mo)
 		move m = mo->moves[i];
 		if (is_strong_capture(mo->pos, m)) {
 			remove_raw_move(mo, i);
-			int value = piece_value[mcapturedp(m)];
-			value -= piece_value[mresultp(m)] / 20;
+			int value = 30 + piece_value[mcapturedp(m)];
+			if (is_nonempty(mto64(m) & mo->pos->attack[1]))
+				value -= piece_value[mresultp(m)] / 20;
 			insert(mo, create_entry(m, value, false));
 		}
 		else {
