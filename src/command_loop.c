@@ -1465,6 +1465,8 @@ cmd_memory(void)
 {
 	unsigned value = get_uint(ht_min_size_mb(), ht_max_size_mb());
 
+	tracef("repro: memory %u", value);
+
 	value |= value >> 1;
 	value |= value >> 2;
 	value |= value >> 4;
