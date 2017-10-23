@@ -417,6 +417,9 @@ describe_move(struct move_desc *desc, const struct position *pos, move m)
 	eval_piece_placement(desc, pos);
 	eval_passed_pawn(desc, pos);
 	eval_passed_pawn_unblock(desc, pos);
+
+	if (is_capture(m) && desc->value < 1100)
+		desc->value = 1100;
 }
 
 void

@@ -65,6 +65,7 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	mo->history_side = hside;
 	mo->strong_capture_entries_added = false;
 	mo->LMR_subject_index = -1;
+	mo->LMP_subject_index = -1;
 	move_desc_setup(&mo->desc);
 }
 
@@ -281,6 +282,9 @@ move_order_pick_next(struct move_order *mo)
 
 	if (mo->picked_count > 1 && mo_current_move_value(mo) < 0)
 		mo->LMR_subject_index++;
+
+	if (mo_current_move_value(mo) < 1000)
+		mo->LMP_subject_index++;
 }
 
 void

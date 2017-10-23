@@ -66,6 +66,7 @@ struct move_order {
 	bool strong_capture_entries_added;
 
 	int LMR_subject_index;
+	int LMP_subject_index;
 };
 
 void move_order_setup(struct move_order*, const struct position*,

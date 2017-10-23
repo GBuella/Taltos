@@ -245,7 +245,7 @@ get_static_value(struct node *node)
 }
 
 static int LMR[20 * PLY][64];
-static const unsigned LMP[] = {0, 2, 2, 6, 6, 18, 19, 20, 22, 24, 26};
+static const int LMP[] = {2, 2, 2, 6, 6, 18, 19, 20, 22, 24, 26};
 
 static int
 get_LMR_factor(struct node *node)
@@ -256,8 +256,11 @@ get_LMR_factor(struct node *node)
 	if (node->value <= -mate_value)
 		return 0;
 
-	if (node->mo->LMR_subject_index < 0)
+	if (node->mo->picked_count < 2)
 		return 0;
+
+	//if (mo_current_move_value(node->mo) >= 1000)
+		//return 0;
 
 	if (is_in_check(node[0].pos)
 	    || is_in_check(node[1].pos)
@@ -269,15 +272,24 @@ get_LMR_factor(struct node *node)
 	if (d >= (int)ARRAY_LENGTH(LMR))
 		d = (int)ARRAY_LENGTH(LMR) - 1;
 
-	int index = node->mo->LMR_subject_index;
+//	int index = node->mo->LMR_subject_index;
+	int index = node->mo->picked_count - 1;
 	if (index >= (int)ARRAY_LENGTH(LMR[node->depth]))
 		index = (int)ARRAY_LENGTH(LMR[node->depth]) - 1;
 
 	int r = LMR[d][index];
-	if (node->expected_type == PV_node && r > 0)
+	//if (mo_current_move_value(node->mo) >= 100)
+	//	r -= PLY;
+	if (mo_current_move_value(node->mo) >= 0)
+		r--;
+	else if (mo_current_move_value(node->mo) < -300)
+		r += PLY;
+
+	if (node->expected_type == PV_node)
 		--r;
-	else if (mo_current_move_value(node->mo) < - 1000)
-		++r;
+
+	if (r <= 0)
+		return 0;
 
 	return r;
 }
@@ -748,12 +760,12 @@ can_prune_moves(const struct node *node)
 		return false;
 
 	if (is_qsearch(node)) {
-		if (mo_current_move_value(node->mo) <= 0)
+		if (mo_current_move_value(node->mo) < 0)
 			return true;
-		if (node->depth <= -3 * PLY) {
-			if (mo_current_move_value(node->mo) <= 200)
-				return true;
-		}
+
+		if (node->expected_type != PV_node
+		    && node->mo->picked_count > (unsigned)LMP[0])
+			return true;
 
 		return false;
 	}
@@ -767,10 +779,13 @@ can_prune_moves(const struct node *node)
 	if (node->root_distance > 3
 	    && node->value > - mate_value
 	    && node->depth < (int)ARRAY_LENGTH(LMP)) {
-		if (mo_current_move_value(node->mo) <= 0) {
-			if (node->mo->picked_count > LMP[node->depth])
-				return true;
-		}
+		int treshold = LMP[node->depth];
+		if (node->expected_type != PV_node
+		    && treshold > 1)
+			--treshold;
+
+		if (node->mo->LMP_subject_index > treshold)
+			return true;
 	}
 
 	return false;
@@ -1064,6 +1079,7 @@ negamax(struct node *node)
 	assert(node->beta > -max_value + 2);
 	assert(node->alpha < max_value - 2);
 
+	//int plmr = 0;
 	do {
 		move_order_pick_next(node->mo);
 
@@ -1073,8 +1089,21 @@ negamax(struct node *node)
 		move m = mo_current_move(node->mo);
 
 		int LMR_factor;
-
 		setup_child_node(node, m, &LMR_factor);
+		/*
+		if (plmr == 0 && LMR_factor > 0) {
+			if (node->mo->picked_count > 6
+			    && node->depth > 5 * PLY)
+			printf("LMR started on move #%u at depth %d%s %s "
+			       "movestack:%s\n",
+			       node->mo->picked_count,
+			       node->depth / PLY,
+			       (node->depth & 1) ? ".5" : "",
+			       (node->expected_type == PV_node)? "PV":"!PV",
+			       node->common->debug_move_stack);
+			plmr = 1;
+		}
+		*/
 
 		int value = negamax_child(node);
 
@@ -1371,11 +1400,12 @@ init_search(void)
 	for (int d = min_depth + 1; d < (int)ARRAY_LENGTH(LMR); ++d) {
 		for (int i = 0; i < (int)ARRAY_LENGTH(LMR[d]); ++i) {
 			double x = d * (i + 1);
-			int r = (int)(log2((x / 22) + 1) * PLY);
+			int r = (int)(log2((x / 12) + 1) * PLY);
 
 			if (r > d - min_depth)
 				r = d - min_depth;
 			LMR[d][i] = r;
+//			printf("LMR[%d][%d] == %d\n", d, i, r);
 		}
 	}
 }
