@@ -260,7 +260,6 @@ get_LMR_factor(struct node *node)
 		return 0;
 
 	if (is_in_check(node[0].pos)
-	    || is_in_check(node[1].pos)
 	    || (node->depth <= PLY)
 	    || (node->non_pawn_move_count < 7 && node->mo->count < 10))
 		return 0;
@@ -274,10 +273,16 @@ get_LMR_factor(struct node *node)
 		index = (int)ARRAY_LENGTH(LMR[node->depth]) - 1;
 
 	int r = LMR[d][index];
-	if (node->expected_type == PV_node && r > 0)
+	if (node->expected_type == PV_node)
 		--r;
-	else if (mo_current_move_value(node->mo) < - 1000)
+
+	if (mo_current_move_value(node->mo) > 0)
+		r -= PLY;
+	else if (r > 2 * PLY && mo_current_move_value(node->mo) < -300)
 		++r;
+
+	if (r < 0)
+		return 0;
 
 	return r;
 }
@@ -1373,7 +1378,7 @@ init_search(void)
 			double x = d * (i + 1);
 			int r = (int)(log2((x / 22) + 1) * PLY);
 
-			if (r > d - min_depth)
+			if (d - r < min_depth)
 				r = d - min_depth;
 			LMR[d][i] = r;
 		}

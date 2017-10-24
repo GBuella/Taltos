@@ -279,7 +279,7 @@ move_order_pick_next(struct move_order *mo)
 	invariant(mo->picked_count < mo->entry_count);
 	mo->picked_count++;
 
-	if (mo->picked_count > 1 && mo_current_move_value(mo) < 0)
+	if (mo->picked_count > 1 && mo_current_move_value(mo) < 1000)
 		mo->LMR_subject_index++;
 }
 

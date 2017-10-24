@@ -232,7 +232,6 @@ attacks_value(uint16_t all_attacks, const struct position *pos)
 		value += piece_value[pos->board[bsf(attacks)]] / 4;
 
 	attacks = all_attacks & pos->map[1] & ~pos->hanging_map;
-	attacks &= pos->attack[opponent_pawn];
 
 	for (; is_nonempty(attacks); attacks = reset_lsb(attacks))
 		value += piece_value[pos->board[bsf(attacks)]] / 18;
@@ -294,6 +293,9 @@ eval_piece_placement(struct move_desc *desc, const struct position *pos)
 		0, 0, 0, 0, 0, 0, 0, 0
 	};
 
+	if (desc->SEE_value < 0)
+		return;
+
 	if (desc->dst_sq.piece != king || is_empty(pos->rq[1])) {
 		desc->value += move_dest_table[desc->dst_sq.index];
 		desc->value -= move_dest_table[desc->src_sq.index];
@@ -303,26 +305,30 @@ eval_piece_placement(struct move_desc *desc, const struct position *pos)
 static void
 eval_passed_pawn(struct move_desc *desc, const struct position *pos)
 {
-	if (is_passed_pawn(&desc->dst_sq, pos)) {
-		desc->value += 180;
-		if (desc->dst_sq.SEE_loss == 0) {
-			desc->value += 181;
-			if (ind_rank(desc->dst_sq.index) == rank_7)
-				desc->value += 50;
-			else if (ind_rank(desc->dst_sq.index) == rank_6)
-				desc->value += 20;
-		}
-	}
+	if (!is_passed_pawn(&desc->dst_sq, pos))
+		return;
+
+	desc->value += 100;
+
+	if (desc->dst_sq.SEE_loss > 0)
+		return;
+
+	desc->value += 1000;
+
+	if (ind_rank(desc->dst_sq.index) == rank_7)
+		desc->value += 50;
+	else if (ind_rank(desc->dst_sq.index) == rank_6)
+		desc->value += 20;
 }
 
 static void
 eval_check(struct move_desc *desc, const struct position *pos)
 {
-	if (desc->direct_check || desc->discovered_check) {
+	if ((desc->dst_sq.SEE_loss == 0 && desc->direct_check)
+	    || desc->discovered_check) {
+		desc->value += 1100;
 		if (is_empty(desc->dst_sq.attackers & pos->map[1]))
-			desc->value += 120;
-		else
-			desc->value += 70;
+			desc->value += 80;
 	}
 }
 
@@ -352,21 +358,24 @@ eval_direct_attacks(struct move_desc *desc, const struct position *pos)
 {
 	uint64_t new_direct = desc->dst_sq.attacks & ~desc->src_sq.attacks;
 
+	if (desc->dst_sq.SEE_loss == 0) {
+		if (has_strong_attack(new_direct, desc->dst_sq.piece, pos))
+			desc->value += 90;
+	}
+
 	if (is_empty(mto64(desc->move) & pos->attack[1])
 	    || desc->discovered_check) {
 		desc->value += attacks_value(new_direct, pos);
 	}
 	else if (desc->dst_sq.SEE_loss == 0) {
 		desc->value += attacks_value(new_direct, pos) / 2;
-		if (has_strong_attack(new_direct, desc->dst_sq.piece, pos))
-			desc->value += 100;
 	}
 
-	uint64_t old_direct = desc->dst_sq.attacks & ~desc->src_sq.attacks;
+	uint64_t old_direct = desc->src_sq.attacks & ~desc->dst_sq.attacks;
 
 	if (desc->src_sq.SEE_loss == 0) {
 		if (has_strong_attack(old_direct, desc->src_sq.piece, pos))
-			desc->value -= 100;
+			desc->value -= 80;
 	}
 }
 
@@ -385,7 +394,7 @@ eval_discovered_attacks(struct move_desc *desc, const struct position *pos)
 static void
 eval_passed_pawn_unblock(struct move_desc *desc, const struct position *pos)
 {
-	if (unblocks_passed_pawn(pos, desc->move))
+	if (desc->SEE_value >= 0 && unblocks_passed_pawn(pos, desc->move))
 		desc->value += 130;
 }
 
@@ -409,12 +418,8 @@ describe_move(struct move_desc *desc, const struct position *pos, move m)
 
 	eval_direct_attacks(desc, pos);
 	eval_discovered_attacks(desc, pos);
-	eval_check(desc, pos);
-
-	if (desc->SEE_value < 0)
-		return;
-
 	eval_piece_placement(desc, pos);
+	eval_check(desc, pos);
 	eval_passed_pawn(desc, pos);
 	eval_passed_pawn_unblock(desc, pos);
 }
