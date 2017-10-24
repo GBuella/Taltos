@@ -358,7 +358,7 @@ node_init(struct node *node)
 	}
 
 	node->any_search_reached = true;
-	if (!is_qsearch(node))
+	if (node->depth >= 0)
 		node->search_reached = true;
 
 	node->value = NON_VALUE;
