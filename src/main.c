@@ -81,7 +81,7 @@ setup_defaults(void)
 	conf.timing = false;
 
 	// Default main hash table size in megabytes
-	conf.hash_table_size_mb = 256;
+	conf.hash_table_size_mb = 32;
 
 	conf.book_path = NULL;   // book path, none by default
 	conf.book_type = bt_empty;  // use the empty book by default
