@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,22 +27,11 @@
 #ifndef TALTOS_POSITION_H
 #define TALTOS_POSITION_H
 
-#include <assert.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include "macros.h"
-#include "bitboard.h"
-#include "constants.h"
-#include "chess.h"
-#include "hash.h"
-
-enum { pos_alignment = 32 };
+namespace taltos
+{
 
 /*
- * PIECE_ARRAY_SIZE - the length of an array that contains one item
+ * piece_array_size - the length of an array that contains one item
  * for each player, followed by one for piece type of each player.
  * At index 0 is an item corresponding to the player next to move,
  * while at index 1 is the similar item corresponding to the opponent.
@@ -53,20 +42,25 @@ enum { pos_alignment = 32 };
  * position.map[pawn + 1] == position.map[opponent_pawn] is the map of the
  * opponent's pawns.
  */
-#define PIECE_ARRAY_SIZE 14
+constexpr size_t piece_array_size = 14;
 
 // make sure the piece emumeration values can be used for indexing such an array
-static_assert(pawn >= 2 && pawn < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(king >= 2 && king < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(knight >= 2 && knight < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
+static_assert(pawn >= 2 and pawn < piece_array_size);
+static_assert(king >= 2 and king < piece_array_size);
+static_assert(knight >= 2 and knight < piece_array_size);
+static_assert(rook >= 2 and rook < piece_array_size);
+static_assert(bishop >= 2 and bishop < piece_array_size);
+static_assert(queen >= 2 and queen < piece_array_size);
 
-struct position {
-	alignas(pos_alignment)
+class alignas(64) position {
+public:
+	static void* operator new(size_t);
+	static void* operator new[](size_t);
+	static void operator delete(void*);
+	static void operator delete[](void*);
+private:
 
-	unsigned char board[64];
+	std::array<unsigned char, 64> board;
 
 	/*
 	 * In case the player to move is in check:
@@ -85,10 +79,10 @@ struct position {
 	 *    ..XXX...
 	 *    ........
 	 */
-	uint64_t king_attack_map;
-	uint64_t king_danger_map;
+	bitboard king_attack_map;
+	bitboard king_danger_map;
 
-	uint64_t padding;
+	bitboard padding;
 
 	/*
 	 * Index of a pawn that can be captured en passant.
@@ -97,7 +91,7 @@ struct position {
 	uint64_t ep_index;
 
 	// A bitboard of all pieces
-	uint64_t occupied;
+	bitboard occupied_map;
 
 	// The square of the king belonging to the player to move
 	int32_t ki;
@@ -108,32 +102,32 @@ struct position {
 	 * attack by each side. Attack maps of each piece type for each side
 	 * start from attack[2] --- to be indexed by piece type.
 	 */
-	uint64_t attack[PIECE_ARRAY_SIZE];
+	std::array<bitboard, piece_array_size> attack;
 
 	/*
 	 * All sliding attacks ( attacks by bishop, rook, or queen ) of
 	 * each player.
 	 */
-	uint64_t sliding_attacks[2];
+	std::array<bitboard, 2> sliding_attacks;
 
 	/*
 	 * The map[0] and map[1] bitboards contain maps of each players
 	 * pieces, the rest contain maps of individual pieces.
 	 */
-	uint64_t map[PIECE_ARRAY_SIZE];
+	std::array<bitboard, piece_array_size> map;
 
 	/*
 	 * Each square of every file left half open by players pawns,
 	 * i.e. where player has no pawn, and another bitboard for
 	 * those files where the opponent has no pawns.
 	 */
-	uint64_t half_open_files[2];
+	std::array<bitboard, 2> half_open_files_map;
 
 	/*
 	 * Each square that can be attacked by pawns, if they are pushed
 	 * forward, per player.
 	 */
-	uint64_t pawn_attack_reach[2];
+	std::array<bitboard, 2> pawn_attack_reach_map;
 
 	/*
 	 * Thus given a bitboard of a players pawns:
@@ -147,7 +141,7 @@ struct position {
 	 * 1.......
 	 * ........
 	 *
-	 * half_open_files:
+	 * half_open_files_map:
 	 *
 	 * .1....1.
 	 * .1....1.
@@ -158,7 +152,7 @@ struct position {
 	 * .1....1.
 	 * .1....1.
 	 *
-	 * pawn_attack_reach:
+	 * pawn_attack_reach_map:
 	 *
 	 * .1111.1.
 	 * .1111.1.
@@ -170,14 +164,15 @@ struct position {
 	 * ........
 	 */
 
-	alignas(pos_alignment)
-	uint64_t rq[2]; // map[rook] | map[queen]
-	uint64_t bq[2]; // map[bishop] | map[queen]
+	alignas(64)
+	std::array<bitboard, 2> rq; // map[rook] | map[queen]
+	std::array<bitboard, 2> bq; // map[bishop] | map[queen]
 
-	alignas(pos_alignment)
-	uint64_t rays[2][64];
+	alignas(64)
+	std::array<bitboard, 64> rook_rays;
+	std::array<bitboard, 64> bishop_rays;
 
-	alignas(pos_alignment)
+	alignas(64)
 	/*
 	 * The following four 64 bit contain two symmetric pairs, that can be
 	 * swapped in make_move, as in:
@@ -197,7 +192,7 @@ struct position {
 	 * position structure - and can recognize transpositions that
 	 * appear with opposite players.
 	 */
-	uint64_t zhash[2];
+	std::array<uint64_t, 2> zhash;
 
 	/*
 	 * Two booleans corresponding to castling rights, and the sum of piece
@@ -215,247 +210,290 @@ struct position {
 	int32_t opponent_material_value;
 
 	// pinned pieces
-	uint64_t king_pins[2];
+	std::array<bitboard, 2> king_pins;
 
 	// knights and bishops
-	uint64_t nb[2];
+	std::array<bitboard, 2> nb;
 
 	// each players pieces not defended by other pieces of the same player
-	uint64_t undefended[2];
+	std::array<bitboard, 2> undefended;
 
-	uint64_t all_kings;
-	uint64_t all_knights;
-	uint64_t all_rq;
-	uint64_t all_bq;
+	bitboard all_rq;
+	bitboard all_bq;
 
 	alignas(64)
-	uint8_t hanging[64];
-	uint64_t hanging_map;
-};
+	std::array<uint8_t, 64> hanging;
+	bitboard hanging_map;
 
-static_assert(offsetof(struct position, opponent_material_value) +
-	sizeof(((struct position*)NULL)->opponent_material_value) -
-	offsetof(struct position, cr_king_side) == 16,
-	"struct position layout error");
-
-static_assert(offsetof(struct position, opponent_material_value) +
-	sizeof(((struct position*)NULL)->opponent_material_value) -
-	offsetof(struct position, zhash) == 32,
-	"struct position layout error");
-
-enum position_ray_directions {
-	pr_bishop,
-	pr_rook,
-};
-
-
-
-static inline enum piece
-pos_piece_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->board[i];
-}
-
-static inline enum player
-pos_player_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return is_nonempty(p->map[1] & bit64(i)) ? 1 : 0;
-}
-
-static inline int
-pos_square_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return pos_piece_at(p, i) | pos_player_at(p, i);
-}
-
-static inline uint64_t
-bishop_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->rays[pr_bishop][i];
-}
-
-static inline uint64_t
-rook_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->rays[pr_rook][i];
-}
-
-static inline uint64_t
-diag_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return bishop_reach(p, i) & diag_masks[i];
-}
-
-static inline uint64_t
-adiag_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return bishop_reach(p, i) & adiag_masks[i];
-}
-
-static inline uint64_t
-hor_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return rook_reach(p, i) & hor_masks[i];
-}
-
-static inline uint64_t
-ver_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return rook_reach(p, i) & ver_masks[i];
-}
-
-static inline uint64_t
-pos_king_attackers(const struct position *p)
-{
-	return p->king_attack_map & p->map[1];
-}
-
-static inline uint64_t
-absolute_pins(const struct position *p, int player)
-{
-	return p->king_pins[player] & p->map[player];
-}
-
-static inline int
-pos_en_passant_file(const struct position *p)
-{
-	return ind_file(p->ep_index);
-}
-
-static inline int
-pos_has_ep_target(const struct position *p)
-{
-	return p->ep_index != 0;
-}
-
-static inline uint64_t
-pos_hash(const struct position *p)
-{
-	uint64_t key = p->zhash[0];
-	if (pos_has_ep_target(p))
-		key = z_toggle_ep_file(key, pos_en_passant_file(p));
-	return key;
-}
-
-static inline uint64_t
-rank64(int i)
-{
-	invariant(ivalid(i));
-	return RANK_8 << (i & 0x38);
-}
-
-static inline uint64_t
-file64(int i)
-{
-	invariant(ivalid(i));
-	return FILE_H << (i % 8);
-}
-
-static inline uint64_t
-pawn_reach_south(uint64_t map)
-{
-	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
-}
-
-static inline uint64_t
-pawn_reach_north(uint64_t map)
-{
-	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
-}
-
-static inline uint64_t
-pawn_attacks_opponent(uint64_t pawn_map)
-{
-	return pawn_reach_south(pawn_map);
-}
-
-static inline uint64_t
-pawn_attacks_player(uint64_t pawn_map)
-{
-	return pawn_reach_north(pawn_map);
-}
-
-static inline uint64_t
-pos_pawn_attacks_player(const struct position *p)
-{
-	return pawn_attacks_player(p->map[pawn]);
-}
-
-static inline uint64_t
-pos_pawn_attacks_opponent(const struct position *p)
-{
-	return pawn_attacks_player(p->map[opponent_pawn]);
-}
-
-static inline uint64_t
-rook_full_attack(int i)
-{
-	invariant(ivalid(i));
-	return file64(i) | rank64(i);
-}
-
-static inline int
-pos_king_index_player(const struct position *p)
-{
-	uint64_t map = p->map[king];
-	invariant(map != 0);
-	return bsf(map);
-}
-
-static inline int
-pos_king_index_opponent(const struct position *p)
-{
-	uint64_t map = p->map[opponent_king];
-	invariant(map != 0);
-	return bsf(map);
-}
-
-static inline uint64_t
-pos_king_knight_attack(const struct position *p)
-{
-	return knight_pattern[p->opp_ki] & p->map[knight];
-}
-
-static inline bool
-is_in_check(const struct position *p)
-{
-	return is_nonempty(p->king_attack_map);
-}
-
-static inline bool
-has_insufficient_material(const struct position *p)
-{
-	// Look at all pieces except kings.
-	uint64_t pieces = p->occupied & ~(p->map[king] | p->map[opponent_king]);
-
-	// Are there only kings and bishops left?
-	// This also covers the case where nothing but kings are left.
-	if (pieces == (p->map[bishop] | p->map[opponent_bishop])) {
-		// All bishops on the same color?
-		if (is_empty(pieces & BLACK_SQUARES))
-			return true;
-		if (is_empty(pieces & WHITE_SQUARES))
-			return true;
-	}
-	else if (is_singular(pieces) && p->board[bsf(pieces)] == knight) {
-		return true; // Only a single knight left
+public:
+	bitboard pieces() const
+	{
+		return map[0];
 	}
 
-	return false;
-}
+	bitboard opponent_pieces() const
+	{
+		return map[1];
+	}
 
-void make_move(struct position *restrict dst,
-		const struct position *restrict src,
-		move)
-	attribute(nonnull);
+	bitboard occupied() const
+	{
+		return occupied_map;
+	}
+
+	bitboard pawns() const
+	{
+		return map[pawn];
+	}
+
+	bitboard opponent_pawns() const
+	{
+		return map[opponent_pawn];
+	}
+
+	bitboard knights() const
+	{
+		return map[knight];
+	}
+
+	bitboard opponent_knights() const
+	{
+		return map[opponent_knight];
+	}
+
+	bitboard queens() const
+	{
+		return map[queen];
+	}
+
+	bitboard opponent_queens() const
+	{
+		return map[opponent_queen];
+	}
+
+	bitboard rooks() const
+	{
+		return map[rook];
+	}
+
+	bitboard opponent_rooks() const
+	{
+		return map[opponent_rook];
+	}
+
+	bitboard bishops() const
+	{
+		return map[bishop];
+	}
+
+	bitboard opponent_bishops() const
+	{
+		return map[opponent_bishop];
+	}
+
+	bitboard all_pawns() const
+	{
+		return map[pawn] | map[opponent_pawn];
+	}
+
+	bitboard all_knights() const
+	{
+		return map[knight] | map[opponent_knight];
+	}
+
+	bitboard all_bishops() const
+	{
+		return map[bishop] | map[opponent_bishop];
+	}
+
+	bitboard all_kings() const
+	{
+		return map[king] | map[opponent_king];
+	}
+
+	bitboard pawn_attacks() const
+	{
+		return attacks[pawn];
+	}
+
+	bitboard opponent_pawn_attacks() const
+	{
+		return attacks[opponent_pawn];
+	}
+
+	bitboard half_open_files(int side) const
+	{
+		return half_open_files_map[side];
+	}
+
+	bitboard pawn_attack_reach(int side) const
+	{
+		return pawn_attack_reach_map[side];
+	}
+
+	bitboard rook_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return rook_rays[index];
+	}
+
+	bitboard bishop_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return bishop_rays[index];
+	}
+
+	bitboard diag_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return bishop_rays[index] & diag_masks[index];
+	}
+
+	bitboard adiag_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return bishop_rays[index] & adiag_masks[index];
+	}
+
+	bitboard hor_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return rook_rays[index] & hor_masks[index];
+	}
+
+	bitboard ver_reach(int index) const
+	{
+		invariant(is_valid_index(index));
+		return rook_rays[index] & ver_masks[index];
+	}
+
+	bitboard king_attackers() const
+	{
+		return king_attack_map & map[1];
+	}
+
+	bitboard absolute_pins(int side) const
+	{
+		return king_pins[side] & map[side];
+	}
+
+	int en_passant_file() const
+	{
+		return ind_file(ep_index);
+	}
+
+	bool has_ep_target() const
+	{
+		return ep_index != 0;
+	}
+
+	uint64_t hash_key() const
+	{
+		uint64_t key = zhash[0];
+		if (has_ep_target())
+			key = z_toggle_ep_file(key, en_passant_file());
+		return key;
+	}
+
+	bool is_in_check() const
+	{
+		return not king_attack_map.is_empty();
+	}
+
+	bool is_draw_with_insufficient_material() const;
+	bool is_move_irreversible(move) const;
+
+	int piece_at(int index) const
+	{
+		invariant(is_valid_index(index));
+		return board[index];
+	}
+
+	int side_at(int index) const
+	{
+		invariant(is_valid_index(index));
+		if (map[1].is_set(index))
+			return 1;
+		else
+			return 0;
+	}
+
+	int square_at(int index) const
+	{
+		return piece_at(index) + side_at(index);
+	}
+
+	bitboard map_of(int piece) const
+	{
+		return map[piece];
+	}
+
+	bitboard attacks_of(int piece) const
+	{
+		return attack[piece];
+	}
+
+	bitboard king_attackers() const
+	{
+		return king_attack_map & map[1];
+	}
+
+	bool can_castle_king_size() const
+	{
+		return cr_king_side;
+	}
+
+	bool can_castle_queen_size() const
+	{
+		return cr_queen_side;
+	}
+
+	bool can_opponent_castle_king_size() const
+	{
+		return cr_opponent_king_side;
+	}
+
+	bool can_castle_opponent_queen_size() const
+	{
+		return cr_opponent_queen_side;
+	}
+
+	bool draw_with_insufficient_material() const;
+	bool is_move_irreversible(move) const;
+
+	int non_pawn_material() const
+	{
+		return material_value - pawn_value * map[pawn].popcnt();
+	}
+
+	int opponent_non_pawn_material() const;
+	{
+		return opponent_material_value - pawn_value * map[opponent_pawn].popcnt();
+	}
+
+	bool operator ==(const position&) const;
+
+	unsigned move_gen(move*) const;
+	unsigned q_move_gen(move*) const;
+
+protected:
+	void reset(std::array<int, 64>& full_board);
+	void set_ep_index(int index);
+	void clear_ep_index();
+	void set_cr_king_side();
+	void clear_cr_king_side();
+	void set_cr_queen_side();
+	void clear_cr_queen_side();
+	void set_cr_opponent_king_side();
+	void clear_cr_opponent_king_side();
+	void set_cr_opponent_queen_side();
+	void clear_cr_opponent_queen_side();
+
+	void make_move(const position& parent, move) noexcept;
+
+private:
+};
+
+}
 
 #endif

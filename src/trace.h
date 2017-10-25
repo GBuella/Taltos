@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -29,15 +29,19 @@
 
 #include "macros.h"
 
-#include <stdio.h>
+namespace taltos
+{
 
-void trace_init(char **argv)
-	attribute(nonnull);
+void trace_init(char **argv);
 
-void trace(const char *str)
-	attribute(nonnull);
+void trace(const char *str);
 
 void tracef(const char *format, ...)
-	attribute(format(printf, 1, 2));
+#ifdef __GNUC__
+	__attribute__((format(printf, 1, 2)))
+#endif
+;
+
+}
 
 #endif

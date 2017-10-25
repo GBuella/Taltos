@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,46 +27,38 @@
 #ifndef TALTOS_TALTOS_H
 #define TALTOS_TALTOS_H
 
-#include <stdbool.h>
-#include <stdnoreturn.h>
-#include <threads.h>
+#include <mutex>
+#include <chrono>
 #include "util.h"
 
 #include "chess.h"
 #include "game.h"
-#include "book.h"
+
+namespace taltos
+{
+
+constexpr int ply = 2;
+constexpr int max_ply = 512;
+constexpr int max_q_ply = 512;
 
 struct search_settings {
-	bool use_LMR; // Late Move Reductions
-	bool use_LMP; // Late Move Pruning
-	bool use_null_moves; // Recursive null move pruning
+	bool use_LMR;
+	bool use_LMP;
+	bool use_null_moves;
 	bool use_pv_cleanup;
 	bool use_repetition_check;
 	bool use_strict_repetition_check;
-	bool use_advanced_move_order;
 	bool use_history_heuristics;
 	bool use_beta_extensions;
-
-	/*
-	 * TODO: try these
-	 *
-	 * bool use_advanced_move_order;
-	 * -- move ordering using full static evaluation at depth > PLY
-	 *
-	 * bool use_almost_mate_score;
-	 * -- store in has with infinite depth, when one side has only king left
-	 *
-	 */
 };
 
 struct taltos_conf {
-	mtx_t *mutex;
+	std::mutex *mutex;
 	enum move_notation_type move_not;
 	bool timing;
-	taltos_systime start_time;
+	time_point start_time;
 	unsigned hash_table_size_mb;
 	char *book_path;
-	enum book_type book_type;
 	bool use_unicode;
 	struct search_settings search;
 	const char *display_name;
@@ -75,6 +67,8 @@ struct taltos_conf {
 
 const char *author_name;
 
-noreturn void loop_cli(struct taltos_conf*, struct book*);
+[[noreturn]] void loop_cli(struct taltos_conf*);
+
+}
 
 #endif

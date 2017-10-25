@@ -24,42 +24,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
-
-#if __has_include("taltos_config.h")
 #include "taltos_config.h"
-#endif
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+#include "util.h"
 
-#if defined(NDEBUG) && defined(__GNUC__)
+#include <cstring>
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+namespace taltos
+{
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
+void*
+alloc_align64(size_t size)
+{
+	uintptr_t actual = (uintptr_t)(new char(size + 128));
 
-#define unreachable __assume(0)
-#define invariant __assume
+	uintptr_t address = (actual + 128) - (actual % 64);
 
-#else
+	void** x = (void**) address;
+	x[-1] = actual;
 
-#include <cassert>
+	return (void*) address;
+}
 
-#define unreachable abort()
-#define invariant assert
+void
+free_align64(void* address)
+{
+	void** x = (void**) address;
+	char* actual = (char*) x[-1];
 
-#endif
+	delete actual[];
+}
 
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */
+}

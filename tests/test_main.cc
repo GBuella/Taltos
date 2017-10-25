@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
 /* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2016-2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,50 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
-#endif
+#include "tests.h"
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+#include "constants.h"
+#include "hash.h"
+#include "game.h"
 
-#if defined(NDEBUG) && defined(__GNUC__)
+int prog_argc;
+const char **prog_argv;
+static struct game *g;
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+int
+main(int argc, const char **argv)
+{
+	prog_argc = argc;
+	prog_argv = argv;
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
+	init_zhash_table();
 
-#define unreachable __assume(0)
-#define invariant __assume
+	run_tests();
 
-#else
+	if (g != NULL)
+		game_destroy(g);
+}
 
-#include <cassert>
+const struct game*
+parse_setboard_from_arg_file(void)
+{
+	assert(prog_argc > 1);
 
-#define unreachable abort()
-#define invariant assert
-
-#endif
-
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */
+	char buf[1024];
+	static const char command[] = "setboard";
+	FILE *input;
+	assert((input = fopen(prog_argv[1], "r")) != NULL);
+	assert(fgets(buf, sizeof(buf), input) != NULL);
+	fclose(input);
+	assert(strlen(buf) > sizeof command);
+	buf[strlen(command)] = '\0';
+	assert(strcmp(buf, command) == 0);
+	g = game_create_fen(buf + strlen(command) + 1);
+	assert(g != NULL);
+	return g;
+}

@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
-/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=(4: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,47 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#include "tests.h"
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
-#endif
+#include "book.h"
+#include "position.h"
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+#include <stdio.h>
+#include <stdlib.h>
 
-#if defined(NDEBUG) && defined(__GNUC__)
+void
+run_tests(void)
+{
+	if (prog_argc < 2)
+		exit(EXIT_FAILURE);
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+	struct book *book = book_open(bt_polyglot, prog_argv[1]);
+	if (book == NULL) {
+		perror(prog_argv[1]);
+		exit(EXIT_FAILURE);
+	}
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
+	struct position pos;
+	enum player turn;
+	int ep_index;
+	move moves[MOVE_ARRAY_LENGTH];
 
-#define unreachable __assume(0)
-#define invariant __assume
+	position_read_fen(&pos,
+	    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+	    &ep_index, &turn);
 
-#else
+	book_get_move_list(book, &pos, moves);
+	assert(moves[0] == create_move_pd(sq_e2, sq_e4));
+	assert(moves[1] == 0);
 
-#include <cassert>
+	position_read_fen(&pos,
+	    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+	    &ep_index, &turn);
 
-#define unreachable abort()
-#define invariant assert
+	book_get_move_list(book, &pos, moves);
+	assert(moves[0] == create_move_pd(sq_e2, sq_e4));
+	assert(moves[1] == create_move_g(sq_h2, sq_h3, pawn, 0));
+	assert(moves[2] == 0);
 
-#endif
-
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */
+	book_close(book);
+}

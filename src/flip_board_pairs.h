@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -28,6 +28,9 @@
 #define TALTOS_FLIP_BB_PAIRS_H
 
 #include "bitboard.h"
+
+namespace taltos
+{
 
 /*
  * Flipping piece map bitboard pairs upside down
@@ -59,7 +62,7 @@
 
 // TODO flip_4_bb_pairs using AVX512
 
-#ifdef TALTOS_CAN_USE_INTEL_AVX2
+#elif __has_include(<x86intrin.h>) && __AVX2
 /*
  * __m256i _mm256_shuffle_epi8(__m256i a, __m256i b)
  * Instruction: vpshufb ymm, ymm, ymm
@@ -91,8 +94,10 @@ flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
 	_mm256_store_si256(dst256, vector);
 }
 
-#elif defined(TALTOS_CAN_USE_INTEL_SHUFFLE_EPI8) && \
-	!defined(TALTOS_FORCE_NO_SSE) && 0
+#elif __has_include(<x86intrin.h>) && __SSE2 \
+	&& !defined(TALTOS_FORCE_NO_SSE) && 0
+// TODO
+
 /*
  * __m128i _mm_shuffle_epi8(__m128i a, __m128i b)
  * Instruction: pshufb mm, mm
@@ -137,5 +142,7 @@ flip_2_bb_pairs(uint64_t *restrict dst attribute(align_value(32)),
 }
 
 #endif
+
+}
 
 #endif

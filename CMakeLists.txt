@@ -23,19 +23,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required(VERSION 3.0)
-project(taltos C)
+cmake_minimum_required(VERSION 3.8)
+project(taltos CXX)
 
 FIND_PACKAGE(Threads)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 include_directories(src constants tests "${PROJECT_BINARY_DIR}")
 
-add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.c)
-add_executable(gen_SEE_table EXCLUDE_FROM_ALL tools/gen_SEE_table.c)
-add_executable(gen_bb_constants EXCLUDE_FROM_ALL tools/gen_bb_constants.c)
-add_executable(pdump EXCLUDE_FROM_ALL tools/pdump.c)
-add_executable(bitboard EXCLUDE_FROM_ALL tools/bitboard.c)
-add_executable(cmp_text tools/cmp_text.c)
+add_executable(epd_runner EXCLUDE_FROM_ALL tools/epd_runner.cc)
+add_executable(gen_SEE_table EXCLUDE_FROM_ALL tools/gen_SEE_table.cc)
+add_executable(gen_bb_constants EXCLUDE_FROM_ALL tools/gen_bb_constants.cc)
+add_executable(pdump EXCLUDE_FROM_ALL tools/pdump.cc)
+add_executable(bitboard EXCLUDE_FROM_ALL tools/bitboard.cc)
+add_executable(cmp_text tools/cmp_text.cc)
 
 option(TALTOS_FORCE_NO_BUILTINS "Do not use builtin intrinsics" OFF)
 option(TALTOS_FORCE_AVX "Force using AVX builtin intrinsics" OFF)
@@ -55,39 +58,29 @@ if(TALTOS_FORCE_AVX2 AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
 endif()
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-
 include(cmake/feature_tests.cmake)
 include(cmake/ctags.cmake)
 
 set(TALTOS_SOURCES
-	src/book.c
-	src/eval.c
-	src/fen.c
-	src/fen_book.c
-	src/game.c
-	src/hash.c
-	src/move.c
-	src/move_desc.c
-	src/move_gen.c
-	src/move_order.c
-	src/perft.c
-	src/polyglot_book.c
-	src/position.c
-	src/str_util.c
-	src/util.c
-	src/trace.c
-	src/zobrist.c)
-
-if(NOT TALTOS_CAN_USE_ISO_THREADS)
-	set(TALTOS_SOURCES tinycthread/tinycthread.c ${TALTOS_SOURCES})
-	include_directories(src tests tinycthread "${PROJECT_BINARY_DIR}")
-endif()
+    constants/bitboard_constants.cc
+    src/eval.cc
+    src/game_state.cc
+    src/game.cc
+    src/transposition_table.cc
+    src/move.cc
+    src/move_desc.cc
+    src/move_gen.cc
+    src/move_order.cc
+    src/perft.cc
+    src/position.cc
+    src/str_util.cc
+    src/util.cc
+    src/trace.cc
+    src/zobrist.cc)
 
 add_library(taltos_code STATIC ${TALTOS_SOURCES})
 
-add_executable(taltos src/main.c src/engine.c src/command_loop.c src/search.c)
+add_executable(taltos src/main.cc src/engine.cc src/command_loop.cc src/search.cc)
 target_link_libraries(taltos taltos_code)
 
 target_link_libraries(pdump taltos_code)
@@ -105,8 +98,8 @@ endif()
 
 # hack: this gets rid of some declarations in Visual C++ headers
 if(MSVC)
-	set(CMAKE_C_FLAGS
-	    "${CMAKE_C_FLAGS} -D__STDC__ -D_CRT_SECURE_NO_DEPRECATE")
+	set(CMAKE_CXX_FLAGS
+	    "${CMAKE_CXX_FLAGS} -D__STDC__ -D_CRT_SECURE_NO_DEPRECATE")
 endif()
 
 configure_file(cmake/config.h.in taltos_config.h)

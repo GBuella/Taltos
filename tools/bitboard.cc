@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
-/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,51 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#include "bitboard.h"
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
-#endif
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+int
+main(int argc, char **argv)
+{
+	(void) argc;
+	++argv;
 
-#if defined(NDEBUG) && defined(__GNUC__)
+	for (; *argv != NULL; ++argv) {
+		puts("-----------------------");
+		char *endptr;
+		uint64_t n = (uint64_t)strtoumax(*argv, &endptr, 0);
+		if (*endptr != '\0') {
+			fprintf(stderr, "Invalid number %s\n", *argv);
+			return EXIT_FAILURE;
+		}
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+		printf("hex: 0x%016" PRIX64 "\n", n);
+		printf("dec: %" PRIu64 "\n", n);
+		uint64_t swapped = bswap(n);
+		puts("             flipped");
+		puts("  ABCDEFGH   ABCDEFGH");
+		for (int r = 0; r < 8; ++r) {
+			printf("%d ", 8 - r);
+			for (int f = 7; f >= 0; --f) {
+				if (is_nonempty(n & bit64(r * 8 + f)))
+					putchar('1');
+				else
+					putchar('.');
+			}
+			printf(" %d ", 8 - r);
+			for (int f = 7; f >= 0; --f) {
+				if (is_nonempty(swapped & bit64(r * 8 + f)))
+					putchar('1');
+				else
+					putchar('.');
+			}
+			printf(" %d\n", 8 - r);
+		}
+		puts("  ABCDEFGH   ABCDEFGH");
+	}
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
-
-#define unreachable __assume(0)
-#define invariant __assume
-
-#else
-
-#include <cassert>
-
-#define unreachable abort()
-#define invariant assert
-
-#endif
-
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */
+	return EXIT_SUCCESS;
+}

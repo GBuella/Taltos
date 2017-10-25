@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,43 +27,38 @@
 #ifndef TALTOS_EVAL_H
 #define TALTOS_EVAL_H
 
-#include <assert.h>
-#include <stdint.h>
+#include <cstdint>
 
-enum {
-	max_value = 30000,
-	mate_value = (max_value - MAX_PLY),
-	pawn_value = 100,
-	knight_value = 300,
-	bishop_value = 300,
-	rook_value = 500,
-	queen_value = 930
-};
+namespace taltos
+{
+
+constexpr int max_value = 30000;
+constexpr int mate_value = max_value - 512;
+constexpr int pawn_value = 100;
+constexpr int knight_value = 300;
+constexpr int bishop_value = 300;
+constexpr int rook_value = 500;
+constexpr int queen_value = 930;
 
 // values are always expressed in centipans
-static_assert(pawn_value == 100, "pawn_value must be 100 centipawns");
+static_assert(pawn_value == 100);
 
 // lot of code assumes these
-static_assert(knight_value > pawn_value,
-	"knight_value must be larger than pawn_value");
-static_assert(knight_value == bishop_value,
-	"knight_value must be equal to bishop_value");
-static_assert(rook_value > knight_value,
-	"rook_value must be larger than knight_value");
-static_assert(queen_value > rook_value,
-	"queen_value must be larger than rook_value");
+static_assert(knight_value > pawn_value);
+static_assert(knight_value == bishop_value);
+static_assert(rook_value > knight_value);
+static_assert(queen_value > rook_value);
 
-static inline bool
-value_bounds(int value)
+static inline bool is_value_valid(int value)
 {
 	return value >= -max_value && value <= max_value;
 }
 
-extern const int piece_value[14];
+extern const std::array<int, 14> piece_value;
 
-struct position;
+class position;
 
-int eval(const struct position*) attribute(nonnull);
+int eval(const position*);
 
 struct eval_factors {
 	int material;
@@ -78,10 +73,10 @@ struct eval_factors {
 	int threats;
 };
 
-int eval_threats(const struct position *pos)
-	attribute(nonnull);
+int eval_threats(const position*);
 
-struct eval_factors compute_eval_factors(const struct position*)
-	attribute(nonnull);
+struct eval_factors compute_eval_factors(const position*);
+
+}
 
 #endif

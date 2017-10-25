@@ -24,7 +24,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-add_executable(gen_dummy_polyg_book gen_dummy_polyg_book.c)
+add_executable(gen_dummy_polyg_book gen_dummy_polyg_book.cc)
 
 add_custom_command(OUTPUT dummy_book_4.bin dummy_book_1.bin
 		COMMAND gen_dummy_polyg_book dummy_book_4.bin dummy_book_1.bin
@@ -61,10 +61,10 @@ add_test(NAME "polyglotbook_argument"
 	-DNAME=polyglot_book_arg
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
-add_executable(test_fen_book fen_book.c)
+add_executable(test_fen_book fen_book.cc)
 target_link_libraries(test_fen_book tests_main taltos_code)
 add_test(NAME fen_book COMMAND $<TARGET_FILE:test_fen_book> ${PROJECT_SOURCE_DIR}/tests/books/fen_dummy.txt)
 
-add_executable(test_polyglot_book polyglot_book.c)
+add_executable(test_polyglot_book polyglot_book.cc)
 target_link_libraries(test_polyglot_book tests_main taltos_code)
 add_test(NAME polyglot_book COMMAND $<TARGET_FILE:test_polyglot_book> dummy_book_4.bin)

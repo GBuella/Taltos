@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -30,7 +30,14 @@
 #include "macros.h"
 #include <string.h>
 
-#if defined(TALTOS_CAN_USE_INTEL_AVX2)
+#if __has_include(<x86intrin.h>)
+#include <x86intrin.h>
+#endif
+
+namespace taltos
+{
+
+#if __has_include(<x86intrin.h>) && __AVX2
 /*
  * __m256i _mm256_permute4x64_epi64(__m256i a, const int imm8)
  * Instruction: vpermq ymm, ymm, imm
@@ -81,7 +88,7 @@ flip_chess_board(unsigned char dst[restrict static 64],
 	_mm256_store_si256(dst256, vector);
 }
 
-#elif defined(TALTOS_CAN_USE_INTEL_AVX)
+#elif __has_include(<x86intrin.h>) && __AVX
 /*
  * __m256d _mm256_permute_pd(__m256d a, int imm8)
  * Instruction: vpermilpd ymm, ymm, imm
@@ -167,5 +174,7 @@ flip_chess_board(unsigned char dst[restrict static 64],
 }
 
 #endif
+
+}
 
 #endif

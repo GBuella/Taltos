@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
 /* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
-#endif
+static int
+fgetc_wrapper(FILE *f)
+{
+	int c = fgetc(f);
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+	while (c == '\n' || c == '\r') {
+		do {
+			c = fgetc(f);
+		} while (c == '\n' || c == '\r');
+		ungetc(c, f);
+		return '\n';
+	}
 
-#if defined(NDEBUG) && defined(__GNUC__)
+	if (c == EOF) {
+		if (errno != 0) {
+			perror("fgetc");
+			exit(1);
+		}
+	}
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+	return c;
+}
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
+int
+main(int argc, char **argv)
+{
+	if (argc < 3)
+		return 1;
 
-#define unreachable __assume(0)
-#define invariant __assume
+	FILE *f0 = fopen(argv[1], "r");
+	if (f0 == NULL) {
+		perror(argv[1]);
+		return 1;
+	}
+	FILE *f1 = fopen(argv[2], "r");
+	if (f1 == NULL) {
+		perror(argv[2]);
+		return 1;
+	}
 
-#else
+	int c0;
+	int c1;
+	errno = 0;
+	do {
+		c0 = fgetc_wrapper(f0);
+		c1 = fgetc_wrapper(f1);
+	} while ((c0 == c1) && (c0 != EOF));
 
-#include <cassert>
+	if (c0 != EOF)
+		return 1;
 
-#define unreachable abort()
-#define invariant assert
-
-#endif
-
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */
+	return 0;
+}

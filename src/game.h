@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -28,89 +28,61 @@
 #define TALTOS_GAME_H
 
 #include "chess.h"
+#include "position.h"
+#include "move.h"
 #include "macros.h"
-#include <stddef.h>
+#include "game_state.h"
 
-struct game;
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <list>
+#include <string>
 
-struct game *game_create(void)
-	attribute(returns_nonnull, warn_unused_result, malloc);
+namespace taltos
+{
 
-struct game *game_create_position(const struct position*)
-	attribute(nonnull);
+class game
+{
+protected:
+	struct entry : public game_state {
+		move move_to_next;
 
-struct game *game_create_fen(const char*)
-	attribute(nonnull);
+		entry(std::string FEN);
+		entry(const entry& other, move);
+	};
 
-int game_reset_fen(struct game*, const char *fen)
-	attribute(nonnull, warn_unused_result);
+	std::list<entry> entries;
+	std::list<entry>::iterator current;
+	std::list<entry>::iterator next() const;
 
-bool game_continues(const struct game *a, const struct game *b)
-	attribute(nonnull);
+	std::list<entry> append_to_list(move);
 
-struct game *game_copy(const struct game*)
-	attribute(nonnull, returns_nonnull, malloc);
+public:
+	game(std::string FEN);
+	bool continues(const game& other) const;
+	std::string print_FEN() const;
+	void append(move);
+	void truncate();
+	const position* current_position() const;
+	void revert();
+	void forward();
+	move move_to_next() const;
+	size_t full_move_count() const;
+	size_t half_move_count() const;
+	bool is_ended() const;
+	bool is_checkmate() const;
+	bool is_stalemate() const;
+	bool is_draw() const;
+	bool is_draw_by_insufficient_material() const;
+	bool is_draw_by_repetition() const;
+	bool is_draw_by_50_move_rule() const;
+	move get_single_response() const;
+	bool has_single_response() const;
+	unsigned length() const;
+	~game();
+};
 
-char *game_print_fen(const struct game*, char[static FEN_BUFFER_LENGTH])
-	attribute(nonnull, returns_nonnull);
-
-void game_destroy(struct game*);
-
-int game_append(struct game*, move)
-	attribute(nonnull);
-
-void game_truncate(struct game*)
-	attribute(nonnull);
-
-const struct position *game_current_position(const struct game*)
-	attribute(nonnull, returns_nonnull);
-
-const struct position *game_history_position(const struct game*, int delta)
-	attribute(nonnull);
-
-int game_history_revert(struct game*)
-	attribute(nonnull);
-
-int game_history_forward(struct game*)
-	attribute(nonnull);
-
-move game_move_to_next(const struct game *g)
-	attribute(nonnull);
-
-enum player game_turn(const struct game*)
-	attribute(nonnull);
-
-unsigned game_full_move_count(const struct game*)
-	attribute(nonnull);
-
-unsigned game_half_move_count(const struct game*)
-	attribute(nonnull);
-
-bool game_is_ended(const struct game*)
-	attribute(nonnull);
-
-bool game_is_checkmate(const struct game*)
-	attribute(nonnull);
-
-bool game_is_stalemate(const struct game*)
-	attribute(nonnull);
-
-bool game_is_draw_by_insufficient_material(const struct game*)
-	attribute(nonnull);
-
-bool game_is_draw_by_repetition(const struct game*)
-	attribute(nonnull);
-
-bool game_is_draw_by_50_move_rule(const struct game*)
-	attribute(nonnull);
-
-move game_get_single_response(const struct game*)
-	attribute(nonnull);
-
-bool game_has_single_response(const struct game*)
-	attribute(nonnull);
-
-size_t game_length(const struct game*)
-	attribute(nonnull);
+}
 
 #endif

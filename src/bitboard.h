@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,10 +27,9 @@
 #ifndef TALTOS_BITBOARD_H
 #define TALTOS_BITBOARD_H
 
-/* BEGIN CSTYLED */
 /*
 
-bitbard square index map:
+bitboard square index map:
 
     A  B  C  D  E  F  G  H
    -- -- -- -- -- -- -- --
@@ -53,56 +52,109 @@ bitbard square index map:
     A  B  C  D  E  F  G  H
 
 */
-/* END CSTYLED */
 
-#include <assert.h>
-#include <stdbool.h>
-#include <inttypes.h>
+#include <array>
+#include <cassert>
+#include <cinttypes>
 
 #include "macros.h"
 
-#ifdef TALTOS_CAN_USE_IMMINTRIN_H
+#if __has_include(<x86intrin.h>)
+#include <x86intrin.h>
+#endif
+#if __has_include(<immintrin.h>)
 #include <immintrin.h>
 #endif
 
-#define EMPTY (UINT64_C(0))
-#define UNIVERSE UINT64_MAX
-
-static inline bool
-is_empty(uint64_t bitboard)
+namespace taltos
 {
-	return bitboard == EMPTY;
+
+class bitboard
+{
+protected:
+	uint64_t value;
+
+	constexpr bitboard(uint64_t n):
+		value(n)
+	{
+	}
+
+public:
+	constexpr bitboard(const bitboard& other):
+		value(other.value)
+	{
+	}
+
+	bitboard()
+	{
+	}
+
+constexpr bitboard operator |(bitboard other) const
+{
+	return bitboard(value | other.value);
 }
 
-static inline bool
-is_nonempty(uint64_t bitboard)
+constexpr bitboard operator &(bitboard other) const
 {
-	return bitboard != EMPTY;
+	return bitboard(value & other.value);
 }
 
-static inline uint64_t
-bit64(int index)
+constexpr bitboard operator ^(bitboard other) const
 {
-	invariant(index >= 0 && index <= 63);
-	return UINT64_C(1) << index;
+	return bitboard(value ^ other.value);
 }
 
-static inline int
-bsf(uint64_t value)
+constexpr bitboard operator ~() const
 {
+	return bitboard(~value);
+}
+
+constexpr bool operator ==(bitboard other) const
+{
+	return value == other.value;
+}
+
+constexpr bool operator !=(bitboard other) const
+{
+	return value != other.value;
+}
+
+constexpr bitboard operator |=(bitboard other)
+{
+	value |= other.value;
+	return *this;
+}
+
+constexpr bitboard operator &=(bitboard other)
+{
+	value &= other.value;
+	return *this;
+}
+
+bitboard ls1b() const
+{
+#if __has_include(<x86intrin.h>) && __BMI1
+	return bitboard(_blsi_u64(value));
+#else
+	return bitboard(value & (UINT64_C(0) - value));
+#endif
+}
+
+bool is_bit_set(int index) const
+{
+	return (value & (UINT64_C(1) << index)) != UINT64_C(0);
+}
+
+int ls1b_index() const
+{
+	int result;
 	invariant(value != 0);
 
-	int result;
-
-#ifdef TALTOS_CAN_USE_BUILTIN_CTZLL_64
+#ifdef __GNUC__
 
 	result = __builtin_ctzll(value);
 
-#elif defined(TALTOS_CAN_USE_BUILTIN_CTZL_64)
-
-	result = __builtin_ctzl(value);
-
-#elif defined(TALTOS_CAN_USE_INTEL_BITSCANFORWARD64)
+#elif defined(_MSC_VER)
 
 	unsigned long index;
 
@@ -128,21 +180,45 @@ bsf(uint64_t value)
 	result = lsb_64_table[folded * 0x78291acf >> 26];
 
 #endif
-
 	invariant(result >= 0 && result <= 63);
 
-	return result;
+	return (int)result;
 }
 
-#ifdef TALTOS_CAN_USE_INTEL_BSWAP64
-#define bswap _bswap64
-#elif defined(TALTOS_CAN_USE_BUILTIN_BSWAP64)
-#define bswap __builtin_bswap64
+void reset_ls1b()
+{
+	value &= value - UINT64_C(1);
+}
+
+int popcnt() const
+{
+#if __has_include(<x86intrin.h>) && __POPCNT
+	return _mm_popcnt_u64(value);
+#elif defined(__GNUC__)
+	return __builtin_popcountll(value);
+#else
+	static const uint64_t k1 = UINT64_C(0x5555555555555555);
+	static const uint64_t k2 = UINT64_C(0x3333333333333333);
+	static const uint64_t k4 = UINT64_C(0x0f0f0f0f0f0f0f0f);
+	static const uint64_t kf = UINT64_C(0x0101010101010101);
+
+	uint64_t cnt = value;
+	cnt = cnt - ((cnt >> 1)  & k1);
+	cnt = (cnt & k2) + ((cnt >> 2)  & k2);
+	cnt = (cnt + (cnt >> 4)) & k4;
+	cnt = (cnt * kf) >> 56;
+	return (int)cnt;
+#endif
+}
+
+void flip()
+{
+#if defined(__GNUC__)
+	value = __builtin_bswap64(value);
+#elif __has_include(<immintrin.h>)
+	value = _bswap64(value);
 #else
 
-static inline uint64_t
-bswap(uint64_t value)
-{
 	static const uint64_t k1 = UINT64_C(0x00ff00ff00ff00ff);
 	static const uint64_t k2 = UINT64_C(0x0000ffff0000ffff);
 	static const uint64_t k3 = UINT64_C(0x00000000ffffffff);
@@ -150,145 +226,230 @@ bswap(uint64_t value)
 	value = ((value >> 8) & k1) | ((value & k1) << 8);
 	value = ((value >> 16) & k2) | ((value & k2) << 16);
 	value = ((value >> 32) & k3) | ((value & k3) << 32);
+#endif
+}
+
+bool is_singular() const
+{
+	return is_nonempty() and ls1b().is_empty();
+}
+
+void fill_north()
+{
+	value |= value >> 8;
+	value |= value >> 16;
+	value |= value >> 32;
+}
+
+void fill_south()
+{
+	value |= value << 8;
+	value |= value << 16;
+	value |= value << 32;
+}
+
+constexpr bool is_empty() const
+{
+	return value == 0;
+}
+
+constexpr bool is_nonempty() const
+{
+	return not is_empty();
+}
+
+static constexpr bitboard from_int(uint64_t n)
+{
+	return bitboard(n);
+}
+
+constexpr uint64_t as_int() const
+{
 	return value;
 }
 
-#endif
-
-
-#ifdef TALTOS_CAN_USE_INTEL_BLSI64
-#define lsb _blsi_u64
-#else
-static inline uint64_t
-lsb(uint64_t value)
+bool is_set(int index) const
 {
-	return (value & (UINT64_C(0) - value));
-}
-#endif
-
-#ifdef TALTOS_CAN_USE_INTEL_BLSR64
-#define reset_lsb _blsr_u64
-#else
-static inline uint64_t
-reset_lsb(uint64_t value)
-{
-	return value & (value - UINT64_C(1));
-}
-#endif
-
-static inline uint64_t
-msb(uint64_t value)
-{
-#ifdef TALTOS_CAN_USE_BUILTIN_CLZLL_64
-
-	return bit64(63 - __builtin_clzll(value));
-
-#elif defined(TALTOS_CAN_USE_BUILTIN_CLZL_64)
-
-	return bit64(63 - __builtin_clzl(value));
-
-#else
-	// TODO: more effecient way?
-	return bswap(lsb(bswap(value)));
-#endif
+	return (value & (UINT64_C(1) << index)) != 0;
 }
 
-#ifdef TALTOS_CAN_USE_INTEL_POPCOUNT64
-#define popcnt _mm_popcnt_u64
-#elif defined(TALTOS_CAN_USE_BUILTIN_POPCOUNTLL64)
-#define popcnt __builtin_popcountll
-#elif defined(TALTOS_CAN_USE_BUILTIN_POPCOUNTL64)
-#define popcnt __builtin_popcountl
-#else
-static inline int
-popcnt(uint64_t value)
+class iterator
 {
-	static const uint64_t k1 = UINT64_C(0x5555555555555555);
-	static const uint64_t k2 = UINT64_C(0x3333333333333333);
-	static const uint64_t k4 = UINT64_C(0x0f0f0f0f0f0f0f0f);
-	static const uint64_t kf = UINT64_C(0x0101010101010101);
+private:
+	uint64_t value;
 
-	value = value - ((value >> 1)  & k1);
-	value = (value & k2) + ((value >> 2)  & k2);
-	value = (value + (value >> 4)) & k4;
-	value = (value * kf) >> 56;
-	return (int)value;
-}
-#endif
-
-#ifdef TALTOS_CAN_USE_INTEL_PDEP_PEXT_64
-#define pdep _pdep_u64
-#define pext _pext_u64
-#else
-
-static inline uint64_t
-pext(uint64_t source, uint64_t selector)
-{
-	uint64_t result = EMPTY;
-	uint64_t dst_bit = UINT64_C(1);
-
-	while (is_nonempty(selector)) {
-		if (is_nonempty(source & lsb(selector))) {
-			result |= dst_bit;
-		}
-		selector = reset_lsb(selector);
-		dst_bit <<= 1;
+	constexpr iterator(uint64_t x):
+		value(x)
+	{
 	}
-	return result;
-}
 
-static inline uint64_t
-pdep(uint64_t value, uint64_t selector)
-{
-	uint64_t result = EMPTY;
-	uint64_t result_bit = UINT64_C(1);
+	friend bitboard;
 
-	while (is_nonempty(selector)) {
-		if (is_nonempty(lsb(selector) & value)) {
-			result |= result_bit;
-		}
-		result_bit <<= 1;
-		selector = reset_lsb(selector);
+public:
+
+	operator bitboard() const
+	{
+		return bitboard::from_int(value).ls1b();
 	}
-	return result;
+
+	operator int() const
+	{
+		return bitboard::from_int(value).ls1b_index();
+	}
+
+	iterator& operator++()
+	{
+		auto x = bitboard::from_int(value);
+		x.reset_ls1b();
+		value = x.as_int();
+		return *this;
+	}
+
+	bool operator ==(const iterator& other) const
+	{
+		return value == other.value;
+	}
+
+	bool operator !=(const iterator& other) const
+	{
+		return value != other.value;
+	}
+};
+
+iterator cbegin() const
+{
+	return iterator(value);
 }
 
-#endif
-
-static inline uint64_t
-kogge_stone_north(uint64_t map)
+static constexpr iterator cend()
 {
-	map |= map >> 8;
-	map |= map >> 16;
-	map |= map >> 32;
-	return map;
+	return iterator(0);
 }
 
-static inline uint64_t
-kogge_stone_south(uint64_t map)
+};
+
+static_assert(sizeof(bitboard) == sizeof(uint64_t));
+static_assert(sizeof(bitboard::iterator) == sizeof(uint64_t));
+
+constexpr bitboard empty = bitboard::from_int(0);
+constexpr bitboard universe = ~empty;
+
+constexpr bitboard east_of(bitboard x, int delta = 1)
 {
-	map |= map << 8;
-	map |= map << 16;
-	map |= map << 32;
-	return map;
+	return bitboard::from_int(x.as_int() >> delta);
 }
 
-static inline uint64_t
-fill_files(uint64_t occ)
+constexpr bitboard west_of(bitboard x, int delta = 1)
 {
-	return kogge_stone_north(kogge_stone_south(occ));
+	return bitboard::from_int(x.as_int() << delta);
 }
 
-static inline bool
-is_singular(uint64_t map)
+constexpr bitboard north_of(bitboard x, int delta = 1)
 {
-	return is_empty(reset_lsb(map)) && is_nonempty(map);
+	return bitboard::from_int(x.as_int() >> delta * 8);
 }
 
-static inline uint64_t
-rol(uint64_t value, unsigned d)
+constexpr bitboard south_of(bitboard x, int delta = 1)
 {
-	return (value << d) | (value >> (64 - d));
+	return bitboard::from_int(x.as_int() << delta * 8);
+}
+
+constexpr bitboard bb(int index)
+{
+	return bitboard::from_int(UINT64_C(1) << index);
+}
+
+template<typename... indices>
+constexpr bitboard bb(int index, indices... others)
+{
+	return bb(index) | bb(others...);
+}
+
+static inline bool is_empty(bitboard x)
+{
+	return x.is_empty();
+}
+
+static inline bool is_nonempty(bitboard x)
+{
+	return x.is_nonempty();
+}
+
+static inline bitboard flip(bitboard x)
+{
+	x.flip();
+	return x;
+}
+
+static inline int popcnt(bitboard x)
+{
+	return x.popcnt();
+}
+
+static inline bitboard fill_north(bitboard x)
+{
+	x.fill_north();
+	return x;
+}
+
+static inline bitboard fill_south(bitboard x)
+{
+	x.fill_south();
+	return x;
+}
+
+
+constexpr bitboard bb_file_a = bitboard::from_int(UINT64_C(0x8080808080808080));
+constexpr bitboard bb_file_b = east_of(bb_file_a);
+constexpr bitboard bb_file_c = east_of(bb_file_b);
+constexpr bitboard bb_file_d = east_of(bb_file_c);
+constexpr bitboard bb_file_e = east_of(bb_file_d);
+constexpr bitboard bb_file_f = east_of(bb_file_e);
+constexpr bitboard bb_file_g = east_of(bb_file_f);
+constexpr bitboard bb_file_h = east_of(bb_file_g);
+
+constexpr bitboard bb_file(int file)
+{
+	return east_of(bb_file_h, file);
+}
+
+constexpr bitboard bb_rank_8 = bitboard::from_int(UINT64_C(0x00000000000000ff));
+constexpr bitboard bb_rank_7 = south_of(bb_rank_8);
+constexpr bitboard bb_rank_6 = south_of(bb_rank_7);
+constexpr bitboard bb_rank_5 = south_of(bb_rank_6);
+constexpr bitboard bb_rank_4 = south_of(bb_rank_5);
+constexpr bitboard bb_rank_3 = south_of(bb_rank_4);
+constexpr bitboard bb_rank_2 = south_of(bb_rank_3);
+constexpr bitboard bb_rank_1 = south_of(bb_rank_2);
+
+constexpr bitboard bb_rank(int rank)
+{
+	return south_of(bb_rank_8, rank);
+}
+
+constexpr bitboard edges = bb_file_a | bb_file_h | bb_rank_1 | bb_rank_8;
+
+constexpr bitboard diag_a1h8 = bitboard::from_int(UINT64_C(0x8040201008040201));
+constexpr bitboard diag_a8h1 = bitboard::from_int(UINT64_C(0x0102040810204080));
+constexpr bitboard diag_c2h7 = bitboard::from_int(UINT64_C(0x0020100804020100));
+
+constexpr bitboard black_squares = bitboard::from_int(UINT64_C(0xaa55aa55aa55aa55));
+constexpr bitboard white_squares = ~black_squares;
+
+constexpr bitboard center_sq = bitboard::from_int(UINT64_C(0x0000001818000000));
+constexpr bitboard center4_sq = bitboard::from_int(UINT64_C(0x00003c3c3c3c0000));
+
+extern const std::array<bitboard, 64> knight_pattern;
+extern const std::array<bitboard, 64> king_pattern;
+extern const std::array<bitboard, 64> diag_masks;
+extern const std::array<bitboard, 64> adiag_masks;
+extern const std::array<bitboard, 64> hor_masks;
+extern const std::array<bitboard, 64> ver_masks;
+extern const std::array<bitboard, 64> bishop_masks;
+extern const std::array<bitboard, 64> rook_masks;
+extern const std::array<bitboard, 64> pawn_attacks_north;
+extern const std::array<bitboard, 64> pawn_attacks_south;
+
 }
 
 #endif

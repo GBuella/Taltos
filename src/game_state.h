@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
 /* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,58 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#ifndef TALTOS_GAME_STATE_H
+#define TALTOS_GAME_STATE_H
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
+#include "position.h"
+
+#include <memory>
+#include <string>
+
+namespace taltos
+{
+
+extern const std::string initial_FEN;
+
+enum move_notation_type {
+	mn_coordinate,
+	mn_san,
+	mn_fan
+};
+
+enum player_color {
+	white = 0,
+	black = 1
+};
+
+class game_state : protected position
+{
+	std::vector<move> moves;
+public:
+	using position::operator new;
+	using position::operator new[];
+	using position::operator delete;
+	using position::operator delete[];
+	using position::is_in_check;
+	using position::draw_with_insufficient_material;
+
+	const unsigned full_move;
+	const unsigned half_move;
+	enum player_color turn;
+
+	game_state(std::string FEN = initial_FEN);
+	game_state(const game_state& parent, move);
+	std::string to_FEN() const;
+	bool is_checkmate() const;
+	bool is_stalemate() const;
+	bool has_any_legal_move() const;
+	bool has_single_response() const;
+	const position *get_pos() const;
+	std::string print_SAN(move) const;
+	std::string print_coor(move) const;
+	std::string print_move(move, move_notation_type) const;
+};
+
+}
+
 #endif
-
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
-
-#if defined(NDEBUG) && defined(__GNUC__)
-
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
-
-#elif defined(NDEBUG) && defined(_MSC_VER)
-
-#define unreachable __assume(0)
-#define invariant __assume
-
-#else
-
-#include <cassert>
-
-#define unreachable abort()
-#define invariant assert
-
-#endif
-
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
-
-#endif /* TALTOS_MACROS_H */

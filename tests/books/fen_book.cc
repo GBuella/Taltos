@@ -1,7 +1,7 @@
 /* vim: set filetype=cpp : */
-/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=(4: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,42 +24,67 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_MACROS_H
-#define TALTOS_MACROS_H
+#include "tests.h"
 
-#if __has_include("taltos_config.h")
-#include "taltos_config.h"
-#endif
+#include "book.h"
+#include "position.h"
 
-#define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#if defined(NDEBUG) && defined(__GNUC__)
+void
+run_tests(void)
+{
+	if (prog_argc < 2)
+		exit(EXIT_FAILURE);
 
-#define unreachable __builtin_unreachable()
-#define invariant(x) { if (!(x)) unreachable; }
+	struct {
+		const char *fen;
+		move moves[4];
+	} test_book[] = {
 
-#elif defined(NDEBUG) && defined(_MSC_VER)
+	{"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RN1QKBNR w KQkq -",
+		{ create_move_pd(sq_e2, sq_e4),
+		    create_move_g(sq_g1, sq_f3, knight, 0),
+		    create_move_pd(sq_d2, sq_d4),
+	            0, }},
+	{ "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -",
+		{ create_move_pd(sq_e2, sq_e4),
+		    create_move_pd(sq_c2, sq_c4),
+	            0, }},
+	};
 
-#define unreachable __assume(0)
-#define invariant __assume
+	assert(book_open(bt_fen, "/invalid_path") == NULL);
 
-#else
+	errno = 0;
+	struct book *book = book_open(bt_fen, prog_argv[1]);
+	if (book == NULL) {
+		perror(prog_argv[1]);
+		exit(EXIT_FAILURE);
+	}
 
-#include <cassert>
+	assert(book_get_size(book) == 3);
 
-#define unreachable abort()
-#define invariant assert
+	for (size_t i = 0; i < ARRAY_LENGTH(test_book); ++i) {
+		struct position pos;
+		enum player turn;
+		int ep_index;
+		move moves[MOVE_ARRAY_LENGTH];
 
-#endif
+		position_read_fen(&pos, test_book[i].fen, &ep_index, &turn);
 
-#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
-#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
-#define restrict __restrict
-#else
-#define restrict
-#endif
-#endif
+		book_get_move_list(book, &pos, moves);
 
-#endif /* TALTOS_MACROS_H */
+		const move *m0 = test_book[i].moves;
+		const move *m1 = moves;
+		while (*m0 != 0 && *m0 == *m1) {
+			++m0;
+			++m1;
+		}
+
+		assert(*m0 == 0);
+	}
+
+	book_close(book);
+}

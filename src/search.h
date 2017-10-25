@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -33,16 +33,20 @@
 
 #include "chess.h"
 #include "position.h"
-#include "hash.h"
+#include "transposition_table.h"
 #include "util.h"
 #include "taltos.h"
 
-#ifndef MAX_THREAD_COUNT
-// single thread for now...
-#define MAX_THREAD_COUNT 1
+namespace taltos
+{
+
+#ifdef FORCE_MAX_THREAD_COUNT
+constexpr unsigned max_thread_count = FORCE_MAX_THREAD_COUNT;
+#else
+constexpr unsigned max_thread_count = 1;
 #endif
 
-static_assert(MAX_THREAD_COUNT > 0, "invalid MAX_THREAD_COUNT");
+static_assert(max_thread_count > 0);
 
 struct search_description {
 	int depth;
@@ -50,12 +54,12 @@ struct search_description {
 
 	struct hash_table *tt;
 
-	// todo: const struct hash_table *tt_paralell[MAX_THREAD_COUNT];
+	// todo: const struct hash_table *tt_paralell[max_thread_count];
 
-	struct position repeated_positions[26];
+	position repeated_positions[26];
 
 	uintmax_t time_limit;
-	taltos_systime thinking_started;
+	time_point thinking_started;
 
 	uintmax_t node_count_limit;
 
@@ -72,16 +76,14 @@ struct search_result {
 	uintmax_t qnode_count;
 	uintmax_t cutoff_count;
 	uintmax_t first_move_cutoff_count;
-	move pv[MAX_PLY];
+	move pv[max_ply];
 };
 
 void init_search(void);
 
-struct search_result search(const struct position*,
-				enum player debug_player_to_move,
-				struct search_description,
-				volatile bool *run_flag,
-				const move *prev_pv)
-	attribute(nonnull);
+struct search_result search(const position*, struct search_description,
+				volatile bool *run_flag, const move *prev_pv);
+
+}
 
 #endif

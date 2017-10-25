@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -35,6 +35,9 @@
 #include "chess.h"
 #include "move_desc.h"
 
+namespace taltos
+{
+
 enum {
 	mo_entry_move_bits = 32,
 	mo_entry_value_bits = 16,
@@ -66,9 +69,7 @@ mo_entry_is_hint(int64_t entry)
 	return (entry & bit64(mo_entry_hint_flag_bit)) != 0;
 }
 
-enum {
-	killer_value = 70
-};
+constexpr int killer_value = 70;
 
 struct move_order {
 	move moves[MOVE_ARRAY_LENGTH];
@@ -92,11 +93,9 @@ struct move_order {
 };
 
 void move_order_setup(struct move_order*, const struct position*,
-		    bool is_qsearch, int history_side)
-	attribute(nonnull);
+		    bool is_qsearch, int history_side);
 
-void move_order_pick_next(struct move_order*)
-	attribute(nonnull);
+void move_order_pick_next(struct move_order*);
 
 static inline int64_t
 mo_current_entry(const struct move_order *mo)
@@ -117,14 +116,11 @@ mo_current_move_value(const struct move_order *mo)
 	return mo_entry_value(mo_current_entry(mo));
 }
 
-int move_order_add_weak_hint(struct move_order*, move hint_move)
-	attribute(nonnull);
+int move_order_add_weak_hint(struct move_order*, move hint_move);
 
-int move_order_add_hint(struct move_order*, move hint_move, int16_t priority)
-	attribute(nonnull);
+int move_order_add_hint(struct move_order*, move hint_move, int16_t priority);
 
-void move_order_add_killer(struct move_order*, move killer_move)
-	attribute(nonnull);
+void move_order_add_killer(struct move_order*, move killer_move);
 
 static inline unsigned
 move_order_remaining(const struct move_order *mo)
@@ -138,11 +134,12 @@ move_order_done(const struct move_order *mo)
 	return mo->picked_count == mo->count;
 }
 
-void move_order_adjust_history_on_cutoff(const struct move_order*)
-	attribute(nonnull);
+void move_order_adjust_history_on_cutoff(const struct move_order*);
 
 void move_order_enable_history(void);
 void move_order_disable_history(void);
 void move_order_swap_history(void);
+
+}
 
 #endif

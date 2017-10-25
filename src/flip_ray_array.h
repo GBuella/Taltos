@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -30,7 +30,14 @@
 #include "macros.h"
 #include "bitboard.h"
 
-#ifdef TALTOS_CAN_USE_INTEL_AVX2
+#if __has_include(<x86intrin.h>)
+#include <x86intrin.h>
+#endif
+
+namespace taltos
+{
+
+#if __has_include(<x86intrin.h>) && __AVX2
 
 static void
 flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
@@ -61,8 +68,8 @@ flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
 	} while (rs < 64);
 }
 
-#elif defined(TALTOS_CAN_USE_INTEL_AVX) && 0
-// XXX it actually is SSSE3
+#elif __has_include(<x86intrin.h>) && __SSSE3 && 0
+// TODO
 
 static void
 flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
@@ -106,5 +113,7 @@ flip_ray_array(uint64_t dst[restrict 64] attribute(align_value(pos_alignment)),
 }
 
 #endif
+
+}
 
 #endif
