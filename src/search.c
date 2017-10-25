@@ -755,10 +755,6 @@ can_prune_moves(const struct node *node)
 	if (is_qsearch(node)) {
 		if (mo_current_move_value(node->mo) <= 0)
 			return true;
-		if (node->depth <= -3 * PLY) {
-			if (mo_current_move_value(node->mo) <= 200)
-				return true;
-		}
 
 		return false;
 	}
