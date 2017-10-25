@@ -17,6 +17,14 @@ add_test(NAME "position_fine_70"
 	-DNAME=fine_70
 	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
 
+add_test(NAME "position_regression_0"
+	COMMAND ${CMAKE_COMMAND}
+	-DTEST_PROG=$<TARGET_FILE:taltos>
+	-DCMP_PROG=$<TARGET_FILE:cmp_text>
+	-DTEST_FILE=${PROJECT_SOURCE_DIR}/tests/positions/regression_0
+	-DNAME=regression_0
+	-P ${PROJECT_SOURCE_DIR}/cmake/expect.cmake)
+
 add_test(NAME "position_zugzwang_1"
 	COMMAND ${CMAKE_COMMAND}
 	-DTEST_PROG=$<TARGET_FILE:taltos>

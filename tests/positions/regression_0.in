@@ -1,0 +1,19 @@
+force
+nopost
+setboard 1r4k1/p1p2ppp/2N5/2B5/3P2b1/2n5/P3BPPP/4R1K1 b - - 39 20
+nps 100000
+st 4
+search_sync
+hash_value_min -240
+hash_value_max -100
+nps 100000
+st 1
+search_sync
+hash_value_min -240
+hash_value_max -100
+search_sync
+hash_value_min -240
+hash_value_max -100
+search_sync
+hash_value_min -240
+hash_value_max -100
