@@ -90,11 +90,6 @@ configure_file(cmake/config.h.in taltos_config.h)
 
 TARGET_LINK_LIBRARIES(taltos ${CMAKE_THREAD_LIBS_INIT})
 
-add_custom_target(cstyle
-	COMMAND perl ${PROJECT_SOURCE_DIR}/tools/cstyle.pl
-	-pc ${PROJECT_SOURCE_DIR}/src/*
-	${PROJECT_SOURCE_DIR}/tests/*.{h,c})
-
 if(TALTOS_BUILD_TESTS)
 enable_testing()
 add_subdirectory(tests)
