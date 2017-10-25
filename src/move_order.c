@@ -244,22 +244,20 @@ add_all_entries(struct move_order *mo)
 
 	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
 		move m = mo->moves[i];
-		if (is_killer(mo, m)) {
-			insert(mo, create_entry(m, killer_value, false));
-		}
-		else {
-			describe_move(&mo->desc, mo->pos, m);
-			bool check = mo->desc.direct_check;
-			check |= mo->desc.discovered_check;
 
-			int16_t value = base;
-			value += mo->desc.value;
-			if (use_history)
-				value += move_history_value(mo, m);
-			if (is_capture(m))
-				value += 30;
-			insert(mo, create_entry(m, value, check));
-		}
+		describe_move(&mo->desc, mo->pos, m);
+		bool check = mo->desc.direct_check;
+		check |= mo->desc.discovered_check;
+
+		int16_t value = base;
+		value += mo->desc.value;
+		if (use_history)
+			value += move_history_value(mo, m);
+		if (is_capture(m))
+			value += 30;
+		if (value > -150 && value < killer_value && is_killer(mo, m))
+			value = killer_value;
+		insert(mo, create_entry(m, value, check));
 	}
 	mo->raw_move_count = 0;
 }
