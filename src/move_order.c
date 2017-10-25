@@ -253,8 +253,6 @@ add_all_entries(struct move_order *mo)
 		value += mo->desc.value;
 		if (use_history)
 			value += move_history_value(mo, m);
-		if (is_capture(m))
-			value += 30;
 		if (value > -150 && value < killer_value && is_killer(mo, m))
 			value = killer_value;
 		insert(mo, create_entry(m, value, check));

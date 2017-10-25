@@ -415,6 +415,8 @@ describe_move(struct move_desc *desc, const struct position *pos, move m)
 	find_attacks(desc, pos);
 	compute_SEE_value(desc);
 	desc->value = desc->SEE_value;
+	if (desc->dst_sq.SEE_loss == 0 && is_capture(m))
+		desc->value += 1000;
 
 	eval_direct_attacks(desc, pos);
 	eval_discovered_attacks(desc, pos);
