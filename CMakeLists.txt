@@ -81,8 +81,8 @@ set(TALTOS_SOURCES
 	src/zobrist.c)
 
 if(NOT TALTOS_CAN_USE_ISO_THREADS)
-	set(TALTOS_SOURCES tinycthread/tinycthread.c ${TALTOS_SOURCES})
-	include_directories(src tests tinycthread "${PROJECT_BINARY_DIR}")
+	set(TALTOS_SOURCES lib/threads/threads.c ${TALTOS_SOURCES})
+	include_directories(src tests lib/threads "${PROJECT_BINARY_DIR}")
 endif()
 
 add_library(taltos_code STATIC ${TALTOS_SOURCES})
