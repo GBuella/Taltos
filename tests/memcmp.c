@@ -58,19 +58,27 @@ position_memcmp(const struct position *pos0, enum player player)
 	    sizeof(pos0->half_open_files)) == 0);
 	assert(memcmp(pos0->pawn_attack_reach, pos1->pawn_attack_reach,
 	    sizeof(pos0->pawn_attack_reach)) == 0);
+	assert(memcmp(pos0->rq, pos1->rq, sizeof(pos0->rq)) == 0);
+	assert(memcmp(pos0->bq, pos1->bq, sizeof(pos0->bq)) == 0);
 	assert(memcmp(pos0->rays[0], pos1->rays[0], sizeof(pos0->rays[0])) == 0);
 	assert(memcmp(pos0->rays[1], pos1->rays[1], sizeof(pos0->rays[1])) == 0);
+	assert(memcmp(pos0->zhash, pos1->zhash, sizeof(pos0->zhash)) == 0);
 	assert(pos0->cr_king_side == pos1->cr_king_side);
 	assert(pos0->cr_queen_side == pos1->cr_queen_side);
 	assert(pos0->material_value == pos1->material_value);
 	assert(pos0->cr_opponent_king_side == pos1->cr_opponent_king_side);
 	assert(pos0->cr_opponent_queen_side == pos1->cr_opponent_queen_side);
 	assert(pos0->opponent_material_value == pos1->opponent_material_value);
-	assert(memcmp(pos0->zhash, pos1->zhash, sizeof(pos0->zhash)) == 0);
 	assert(pos0->king_pins[0] == pos1->king_pins[0]);
 	assert(pos0->king_pins[1] == pos1->king_pins[1]);
+	assert(pos0->nb[0] == pos1->nb[0]);
+	assert(pos0->nb[1] == pos1->nb[1]);
 	assert(pos0->undefended[0] == pos1->undefended[0]);
 	assert(pos0->undefended[1] == pos1->undefended[1]);
+	assert(pos0->all_kings == pos1->all_kings);
+	assert(pos0->all_knights == pos1->all_knights);
+	assert(pos0->all_rq == pos1->all_rq);
+	assert(pos0->all_bq == pos1->all_bq);
 	assert(memcmp(pos0->hanging, pos1->hanging,
 		      sizeof(pos0->hanging)) == 0);
 	assert(pos0->hanging_map == pos1->hanging_map);
