@@ -44,6 +44,7 @@ option(TALTOS_FORCE_NO_AVX "Do not use AVX builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_AVX2 "Do not use AVX2 builtin intrinsics" OFF)
 option(TALTOS_FORCE_NO_SSE "Do not use SSE builtin intrinsics" OFF)
 option(TALTOS_BUILD_TESTS "Build tests" ON)
+option(AUTO_CTAGS "Run ctags automatically" OFF)
 
 if(TALTOS_FORCE_AVX AND TALTOS_FORCE_NO_AVX)
 	message(FATAL_ERROR "I'm sorry Dave, I'm afraid I can't do that.")
@@ -59,7 +60,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(cmake/feature_tests.cmake)
-include(cmake/ctags.cmake)
+if(AUTO_CTAGS)
+	include(cmake/ctags.cmake)
+endif()
 
 set(TALTOS_SOURCES
 	src/book.c
