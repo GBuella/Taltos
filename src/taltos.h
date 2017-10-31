@@ -28,7 +28,6 @@
 #define TALTOS_TALTOS_H
 
 #include <stdbool.h>
-#include <stdnoreturn.h>
 #include <threads.h>
 #include "util.h"
 
@@ -75,6 +74,6 @@ struct taltos_conf {
 
 const char *author_name;
 
-noreturn void loop_cli(struct taltos_conf*, struct book*);
+void loop_cli(struct taltos_conf*, struct book*);
 
 #endif
