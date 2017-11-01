@@ -253,7 +253,7 @@ ht_destroy(struct hash_table *ht)
 void
 ht_prefetch(const struct hash_table *ht, uint64_t hash)
 {
-	prefetch(ht->table + (hash % ht->bucket_count));
+	prefetch(ht->table + (hash & (ht->bucket_count - 1)));
 }
 #endif
 
@@ -291,10 +291,10 @@ ht_lookup_fresh(const struct hash_table *ht,
 		const struct position *pos)
 {
 	volatile struct bucket *bucket =
-	    ht->table + (pos->zhash[0] % ht->bucket_count);
+	    ht->table + (pos->zhash[0] & (ht->bucket_count - 1));
 
 	unsigned index = DEEP_SLOT_COUNT;
-	index += ((pos->zhash[0] / ht->bucket_count) % FRESH_SLOT_COUNT);
+	index += ((pos->zhash[0] >> ht->log2_size) % FRESH_SLOT_COUNT);
 
 	struct slot slot = bucket->slots[index];
 
@@ -313,7 +313,7 @@ ht_lookup_deep(const struct hash_table *ht,
 {
 	ht_entry best = 0;
 	volatile struct bucket *bucket =
-	    ht->table + (pos->zhash[0] % ht->bucket_count);
+	    ht->table + (pos->zhash[0] & (ht->bucket_count - 1));
 
 	for (size_t i = 0; i < DEEP_SLOT_COUNT; ++i) {
 		struct slot slot = bucket->slots[i];
@@ -363,7 +363,7 @@ write_fresh_slot(struct hash_table *ht,
 		ht_entry entry)
 {
 	unsigned index = DEEP_SLOT_COUNT;
-	index += ((hash[0] / ht->bucket_count) % FRESH_SLOT_COUNT);
+	index += ((hash[0] >> ht->log2_size) % FRESH_SLOT_COUNT);
 
 	overwrite_slot(bucket->slots + index, hash, entry);
 }
@@ -379,7 +379,7 @@ ht_pos_insert(struct hash_table *ht,
 		return;
 
 	hash = pos->zhash;
-	bucket = ht->table + (hash[0] % ht->bucket_count);
+	bucket = ht->table + (hash[0] & (ht->bucket_count - 1));
 
 	write_fresh_slot(ht, bucket, hash, entry);
 

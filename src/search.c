@@ -1055,7 +1055,7 @@ negamax(struct node *node)
 	if (check_trivial_draw(node) == is_trivial_draw)
 		return;
 
-	ht_prefetch(node->tt, pos_hash(node->pos));
+	ht_prefetch(node->tt, node->pos->zhash[0]);
 
 	if (adjust_depth(node) == too_deep)
 		return;
