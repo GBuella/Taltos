@@ -356,25 +356,25 @@ opponent_non_pawn_material(const struct position *pos)
 static inline bool
 bishop_c1_is_trapped(const struct position *pos)
 {
-	return (pos->map[pawn] & (SQ_B1 | SQ_D1)) == (SQ_B1 | SQ_D1);
+	return (pos->map[pawn] & (SQ_B2 | SQ_D2)) == (SQ_B2 | SQ_D2);
 }
 
 static inline bool
 bishop_f1_is_trapped(const struct position *pos)
 {
-	return (pos->map[pawn] & (SQ_E1 | SQ_G1)) == (SQ_E1 | SQ_G1);
+	return (pos->map[pawn] & (SQ_E2 | SQ_G2)) == (SQ_E2 | SQ_G2);
 }
 
 static inline bool
 opponent_bishop_c8_is_trapped(const struct position *pos)
 {
-	return (pos->map[opponent_pawn] & (SQ_B8 | SQ_D8)) == (SQ_B8 | SQ_D8);
+	return (pos->map[opponent_pawn] & (SQ_B7 | SQ_D7)) == (SQ_B7 | SQ_D7);
 }
 
 static inline bool
 opponent_bishop_f8_is_trapped(const struct position *pos)
 {
-	return (pos->map[opponent_pawn] & (SQ_E8 | SQ_G8)) == (SQ_E8 | SQ_G8);
+	return (pos->map[opponent_pawn] & (SQ_E7 | SQ_G7)) == (SQ_E7 | SQ_G7);
 }
 
 static inline bool
