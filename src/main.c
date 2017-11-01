@@ -152,7 +152,7 @@ setup_defaults(void)
 	    (env == NULL || env[0] == '0');
 
 	conf.display_name = "Taltos";
-	conf.display_name_postfix = NULL;
+	conf.display_name_postfix = "";
 }
 
 static void
