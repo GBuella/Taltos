@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,8 +27,11 @@
 #ifndef TALTOS_EVAL_H
 #define TALTOS_EVAL_H
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
+
+namespace taltos
+{
 
 enum {
 	max_value = 30000,
@@ -81,5 +84,7 @@ struct eval_factors {
 int eval_threats(const struct position *pos);
 
 struct eval_factors compute_eval_factors(const struct position*);
+
+}
 
 #endif

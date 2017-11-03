@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -29,6 +29,9 @@
 
 #include "chess.h"
 
+namespace taltos
+{
+
 struct move_square_desc {
 	int index;
 	int piece;
@@ -40,7 +43,7 @@ struct move_square_desc {
 };
 
 struct move_desc {
-	move move;
+	move m;
 	int value;
 
 	uint64_t discovered_attacks;
@@ -56,11 +59,13 @@ struct move_desc {
 static inline void
 move_desc_setup(struct move_desc *desc)
 {
-	desc->move = 0;
+	desc->m = 0;
 }
 
 void describe_move(struct move_desc*, const struct position*, move);
 
 void find_hanging_pieces(struct position*);
+
+}
 
 #endif

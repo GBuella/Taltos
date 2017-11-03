@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -28,6 +28,9 @@
 #define TALTOS_FLIP_BB_PAIRS_H
 
 #include "bitboard.h"
+
+namespace taltos
+{
 
 /*
  * Flipping piece map bitboard pairs upside down
@@ -136,5 +139,7 @@ flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
 }
 
 #endif
+
+}
 
 #endif

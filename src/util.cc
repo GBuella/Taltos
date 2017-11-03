@@ -1,3 +1,5 @@
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -22,22 +24,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_CONFIG_H
-#define TALTOS_CONFIG_H
+#include "taltos_config.h"
+#include "util.h"
 
-#ifdef __GNUC__
-#pragma GCC system_header
-#endif
+#include <cstring>
 
-#cmakedefine TALTOS_CAN_USE_GNU_ATTRIBUTE_PRINTF
+namespace taltos
+{
 
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX2
 
-#define CMAKE_VERSION "@CMAKE_VERSION@"
-#define CMAKE_C_COMPILER_ID "@CMAKE_C_COMPILER_ID@"
-#define CMAKE_C_COMPILER_VERSION "@CMAKE_C_COMPILER_VERSION@"
-#define CMAKE_C_FLAGS "@CMAKE_C_FLAGS@"
-#define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+void* alloc_align64(std::size_t size)
+{
+	uintptr_t actual = (uintptr_t)(new char[size + 128]);
 
-#endif
+	uintptr_t address = (actual + 128) - (actual % 64);
+
+	uintptr_t* x = (uintptr_t*) address;
+	x[-1] = actual;
+
+	return (void*) address;
+}
+
+void free_align64(void* address)
+{
+	if (address != nullptr) {
+		uintptr_t* x = (uintptr_t*) address;
+		char* actual = (char*) x[-1];
+		delete[] actual;
+	}
+}
+
+// http://pubs.opengroup.org/onlinepubs/9699919799/functions/strtok.html
+char*
+xstrtok_r(char *restrict str, const char *restrict sep, char **restrict lasts)
+{
+	if (str == nullptr) {
+		str = *lasts;
+		if (str == nullptr)
+			return nullptr;
+	}
+
+	str += strspn(str, sep);
+	if (*str != '\0') {
+		char *end = str + strcspn(str, sep);
+
+		if (*end == '\0') {
+			*lasts = nullptr;
+		}
+		else {
+			*end = '\0';
+			*lasts = end + 1;
+		}
+		return str;
+	}
+	else {
+		return nullptr;
+	}
+}
+
+}

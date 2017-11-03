@@ -4,7 +4,10 @@
 #ifndef TALTOS_SEE_INC
 #define TALTOS_SEE_INC
 
-#include <stdint.h>
+#include <cstdint>
+
+namespace taltos
+{
 
 const uint8_t SEE_values[20736] = {
 	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
@@ -1305,4 +1308,5 @@ const uint8_t SEE_values[20736] = {
 	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
 };
 
+}
 #endif

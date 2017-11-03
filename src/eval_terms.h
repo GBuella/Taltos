@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -30,6 +30,9 @@
 #include "position.h"
 #include "constants.h"
 #include "eval.h"
+
+namespace taltos
+{
 
 static inline uint64_t
 pawn_chains(const struct position *pos)
@@ -523,6 +526,8 @@ opponent_knight_cornered_h1(const struct position *pos)
 	return is_nonempty(pos->map[opponent_knight] & SQ_H1)
 	    && is_nonempty(pos->attack[pawn] & SQ_G3)
 	    && is_nonempty(pos->attack[0] & SQ_F2);
+}
+
 }
 
 #endif

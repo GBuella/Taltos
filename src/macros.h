@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -29,25 +29,13 @@
 
 #include "taltos_config.h"
 
-#include <assert.h>
-
-/*
- * For the case of C11 compiler fronted without
- * appropriate C11 headers assert.h and stdalign.h
- * i.e.: Visual Studio 2015 with LLVM frontend.
- */
-#ifndef static_assert
-#define static_assert _Static_assert
-#endif
-
-#define alignas _Alignas
-#define alignof _Alignof
+#include <cassert>
 
 #define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
 #define QUOTE(x) #x
 #define STR(x) QUOTE(x)
 
-#if defined(NDEBUG) && defined(TALTOS_CAN_USE_BUILTIN_UNREACHABLE)
+#if defined(NDEBUG) && defined(__GNUC__)
 
 #define unreachable __builtin_unreachable()
 #define invariant(x) { if (!(x)) unreachable; }
@@ -59,21 +47,26 @@
 
 #else
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #define unreachable abort()
 #define invariant assert
 
 #endif
 
-#ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
+#ifdef __GNUC__
 #define prefetch __builtin_prefetch
 #else
 #define prefetch(...)
 #endif
 
-#define MILLION (1000 * 1000)
-#define BILLION (1000 * MILLION)
+#ifndef TALTOS_CAN_USE_RESTRICT_KEYWORD
+#ifdef TALTOS_CAN_USE___RESTRICT_KEYWORD
+#define restrict __restrict
+#else
+#define restrict
+#endif
+#endif
 
 /* From Unicode Mathematical Alphanumeric Symbols */
 #define U_ALPHA "\U0001d6fc"

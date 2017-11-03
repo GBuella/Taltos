@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,15 +27,17 @@
 #ifndef TALTOS_SEARCH_H
 #define TALTOS_SEARCH_H
 
-#include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include <cstdint>
+#include <chrono>
 
 #include "chess.h"
 #include "position.h"
 #include "hash.h"
 #include "util.h"
 #include "taltos.h"
+
+namespace taltos
+{
 
 #ifndef MAX_THREAD_COUNT
 // single thread for now...
@@ -52,10 +54,8 @@ struct search_description {
 
 	// todo: const struct hash_table *tt_paralell[MAX_THREAD_COUNT];
 
-	struct position repeated_positions[26];
-
-	uintmax_t time_limit;
-	taltos_systime thinking_started;
+	std::chrono::milliseconds time_limit;
+	std::chrono::time_point<std::chrono::steady_clock> thinking_started;
 
 	uintmax_t node_count_limit;
 
@@ -82,5 +82,6 @@ struct search_result search(const struct position*,
 				struct search_description,
 				volatile bool *run_flag,
 				const move *prev_pv);
+}
 
 #endif

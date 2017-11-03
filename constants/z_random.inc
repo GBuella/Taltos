@@ -1,9 +1,14 @@
-/* vim: set filetype=c : */
+/* vim: set filetype=cpp : */
 
 #ifndef TALTOS_Z_RANDOM_INC
 #define TALTOS_Z_RANDOM_INC
 
-#include <stdint.h>
+#include <cstdint>
+
+namespace taltos
+{
+
+extern const uint64_t z_random[14][64];
 
 const uint64_t z_random[14][64] = {
 	{0},
@@ -428,5 +433,7 @@ const uint64_t z_random[14][64] = {
 		UINT64_C(0x8F9887E6078735A1), UINT64_C(0xB5B4071DBFC73A66)
 	}
 };
+
+}
 
 #endif

@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,11 +27,10 @@
 #ifndef TALTOS_POSITION_H
 #define TALTOS_POSITION_H
 
-#include <assert.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <cassert>
+#include <climits>
+#include <cstddef>
+#include <cstdint>
 
 #include "macros.h"
 #include "bitboard.h"
@@ -39,7 +38,8 @@
 #include "chess.h"
 #include "hash.h"
 
-enum { pos_alignment = 32 };
+namespace taltos
+{
 
 /*
  * PIECE_ARRAY_SIZE - the length of an array that contains one item
@@ -56,15 +56,16 @@ enum { pos_alignment = 32 };
 #define PIECE_ARRAY_SIZE 14
 
 // make sure the piece emumeration values can be used for indexing such an array
-static_assert(pawn >= 2 && pawn < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(king >= 2 && king < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(knight >= 2 && knight < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE, "invalid enum");
-static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE, "invalid enum");
+static_assert(pawn >= 2 && pawn < PIECE_ARRAY_SIZE);
+static_assert(king >= 2 && king < PIECE_ARRAY_SIZE);
+static_assert(knight >= 2 && knight < PIECE_ARRAY_SIZE);
+static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE);
+static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE);
+static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE);
 
-struct position {
-	alignas(pos_alignment)
+struct alignas(64) position {
+	static void* operator new(size_t);
+	static void* operator new[](size_t);
 
 	unsigned char board[64];
 
@@ -170,14 +171,14 @@ struct position {
 	 * ........
 	 */
 
-	alignas(pos_alignment)
+	alignas(64)
 	uint64_t rq[2]; // map[rook] | map[queen]
 	uint64_t bq[2]; // map[bishop] | map[queen]
 
-	alignas(pos_alignment)
+	alignas(64)
 	uint64_t rays[2][64];
 
-	alignas(pos_alignment)
+	alignas(64)
 	/*
 	 * The following four 64 bit contain two symmetric pairs, that can be
 	 * swapped in make_move, as in:
@@ -250,14 +251,14 @@ enum position_ray_directions {
 
 
 
-static inline enum piece
+static inline int
 pos_piece_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
 	return p->board[i];
 }
 
-static inline enum player
+static inline int
 pos_player_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
@@ -456,5 +457,7 @@ has_insufficient_material(const struct position *p)
 void make_move(struct position *restrict dst,
 		const struct position *restrict src,
 		move);
+
+}
 
 #endif

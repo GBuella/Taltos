@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,12 +27,15 @@
 #ifndef TALTOS_TALTOS_H
 #define TALTOS_TALTOS_H
 
-#include <stdbool.h>
-#include <threads.h>
+#include <mutex>
+#include <chrono>
 #include "util.h"
 
 #include "chess.h"
 #include "game.h"
+
+namespace taltos
+{
 
 struct search_settings {
 	bool use_LMR; // Late Move Reductions
@@ -58,10 +61,10 @@ struct search_settings {
 };
 
 struct taltos_conf {
-	mtx_t *mutex;
-	enum move_notation_type move_not;
+	mutable std::mutex mutex;
+	move_notation_type move_notation;
 	bool timing;
-	taltos_systime start_time;
+	std::chrono::time_point<std::chrono::steady_clock> start_time;
 	unsigned hash_table_size_mb;
 	bool use_unicode;
 	struct search_settings search;
@@ -69,8 +72,10 @@ struct taltos_conf {
 	const char *display_name_postfix;
 };
 
-const char *author_name;
+extern const char *author_name;
 
-void loop_cli(struct taltos_conf*);
+[[noreturn]] void loop_cli(struct taltos_conf*);
+
+}
 
 #endif

@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,20 +27,20 @@
 #ifndef TALTOS_HASH_H
 #define TALTOS_HASH_H
 
-#include <stdbool.h>
-#include <inttypes.h>
-#include <stdio.h>
+#include <cinttypes>
+#include <cstdio>
 
 #include "chess.h"
 
+namespace taltos
+{
+
 struct hash_table;
 
-enum value_type {
-	vt_none = 0,
-	vt_upper_bound = 1 << 24,
-	vt_lower_bound = 2 << 24,
-	vt_exact = 3 << 24
-};
+constexpr int vt_none = 0;
+constexpr int vt_upper_bound = 1 << 24;
+constexpr int vt_lower_bound = 2 << 24;
+constexpr int vt_exact = 3 << 24;
 
 #define VALUE_TYPE_MASK (3 << 24)
 
@@ -96,12 +96,12 @@ ht_set_depth(ht_entry e, int depth)
 }
 
 static inline ht_entry
-ht_set_value(ht_entry e, enum value_type vt, int value)
+ht_set_value(ht_entry e, int value_type, int value)
 {
 	invariant(value >= -0x7fff && value < 0x7fff);
-	invariant((vt & VALUE_TYPE_MASK) == vt);
+	invariant((value_type & VALUE_TYPE_MASK) == value_type);
 
-	e |= (ht_entry)vt;
+	e |= (ht_entry)value_type;
 	e |= (((ht_entry)(value + 0x7fff)) << 32);
 	return e;
 }
@@ -137,7 +137,7 @@ ht_depth(ht_entry e)
 	return (unsigned)(e >> (32 + 16));
 }
 
-static inline enum value_type
+static inline int
 ht_value_type(ht_entry e)
 {
 	return (int)(e & VALUE_TYPE_MASK);
@@ -174,10 +174,10 @@ ht_no_null(ht_entry e)
 }
 
 static inline ht_entry
-create_ht_entry(int value, enum value_type vt, move m, int depth)
+create_ht_entry(int value, int value_type, move m, int depth)
 {
 	invariant(value >= -0x7fff && value < 0x7fff);
-	invariant((vt & VALUE_TYPE_MASK) == vt);
+	invariant((value_type & VALUE_TYPE_MASK) == value_type);
 	invariant((m & MOVE_MASK) == m);
 	if (depth < 0)
 		depth = 0;
@@ -185,11 +185,11 @@ create_ht_entry(int value, enum value_type vt, move m, int depth)
 
 	ht_entry e = 0;
 	e = ht_set_move(e, m);
-	e = ht_set_value(e, vt, value);
+	e = ht_set_value(e, value_type, value);
 	e = ht_set_depth(e, depth);
 
 	assert(ht_move(e) == m);
-	assert(ht_value_type(e) == vt);
+	assert(ht_value_type(e) == value_type);
 	assert(ht_value(e) == value);
 	assert(ht_depth(e) == depth);
 
@@ -219,24 +219,24 @@ z_toggle_ep_file(uint64_t hash, int file)
 }
 
 static inline uint64_t
-z_toggle_sq(uint64_t hash, int i, enum piece p, enum player pl)
+z_toggle_sq(uint64_t hash, int i, int piece, int player)
 {
 	invariant(ivalid(i));
 
 	extern const uint64_t z_random[14][64];
 
-	return hash ^= z_random[p + pl][i];
+	return hash ^= z_random[piece + player][i];
 }
 
 static inline void
-z2_toggle_sq(uint64_t hash[2], int i, enum piece p, enum player pl)
+z2_toggle_sq(uint64_t hash[2], int i, int piece, int player)
 {
 	invariant(ivalid(i));
 
 	extern const uint64_t z_random[14][64];
 
-	hash[0] ^= z_random[p + pl][i];
-	hash[1] ^= z_random[opponent_of(p + pl)][flip_i(i)];
+	hash[0] ^= z_random[piece + player][i];
+	hash[1] ^= z_random[opponent_of(piece + player)][flip_i(i)];
 }
 
 static inline uint64_t
@@ -294,7 +294,7 @@ z2_toggle_castle_king_side(uint64_t hash[])
 static inline void
 prefetch_z2_xor_move(move m)
 {
-	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
+	extern uint64_t zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
 
 	prefetch(zhash_xor_table + m, 0, 0);
 }
@@ -302,7 +302,7 @@ prefetch_z2_xor_move(move m)
 static inline void
 z2_xor_move(uint64_t hash[], move m)
 {
-	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
+	extern uint64_t zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
 
 	hash[0] ^= zhash_xor_table[m][0];
 	hash[1] ^= zhash_xor_table[m][1];
@@ -331,14 +331,14 @@ void ht_prefetch(const struct hash_table*, uint64_t hash_key);
 #define ht_prefetch(...)
 #endif
 
-size_t ht_slot_count(const struct hash_table*);
+std::size_t ht_slot_count(const struct hash_table*);
 
 void ht_pos_insert(struct hash_table*, const struct position*, ht_entry);
 
 void ht_extract_pv(const struct hash_table*, const struct position*,
 			int depth, move pv[], int value);
 
-size_t ht_size(const struct hash_table*);
+std::size_t ht_size(const struct hash_table*);
 
 bool ht_is_mb_size_valid(unsigned megabytes);
 
@@ -350,10 +350,12 @@ void ht_clear(struct hash_table*);
 
 void ht_swap(struct hash_table*);
 
-size_t ht_usage(const struct hash_table*);
+std::size_t ht_usage(const struct hash_table*);
 
 uint64_t position_polyglot_key(const struct position*, enum player turn);
 
 void init_zhash_table(void);
+
+}
 
 #endif

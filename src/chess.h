@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,12 +27,12 @@
 #ifndef TALTOS_CHESS_H
 #define TALTOS_CHESS_H
 
-#include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
 
 #include "macros.h"
+
+namespace taltos
+{
 
 enum move_notation_type {
 	mn_coordinate,
@@ -40,26 +40,20 @@ enum move_notation_type {
 	mn_fan
 };
 
-enum piece {
-	nonpiece =	0,
-	pawn =		2,
-	rook =		4,
-	king =		6,
-	bishop =	8,
-	knight =	10,
-	queen =		12
-};
+constexpr int nonpiece = 0;
+constexpr int pawn = 2;
+constexpr int rook = 4;
+constexpr int king = 6;
+constexpr int bishop = 8;
+constexpr int knight = 10;
+constexpr int queen = 12;
 
-enum {
-	opponent_pawn = pawn|1,
-	opponent_rook = rook|1,
-	opponent_king = king|1,
-	opponent_bishop = bishop|1,
-	opponent_knight = knight|1,
-	opponent_queen = queen|1
-};
-
-enum { player_mask = 1 };
+constexpr int opponent_pawn = pawn | 1;
+constexpr int opponent_rook = rook | 1;
+constexpr int opponent_king = king | 1;
+constexpr int opponent_bishop = bishop | 1;
+constexpr int opponent_knight = knight | 1;
+constexpr int opponent_queen = queen | 1;
 
 static inline bool
 is_valid_piece(int piece)
@@ -77,11 +71,19 @@ enum player {
 	black = 1
 };
 
-static inline int
-opponent_of(int p)
+static inline int opponent_of(int p)
 {
 	return p ^ 1;
 }
+
+static inline enum player opponent_of(enum player p)
+{
+	if (p == white)
+		return black;
+	else
+		return white;
+}
+
 
 enum {
 	sq_h1 = 56, sq_g1, sq_f1, sq_e1, sq_d1, sq_c1, sq_b1, sq_a1,
@@ -221,14 +223,12 @@ enum move_bit_offsets {
 
 #define MOVE_MASK ((1 << move_bit_mask_plus_one_shift) - 1)
 
-enum move_type {
-	mt_general = 0,
-	mt_pawn_double_push = 1 << move_bit_off_type,
-	mt_castle_kingside = 2 << move_bit_off_type,
-	mt_castle_queenside = 3 << move_bit_off_type,
-	mt_en_passant = 4 << move_bit_off_type,
-	mt_promotion = 5 << move_bit_off_type
-};
+constexpr int mt_general = 0;
+constexpr int mt_pawn_double_push = 1 << (int)move_bit_off_type;
+constexpr int mt_castle_kingside = 2 << (int)move_bit_off_type;
+constexpr int mt_castle_queenside = 3 << (int)move_bit_off_type;
+constexpr int mt_en_passant = 4 << (int)move_bit_off_type;
+constexpr int mt_promotion = 5 << (int)move_bit_off_type;
 
 static inline bool
 is_valid_mt(int t)
@@ -243,19 +243,17 @@ is_valid_mt(int t)
 
 #define MOVE_TYPE_MASK (7 << move_bit_off_type)
 
-enum {
-	mcastle_king_side =
+constexpr move mcastle_king_side =
 		(sq_e1 << move_bit_off_from) |
 		(sq_g1 << move_bit_off_to) |
 		mt_castle_kingside |
-		(king << (move_bit_off_result - 1)),
+		(king << (move_bit_off_result - 1));
 
-	mcastle_queen_side =
+constexpr move mcastle_queen_side =
 		(sq_e1 << move_bit_off_from) |
 		(sq_c1 << move_bit_off_to) |
 		mt_castle_queenside |
-		(king << (move_bit_off_result - 1))
-};
+		(king << (move_bit_off_result - 1));
 
 static inline int
 mfrom(move m)
@@ -300,19 +298,19 @@ m64(move m)
 }
 
 static inline move
-set_mt(move m, enum move_type mt)
+set_mt(move m, int mt)
 {
 	return m | mt;
 }
 
 static inline move
-set_resultp(move m, enum piece p)
+set_resultp(move m, int p)
 {
 	invariant(is_valid_piece(p));
 	return m | (p << (move_bit_off_result - 1));
 }
 
-static inline enum move_type
+static inline int
 mtype(move m)
 {
 	return m & MOVE_TYPE_MASK;
@@ -324,7 +322,7 @@ is_promotion(move m)
 	return mtype(m) == mt_promotion;
 }
 
-static inline enum piece
+static inline int
 mresultp(move m)
 {
 	return (m >> (move_bit_off_result - 1)) & 0xe;
@@ -349,7 +347,7 @@ set_capturedp(move m, int piece)
 	return m | (piece << (move_bit_off_captured - 1));
 }
 
-static inline enum piece
+static inline int
 mcapturedp(move m)
 {
 	return (m >> (move_bit_off_captured - 1)) & 0xe;
@@ -369,17 +367,17 @@ move_gives_check(move m)
 }
 
 static inline move
-create_move_t(int from, int to, enum move_type t, int result, int captured)
+create_move_t(int from, int to, int move_type, int result, int captured)
 {
 	invariant(ivalid(from));
 	invariant(ivalid(to));
 	invariant(is_valid_piece(result));
 	invariant(captured == 0 || is_valid_piece(captured));
-	invariant(is_valid_mt(t));
+	invariant(is_valid_mt(move_type));
 
 	return (from << move_bit_off_from) |
 	    (to << move_bit_off_to) |
-	    t |
+	    move_type |
 	    (result << (move_bit_off_result - 1)) |
 	    (captured << (move_bit_off_captured - 1));
 }
@@ -419,10 +417,7 @@ is_move_valid(move m)
 
 struct position;
 
-enum {
-	none_move = 1,
-	illegal_move = 2
-};
+constexpr int none_move = 1;
 
 #define MOVE_STR_BUFFER_LENGTH 16
 #define FEN_BUFFER_LENGTH 128
@@ -439,9 +434,9 @@ extern const char *start_position_fen;
 
 int position_square_at(const struct position*, int index);
 
-enum piece position_piece_at(const struct position*, int index);
+int position_piece_at(const struct position*, int index);
 
-enum player position_player_at(const struct position*, int index);
+int position_player_at(const struct position*, int index);
 
 bool position_cr_king_side(const struct position*);
 
@@ -459,16 +454,14 @@ int read_move(const struct position*, const char*, move*, enum player);
 
 char *print_coor_move(move, char[], enum player);
 
-char *print_san_move(const struct position *pos, move m, char *str,
-		     enum player turn);
+char *print_san_move(const struct position *pos, move m, char *str, enum player turn);
 
-char *print_fan_move(const struct position *pos, move m, char *str,
-		     enum player turn);
+char *print_fan_move(const struct position *pos, move m, char *str, enum player turn);
 
 char *print_move(const struct position*,
 		move,
 		char[],
-		enum move_notation_type,
+		int move_notation_type,
 		enum player turn);
 
 char *position_print_fen(const struct position*,
@@ -483,8 +476,7 @@ char *position_print_fen_full(const struct position*,
 		unsigned half_move,
 		enum player turn);
 
-const char *position_read_fen(struct position*, const char*,
-		int *ep_index, enum player*);
+const char *position_read_fen(struct position*, const char*, int *ep_index, enum player *player);
 
 const char *position_read_fen_full(struct position*,
 		const char *buffer,
@@ -493,11 +485,9 @@ const char *position_read_fen_full(struct position*,
 		unsigned *half_move,
 		enum player *turn);
 
-unsigned gen_moves(const struct position*,
-		move[]);
+unsigned gen_moves(const struct position*, move[]);
 
-unsigned gen_captures(const struct position*,
-		move[]);
+unsigned gen_captures(const struct position*, move[]);
 
 bool is_move_irreversible(const struct position*, move);
 
@@ -516,12 +506,10 @@ struct position *position_create(const char board[],
 		const bool castle_rights[],
 		int en_passant_index);
 
-enum castle_right_indices {
-	cri_king_side,
-	cri_queen_side,
-	cri_opponent_king_side,
-	cri_opponent_queen_side,
-};
+constexpr int cri_king_side = 0;
+constexpr int cri_queen_side = 1;
+constexpr int cri_opponent_king_side = 2;
+constexpr int cri_opponent_queen_side = 3;
 
 bool position_has_en_passant_index(const struct position*);
 
@@ -543,5 +531,7 @@ bool pos_is_check(const struct position*);
 bool pos_has_insufficient_material(const struct position*);
 
 bool pos_equal(const struct position*, const struct position*);
+
+}
 
 #endif /* TALTOS_CHESS_H */

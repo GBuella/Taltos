@@ -1,5 +1,7 @@
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2016-2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,22 +24,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_CONFIG_H
-#define TALTOS_CONFIG_H
+#include "tests.h"
 
-#ifdef __GNUC__
-#pragma GCC system_header
-#endif
+#include "constants.h"
+#include "hash.h"
+#include "game.h"
 
-#cmakedefine TALTOS_CAN_USE_GNU_ATTRIBUTE_PRINTF
+#include <cstring>
 
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX2
+namespace taltos::test
+{
 
-#define CMAKE_VERSION "@CMAKE_VERSION@"
-#define CMAKE_C_COMPILER_ID "@CMAKE_C_COMPILER_ID@"
-#define CMAKE_C_COMPILER_VERSION "@CMAKE_C_COMPILER_VERSION@"
-#define CMAKE_C_FLAGS "@CMAKE_C_FLAGS@"
-#define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+int prog_argc;
+const char **prog_argv;
+static struct game *g;
 
-#endif
+const struct game*
+parse_setboard_from_arg_file(void)
+{
+	assert(prog_argc > 1);
+
+	char buf[1024];
+	static const char command[] = "setboard";
+	FILE *input;
+	assert((input = fopen(prog_argv[1], "r")) != NULL);
+	assert(fgets(buf, sizeof(buf), input) != NULL);
+	fclose(input);
+	assert(strlen(buf) > sizeof command);
+	buf[strlen(command)] = '\0';
+	assert(strcmp(buf, command) == 0);
+	g = game_create_fen(buf + strlen(command) + 1);
+	assert(g != NULL);
+	return g;
+}
+
+}
+
+int
+main(int argc, const char **argv)
+{
+	using namespace taltos;
+
+	test::prog_argc = argc;
+	test::prog_argv = argv;
+
+	init_zhash_table();
+
+	test::run_tests();
+
+	if (test::g != NULL)
+		game_destroy(test::g);
+}

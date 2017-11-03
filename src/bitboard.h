@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,7 +27,6 @@
 #ifndef TALTOS_BITBOARD_H
 #define TALTOS_BITBOARD_H
 
-/* BEGIN CSTYLED */
 /*
 
 bitbard square index map:
@@ -53,20 +52,20 @@ bitbard square index map:
     A  B  C  D  E  F  G  H
 
 */
-/* END CSTYLED */
 
-#include <assert.h>
-#include <stdbool.h>
-#include <inttypes.h>
+#include <cassert>
+#include <cinttypes>
 
 #include "macros.h"
 
-#ifdef TALTOS_CAN_USE_IMMINTRIN_H
-#include <immintrin.h>
+#if __has_include(<x86intrin.h>)
+#include <x86intrin.h>
 #endif
 
+namespace taltos
+{
+
 #define EMPTY (UINT64_C(0))
-#define UNIVERSE UINT64_MAX
 
 static inline bool
 is_empty(uint64_t bitboard)
@@ -94,13 +93,9 @@ bsf(uint64_t value)
 
 	int result;
 
-#ifdef TALTOS_CAN_USE_BUILTIN_CTZLL_64
+#ifdef __GNUC__
 
 	result = __builtin_ctzll(value);
-
-#elif defined(TALTOS_CAN_USE_BUILTIN_CTZL_64)
-
-	result = __builtin_ctzl(value);
 
 #elif defined(TALTOS_CAN_USE_INTEL_BITSCANFORWARD64)
 
@@ -134,9 +129,7 @@ bsf(uint64_t value)
 	return result;
 }
 
-#ifdef TALTOS_CAN_USE_INTEL_BSWAP64
-#define bswap _bswap64
-#elif defined(TALTOS_CAN_USE_BUILTIN_BSWAP64)
+#ifdef __GNUC__
 #define bswap __builtin_bswap64
 #else
 
@@ -156,7 +149,7 @@ bswap(uint64_t value)
 #endif
 
 
-#ifdef TALTOS_CAN_USE_INTEL_BLSI64
+#if __has_include(<x86intrin.h>) && defined(__BMI__)
 #define lsb _blsi_u64
 #else
 static inline uint64_t
@@ -166,7 +159,7 @@ lsb(uint64_t value)
 }
 #endif
 
-#ifdef TALTOS_CAN_USE_INTEL_BLSR64
+#if __has_include(<x86intrin.h>) && defined(__BMI__)
 #define reset_lsb _blsr_u64
 #else
 static inline uint64_t
@@ -179,13 +172,9 @@ reset_lsb(uint64_t value)
 static inline uint64_t
 msb(uint64_t value)
 {
-#ifdef TALTOS_CAN_USE_BUILTIN_CLZLL_64
+#ifdef __GNUC__
 
 	return bit64(63 - __builtin_clzll(value));
-
-#elif defined(TALTOS_CAN_USE_BUILTIN_CLZL_64)
-
-	return bit64(63 - __builtin_clzl(value));
 
 #else
 	// TODO: more effecient way?
@@ -193,12 +182,10 @@ msb(uint64_t value)
 #endif
 }
 
-#ifdef TALTOS_CAN_USE_INTEL_POPCOUNT64
-#define popcnt _mm_popcnt_u64
-#elif defined(TALTOS_CAN_USE_BUILTIN_POPCOUNTLL64)
+#ifdef __GNUC__
 #define popcnt __builtin_popcountll
-#elif defined(TALTOS_CAN_USE_BUILTIN_POPCOUNTL64)
-#define popcnt __builtin_popcountl
+#elif __has_include(<x86intrin.h>) && defined(__POPCNT__)
+#define popcnt _mm_popcnt_u64
 #else
 static inline int
 popcnt(uint64_t value)
@@ -214,45 +201,6 @@ popcnt(uint64_t value)
 	value = (value * kf) >> 56;
 	return (int)value;
 }
-#endif
-
-#ifdef TALTOS_CAN_USE_INTEL_PDEP_PEXT_64
-#define pdep _pdep_u64
-#define pext _pext_u64
-#else
-
-static inline uint64_t
-pext(uint64_t source, uint64_t selector)
-{
-	uint64_t result = EMPTY;
-	uint64_t dst_bit = UINT64_C(1);
-
-	while (is_nonempty(selector)) {
-		if (is_nonempty(source & lsb(selector))) {
-			result |= dst_bit;
-		}
-		selector = reset_lsb(selector);
-		dst_bit <<= 1;
-	}
-	return result;
-}
-
-static inline uint64_t
-pdep(uint64_t value, uint64_t selector)
-{
-	uint64_t result = EMPTY;
-	uint64_t result_bit = UINT64_C(1);
-
-	while (is_nonempty(selector)) {
-		if (is_nonempty(lsb(selector) & value)) {
-			result |= result_bit;
-		}
-		result_bit <<= 1;
-		selector = reset_lsb(selector);
-	}
-	return result;
-}
-
 #endif
 
 static inline uint64_t
@@ -289,6 +237,8 @@ static inline uint64_t
 rol(uint64_t value, unsigned d)
 {
 	return (value << d) | (value >> (64 - d));
+}
+
 }
 
 #endif

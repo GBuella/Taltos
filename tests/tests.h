@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -38,17 +38,26 @@
 #undef NDEBUG
 #endif
 
-#include <assert.h>
+#include <cassert>
 
 #include "macros.h"
+
+namespace taltos
+{
+
+struct game;
+
+namespace test
+{
 
 extern int prog_argc;
 extern const char **prog_argv;
 
-struct game;
-
-const struct game *parse_setboard_from_arg_file(void);
-
+const struct taltos::game *parse_setboard_from_arg_file(void);
 void run_tests(void);
+
+}
+
+}
 
 #endif

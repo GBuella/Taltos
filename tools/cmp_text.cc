@@ -1,5 +1,7 @@
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2017, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,22 +24,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_CONFIG_H
-#define TALTOS_CONFIG_H
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 
-#ifdef __GNUC__
-#pragma GCC system_header
-#endif
+static int
+fgetc_wrapper(FILE *f)
+{
+	int c = fgetc(f);
 
-#cmakedefine TALTOS_CAN_USE_GNU_ATTRIBUTE_PRINTF
+	while (c == '\n' || c == '\r') {
+		do {
+			c = fgetc(f);
+		} while (c == '\n' || c == '\r');
+		ungetc(c, f);
+		return '\n';
+	}
 
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX2
+	if (c == EOF) {
+		if (errno != 0) {
+			perror("fgetc");
+			exit(1);
+		}
+	}
 
-#define CMAKE_VERSION "@CMAKE_VERSION@"
-#define CMAKE_C_COMPILER_ID "@CMAKE_C_COMPILER_ID@"
-#define CMAKE_C_COMPILER_VERSION "@CMAKE_C_COMPILER_VERSION@"
-#define CMAKE_C_FLAGS "@CMAKE_C_FLAGS@"
-#define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+	return c;
+}
 
-#endif
+int
+main(int argc, char **argv)
+{
+	if (argc < 3)
+		return 1;
+
+	FILE *f0 = fopen(argv[1], "r");
+	if (f0 == NULL) {
+		perror(argv[1]);
+		return 1;
+	}
+	FILE *f1 = fopen(argv[2], "r");
+	if (f1 == NULL) {
+		perror(argv[2]);
+		return 1;
+	}
+
+	int c0;
+	int c1;
+	errno = 0;
+	do {
+		c0 = fgetc_wrapper(f0);
+		c1 = fgetc_wrapper(f1);
+	} while ((c0 == c1) && (c0 != EOF));
+
+	if (c0 != EOF)
+		return 1;
+
+	return 0;
+}

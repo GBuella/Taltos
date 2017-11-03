@@ -5,7 +5,10 @@
 #define TALTOS_BITBOARD_CONSTANTS_INC
 
 #include "constants.h"
-#include <stdint.h>
+#include <cstdint>
+
+namespace taltos
+{
 
 const uint64_t king_pattern[64] = {
 	UINT64_C(0x0000000000000302), UINT64_C(0x0000000000000705),
@@ -357,4 +360,5 @@ const uint64_t pawn_attacks_south[64] = {
 	UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000)
 };
 
+}
 #endif

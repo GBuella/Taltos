@@ -1,3 +1,5 @@
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -22,22 +24,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TALTOS_CONFIG_H
-#define TALTOS_CONFIG_H
+#include "tests.h"
 
-#ifdef __GNUC__
-#pragma GCC system_header
-#endif
+#include "game.h"
+#include "str_util.h"
 
-#cmakedefine TALTOS_CAN_USE_GNU_ATTRIBUTE_PRINTF
+void taltos::test::run_tests(void)
+{
+	struct game *game, *other;
+	move move;
 
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX
-#cmakedefine TALTOS_CAN_USE_INTEL_AVX2
-
-#define CMAKE_VERSION "@CMAKE_VERSION@"
-#define CMAKE_C_COMPILER_ID "@CMAKE_C_COMPILER_ID@"
-#define CMAKE_C_COMPILER_VERSION "@CMAKE_C_COMPILER_VERSION@"
-#define CMAKE_C_FLAGS "@CMAKE_C_FLAGS@"
-#define CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
-
-#endif
+	assert((game = game_create()) != nullptr);
+	assert(game_turn(game) == white);
+	assert(game_history_revert(game) != 0);
+	assert(game_history_forward(game) != 0);
+	assert(game_full_move_count(game) == 1);
+	assert(game_half_move_count(game) == 0);
+	move = create_move_pd(ind(rank_2, file_e), ind(rank_4, file_e));
+	assert(game_append(game, move) == 0);
+	other = game_copy(game);
+	if (other == NULL)
+		abort();
+	assert(game_turn(game) == black);
+	assert(game_turn(other) == black);
+	assert(game_history_revert(other) == 0);
+	game_destroy(other);
+	move = create_move_pd(str_to_index("e7", black),
+	    str_to_index("e5", black));
+	assert(game_append(game, move) == 0);
+	assert(game_turn(game) == white);
+	game_destroy(game);
+}

@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,8 +27,11 @@
 #ifndef TALTOS_CONSTANTS_H
 #define TALTOS_CONSTANTS_H
 
-#include <stdint.h>
+#include <cstdint>
 #include "macros.h"
+
+namespace taltos
+{
 
 #define FILE_A		UINT64_C(0x8080808080808080)
 #define FILE_B		(FILE_A >> 1)
@@ -143,5 +146,7 @@ extern const uint64_t bishop_masks[64];
 extern const uint64_t rook_masks[64];
 extern const uint64_t pawn_attacks_north[64];
 extern const uint64_t pawn_attacks_south[64];
+
+}
 
 #endif

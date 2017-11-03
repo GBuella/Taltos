@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -29,7 +29,10 @@
 
 #include "chess.h"
 #include "macros.h"
-#include <stddef.h>
+#include <cstddef>
+
+namespace taltos
+{
 
 struct game;
 
@@ -85,6 +88,8 @@ move game_get_single_response(const struct game*);
 
 bool game_has_single_response(const struct game*);
 
-size_t game_length(const struct game*);
+std::size_t game_length(const struct game*);
+
+}
 
 #endif

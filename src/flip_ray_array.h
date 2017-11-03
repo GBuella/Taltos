@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -29,6 +29,9 @@
 
 #include "macros.h"
 #include "bitboard.h"
+
+namespace taltos
+{
 
 #ifdef TALTOS_CAN_USE_INTEL_AVX2
 
@@ -105,5 +108,7 @@ flip_ray_array(uint64_t dst[], const uint64_t src[])
 }
 
 #endif
+
+}
 
 #endif

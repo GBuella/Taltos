@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,13 +27,15 @@
 #ifndef TALTOS_MOVE_ORDER_H
 #define TALTOS_MOVE_ORDER_H
 
-#include <limits.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include <climits>
+#include <cstdint>
 
 #include "bitboard.h"
 #include "chess.h"
 #include "move_desc.h"
+
+namespace taltos
+{
 
 enum {
 	mo_entry_move_bits = 32,
@@ -138,5 +140,7 @@ void move_order_adjust_history_on_cutoff(const struct move_order*);
 void move_order_enable_history(void);
 void move_order_disable_history(void);
 void move_order_swap_history(void);
+
+}
 
 #endif

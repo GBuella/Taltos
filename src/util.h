@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2014-2017, Gabor Buella
  *
@@ -27,52 +27,20 @@
 #ifndef TALTOS_UTIL_H
 #define TALTOS_UTIL_H
 
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdint>
+#include <cstddef>
+
 #include "macros.h"
 
-#ifdef TALTOS_CAN_USE_CLOCK_GETTIME
-#include <time.h>
-#endif
+namespace taltos
+{
 
-void *xmalloc(size_t);
-
-void *xcalloc(size_t count, size_t size);
-
-void *xrealloc(void*, size_t);
-
-/*
- * aligned_alloc might fail ( return NULL )
- * xaligned_alloc does abort(3) on failure
- * pointers from both must be free'd using xaligned_free
- */
-#ifndef TALTOS_CAN_USE_ISO_ALIGNAD_ALLOC
-// damn you, libc on my laptop in 2016
-// y no no have aligned_alloc from ISOC ??
-void *aligned_alloc(size_t alignment, size_t size);
-#endif
-
-void *xaligned_alloc(size_t alignment, size_t size);
-
-void *xaligned_calloc(size_t alignment, size_t count, size_t size);
-
-void xaligned_free(void*);
-
-#if defined(TALTOS_CAN_USE_CLOCK_GETTIME)
-typedef struct timespec taltos_systime;
-#elif defined(TALTOS_CAN_USE_MACH_ABS_TIME) || \
-	defined(TALTOS_CAN_USE_W_PERFCOUNTER)
-typedef uint64_t taltos_systime;
-#else
-#error unable to use monotonic clock
-#endif
-
-taltos_systime xnow(void);
-uintmax_t xseconds_since(taltos_systime);
+void* alloc_align64(std::size_t);
+void free_align64(void*);
 
 char *xstrtok_r(char *restrict str, const char *restrict sep,
 		char **restrict lasts);
 
-void util_init(void);
+}
 
 #endif

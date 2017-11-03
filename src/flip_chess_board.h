@@ -1,5 +1,5 @@
-/* vim: set filetype=c : */
-/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
+/* vim: set filetype=cpp : */
+/* vim: set noet tw=100 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
  * Copyright 2017, Gabor Buella
  *
@@ -28,7 +28,10 @@
 #define TALTOS_FLIP_CHESS_BOARD_H
 
 #include "macros.h"
-#include <string.h>
+#include <cstring>
+
+namespace taltos
+{
 
 #if defined(TALTOS_CAN_USE_INTEL_AVX2)
 /*
@@ -164,5 +167,7 @@ flip_chess_board(unsigned char dst[], const unsigned char src[])
 }
 
 #endif
+
+}
 
 #endif
