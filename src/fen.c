@@ -148,7 +148,7 @@ FEN_print_ep_target(char *str, int ep_index, enum player turn)
 
 char*
 position_print_fen(const struct position *pos,
-		char str[static FEN_BUFFER_LENGTH],
+		char str[],
 		int ep_index,
 		enum player turn)
 {
@@ -170,7 +170,7 @@ position_print_fen(const struct position *pos,
 
 char*
 position_print_fen_full(const struct position *pos,
-		char str[static FEN_BUFFER_LENGTH],
+		char str[],
 		int ep_target,
 		unsigned full_move,
 		unsigned half_move,
@@ -182,7 +182,7 @@ position_print_fen_full(const struct position *pos,
 }
 
 static const char*
-read_pos_rank(char board[static 64], int rank, const char *str, jmp_buf jb)
+read_pos_rank(char board[], int rank, const char *str, jmp_buf jb)
 {
 	int file = file_a;
 
@@ -212,7 +212,7 @@ read_pos_rank(char board[static 64], int rank, const char *str, jmp_buf jb)
 }
 
 static const char*
-FEN_parse_board(char board[static 64], const char *str, jmp_buf jb)
+FEN_parse_board(char board[], const char *str, jmp_buf jb)
 {
 	int rank = rank_7;
 
@@ -238,7 +238,7 @@ FEN_parse_side_to_move(enum player *turn, const char *str, jmp_buf jb)
 }
 
 static const char*
-FEN_parse_castle_rights(bool rights[static 4], const char *str, jmp_buf jb)
+FEN_parse_castle_rights(bool rights[], const char *str, jmp_buf jb)
 {
 	rights[0] = rights[1] = rights[2] = rights[3] = false;
 	if (str[0] == '-') {
@@ -358,7 +358,7 @@ read_fen_move_counters(const char *volatile str,
 }
 
 static void
-flip_board(char board[static 64])
+flip_board(char board[])
 {
 	for (int i = 0; i < 32; ++i) {
 		char t = board[i];
@@ -373,7 +373,7 @@ flip_board(char board[static 64])
 }
 
 static void
-flip_castle_rights(bool rights[static 4])
+flip_castle_rights(bool rights[])
 {
 	bool t = rights[cri_king_side];
 	rights[cri_king_side] = rights[cri_opponent_king_side];

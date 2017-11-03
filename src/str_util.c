@@ -52,7 +52,7 @@ index_to_rank_ch(int index, enum player turn)
 }
 
 char*
-print_index(char str[static 2], int index, enum player turn)
+print_index(char str[], int index, enum player turn)
 {
 	assert(str != NULL);
 	*str++ = index_to_file_ch(index);
@@ -292,7 +292,7 @@ char_to_rank(char ch, enum player turn)
 }
 
 int
-str_to_index(const char str[static 2], enum player turn)
+str_to_index(const char str[], enum player turn)
 {
 	return ind(char_to_rank(str[1], turn), char_to_file(str[0]));
 }
@@ -370,8 +370,7 @@ print_nice_ns(uintmax_t n, bool use_unicode)
 }
 
 void
-board_print(char str[static BOARD_BUFFER_LENGTH],
-		const struct position *pos,
+board_print(char str[], const struct position *pos,
 		enum player turn,
 		bool use_unicode)
 {

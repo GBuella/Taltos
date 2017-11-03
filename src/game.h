@@ -45,7 +45,7 @@ bool game_continues(const struct game *a, const struct game *b);
 
 struct game *game_copy(const struct game*);
 
-char *game_print_fen(const struct game*, char[static FEN_BUFFER_LENGTH]);
+char *game_print_fen(const struct game*, char[]);
 
 void game_destroy(struct game*);
 

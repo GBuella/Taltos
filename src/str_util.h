@@ -33,7 +33,7 @@
 
 char index_to_file_ch(int);
 char index_to_rank_ch(int, enum player);
-char *print_index(char[static 2], int index, enum player player);
+char *print_index(char[], int index, enum player player);
 const char *index_to_str(int index, enum player turn);
 char piece_to_char(enum piece);
 const char *piece_name(enum piece);
@@ -49,7 +49,7 @@ bool is_rank(char);
 bool is_coordinate(const char*);
 int char_to_file(char);
 int char_to_rank(char, enum player turn);
-int str_to_index(const char[static 2], enum player turn);
+int str_to_index(const char[], enum player turn);
 bool empty_line(const char*);
 const char *next_token(const char*);
 int print_nice_number(uintmax_t,
@@ -57,8 +57,7 @@ int print_nice_number(uintmax_t,
 			const uintmax_t *dividers);
 int print_nice_count(uintmax_t);
 int print_nice_ns(uintmax_t, bool use_unicode);
-void board_print(char[static BOARD_BUFFER_LENGTH],
-		const struct position*,
+void board_print(char[], const struct position*,
 		enum player turn,
 		bool use_unicode);
 

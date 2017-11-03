@@ -264,28 +264,28 @@ z_toggle_castle_king_side(uint64_t hash)
 }
 
 static inline void
-z2_toggle_castle_queen_side_opponent(uint64_t hash[2])
+z2_toggle_castle_queen_side_opponent(uint64_t hash[])
 {
 	hash[0] = z_toggle_castle_queen_side_opponent(hash[0]);
 	hash[1] = z_toggle_castle_queen_side(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_queen_side(uint64_t hash[2])
+z2_toggle_castle_queen_side(uint64_t hash[])
 {
 	hash[0] = z_toggle_castle_queen_side(hash[0]);
 	hash[1] = z_toggle_castle_queen_side_opponent(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_king_side_opponent(uint64_t hash[2])
+z2_toggle_castle_king_side_opponent(uint64_t hash[])
 {
 	hash[0] = z_toggle_castle_king_side_opponent(hash[0]);
 	hash[1] = z_toggle_castle_king_side(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_king_side(uint64_t hash[2])
+z2_toggle_castle_king_side(uint64_t hash[])
 {
 	hash[0] = z_toggle_castle_king_side(hash[0]);
 	hash[1] = z_toggle_castle_king_side_opponent(hash[1]);
@@ -300,7 +300,7 @@ prefetch_z2_xor_move(move m)
 }
 
 static inline void
-z2_xor_move(uint64_t hash[2], move m)
+z2_xor_move(uint64_t hash[], move m)
 {
 	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
 

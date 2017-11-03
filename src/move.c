@@ -136,8 +136,7 @@ print_fan_move(const struct position *pos, move m, char *str,
 }
 
 char*
-print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH],
-		enum player turn)
+print_coor_move(move m, char str[], enum player turn)
 {
 	str = print_index(str, mfrom(m), turn);
 	str = print_index(str, mto(m), turn);
@@ -149,7 +148,7 @@ print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH],
 
 char*
 print_move(const struct position *pos, move m,
-		char str[static MOVE_STR_BUFFER_LENGTH],
+		char str[],
 		enum move_notation_type t,
 		enum player turn)
 {

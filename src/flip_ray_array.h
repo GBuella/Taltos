@@ -33,7 +33,7 @@
 #ifdef TALTOS_CAN_USE_INTEL_AVX2
 
 static void
-flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
+flip_ray_array(uint64_t dst[], const uint64_t src[])
 {
 	const __m256i key = _mm256_setr_epi8( 7,  6,  5,  4,  3,  2,  1,  0,
 	                                     15, 14, 13, 12, 11, 10,  9,  8,
@@ -65,7 +65,7 @@ flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
 // XXX it actually is SSSE3
 
 static void
-flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
+flip_ray_array(uint64_t dst[], const uint64_t src[])
 {
 	int rs = 0;
 	int rd = 56;
@@ -86,7 +86,7 @@ flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
 #else
 
 static inline void
-flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
+flip_ray_array(uint64_t dst[], const uint64_t src[])
 {
 	int rs = 0;
 	int rd = 56;

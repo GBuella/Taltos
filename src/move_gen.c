@@ -351,8 +351,7 @@ gen_queen_moves(struct move_gen *mg)
 }
 
 static void
-init_data(struct move_gen *mg, const struct position *pos,
-	  move moves[static MOVE_ARRAY_LENGTH])
+init_data(struct move_gen *mg, const struct position *pos, move moves[])
 {
 	mg->pos = pos;
 	mg->moves = moves;
@@ -364,7 +363,7 @@ init_data(struct move_gen *mg, const struct position *pos,
 }
 
 unsigned
-gen_moves(const struct position *pos, move moves[static MOVE_ARRAY_LENGTH])
+gen_moves(const struct position *pos, move moves[])
 {
 	struct move_gen mg[1];
 
@@ -395,8 +394,7 @@ gen_moves(const struct position *pos, move moves[static MOVE_ARRAY_LENGTH])
 }
 
 unsigned
-gen_captures(const struct position *pos,
-		move moves[static MOVE_ARRAY_LENGTH])
+gen_captures(const struct position *pos, move moves[])
 {
 	assert(!is_in_check(pos));
 

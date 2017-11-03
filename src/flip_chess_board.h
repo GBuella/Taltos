@@ -66,8 +66,7 @@
  */
 
 static inline void
-flip_chess_board(unsigned char dst[restrict static 64],
-		const unsigned char src[restrict static 64])
+flip_chess_board(unsigned char dst[], const unsigned char src[])
 {
 	__m256i vector;
 	__m256i *restrict dst256 = (__m256i*)dst;
@@ -134,8 +133,7 @@ flip_chess_board(unsigned char dst[restrict static 64],
  */
 
 static inline void
-flip_chess_board(unsigned char dst[restrict static 64],
-		const unsigned char src[restrict static 64])
+flip_chess_board(unsigned char dst[], const unsigned char src[])
 {
 	__m256d vector;
 	double *restrict dst256_0 = (double*)dst;
@@ -159,8 +157,7 @@ flip_chess_board(unsigned char dst[restrict static 64],
  */
 
 static inline void
-flip_chess_board(unsigned char dst[restrict static 64],
-		const unsigned char src[restrict static 64])
+flip_chess_board(unsigned char dst[], const unsigned char src[])
 {
 	for (int i = 0; i < 64; i += 8)
 		memcpy(dst + (56 - i), src + i, 8);

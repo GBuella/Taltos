@@ -131,7 +131,7 @@ position_cr_opponent_queen_side(const struct position *pos)
 }
 
 void
-get_position_key(const struct position *pos, uint64_t key[static 2])
+get_position_key(const struct position *pos, uint64_t key[])
 {
 	key[0] = pos->zhash[0];
 	key[1] = pos->zhash[1];
@@ -452,7 +452,7 @@ generate_opponent_pawn_reach_maps(struct position *pos)
 static void setup_zhash(struct position*);
 
 // setup the board, and corresponding bitboards from scratch
-static int board_reset(struct position*, const char board[static 64]);
+static int board_reset(struct position*, const char board[]);
 
 // Check for too many pawns, pawns on wrong rank
 static bool pawns_valid(const struct position*);
@@ -475,8 +475,8 @@ static void accumulate_misc_patterns(struct position*, int player);
 
 int
 position_reset(struct position *pos,
-		const char board[static 64],
-		const bool castle_rights[static 4],
+		const char board[],
+		const bool castle_rights[],
 		int ep_index)
 {
 	struct position dummy;
@@ -538,8 +538,8 @@ position_allocate(void)
 }
 
 struct position*
-position_create(const char board[static 64],
-		const bool castle_rights[static 4],
+position_create(const char board[],
+		const bool castle_rights[],
 		int en_passant_index)
 {
 	struct position *pos = xaligned_alloc(pos_alignment, sizeof *pos);
@@ -729,7 +729,7 @@ accumulate_misc_patterns(struct position *pos, int player)
 }
 
 static int
-board_reset(struct position *pos, const char board[static 64])
+board_reset(struct position *pos, const char board[])
 {
 	for (int i = 0; i < 64; ++i) {
 		if (board[i] != 0) {

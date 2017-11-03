@@ -258,7 +258,7 @@ ht_prefetch(const struct hash_table *ht, uint64_t hash)
 #endif
 
 static bool
-hash_match(const struct slot *slot, const uint64_t hash[static 2])
+hash_match(const struct slot *slot, const uint64_t hash[])
 {
 	return ((slot->hash_key ^ hash[1]) & HASH_MASK) == 0;
 }
@@ -346,7 +346,7 @@ ht_lookup_deep(const struct hash_table *ht,
 
 static void
 overwrite_slot(volatile struct slot *dst,
-		const uint64_t hash[static 2],
+		const uint64_t hash[],
 		ht_entry entry)
 {
 	// todo:
@@ -359,7 +359,7 @@ overwrite_slot(volatile struct slot *dst,
 static void
 write_fresh_slot(struct hash_table *ht,
 		volatile struct bucket *bucket,
-		const uint64_t hash[static 2],
+		const uint64_t hash[],
 		ht_entry entry)
 {
 	unsigned index = DEEP_SLOT_COUNT;

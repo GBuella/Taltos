@@ -238,7 +238,7 @@ game_append(struct game *g, move m)
 }
 
 char*
-game_print_fen(const struct game *g, char str[static FEN_BUFFER_LENGTH])
+game_print_fen(const struct game *g, char str[])
 {
 	(void) position_print_fen_full(g->current->pos, str,
 	    g->current->ep_target_index,

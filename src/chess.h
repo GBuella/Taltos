@@ -451,13 +451,13 @@ bool position_cr_opponent_king_side(const struct position*);
 
 bool position_cr_opponent_queen_side(const struct position*);
 
-void get_position_key(const struct position*, uint64_t key[static 2]);
+void get_position_key(const struct position*, uint64_t key[]);
 
 int fen_read_move(const char *fen, const char*, move*);
 
 int read_move(const struct position*, const char*, move*, enum player);
 
-char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], enum player);
+char *print_coor_move(move, char[], enum player);
 
 char *print_san_move(const struct position *pos, move m, char *str,
 		     enum player turn);
@@ -467,17 +467,17 @@ char *print_fan_move(const struct position *pos, move m, char *str,
 
 char *print_move(const struct position*,
 		move,
-		char[static MOVE_STR_BUFFER_LENGTH],
+		char[],
 		enum move_notation_type,
 		enum player turn);
 
 char *position_print_fen(const struct position*,
-		char[static FEN_BUFFER_LENGTH],
+		char[],
 		int ep_index,
 		enum player turn);
 
 char *position_print_fen_full(const struct position*,
-		char[static FEN_BUFFER_LENGTH],
+		char[],
 		int ep_target,
 		unsigned full_move,
 		unsigned half_move,
@@ -494,10 +494,10 @@ const char *position_read_fen_full(struct position*,
 		enum player *turn);
 
 unsigned gen_moves(const struct position*,
-		move[static MOVE_ARRAY_LENGTH]);
+		move[]);
 
 unsigned gen_captures(const struct position*,
-		move[static MOVE_ARRAY_LENGTH]);
+		move[]);
 
 bool is_move_irreversible(const struct position*, move);
 
@@ -512,8 +512,8 @@ void position_make_move(struct position *restrict dst,
 
 struct position *position_allocate(void);
 
-struct position *position_create(const char board[static 64],
-		const bool castle_rights[static 4],
+struct position *position_create(const char board[],
+		const bool castle_rights[],
 		int en_passant_index);
 
 enum castle_right_indices {
@@ -528,8 +528,8 @@ bool position_has_en_passant_index(const struct position*);
 int position_get_en_passant_index(const struct position*);
 
 int position_reset(struct position*,
-		const char board[static 64],
-		const bool castle_rights[static 4],
+		const char board[],
+		const bool castle_rights[],
 		int en_passant_index);
 
 void position_destroy(struct position*);

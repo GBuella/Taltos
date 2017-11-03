@@ -1152,7 +1152,7 @@ negamax(struct node *node)
 
 
 static void
-setup_node_array(size_t count, struct node nodes[count],
+setup_node_array(size_t count, struct node nodes[],
 		struct search_description sd,
 		struct nodes_common_data *common,
 		const move *prev_pv)
