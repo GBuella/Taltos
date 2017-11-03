@@ -437,38 +437,27 @@ extern const char *start_position_fen;
 
 
 
-int position_square_at(const struct position*, int index)
-	attribute(nonnull);
+int position_square_at(const struct position*, int index);
 
-enum piece position_piece_at(const struct position*, int index)
-	attribute(nonnull);
+enum piece position_piece_at(const struct position*, int index);
 
-enum player position_player_at(const struct position*, int index)
-	attribute(nonnull);
+enum player position_player_at(const struct position*, int index);
 
-bool position_cr_king_side(const struct position*)
-	attribute(nonnull);
+bool position_cr_king_side(const struct position*);
 
-bool position_cr_queen_side(const struct position*)
-	attribute(nonnull);
+bool position_cr_queen_side(const struct position*);
 
-bool position_cr_opponent_king_side(const struct position*)
-	attribute(nonnull);
+bool position_cr_opponent_king_side(const struct position*);
 
-bool position_cr_opponent_queen_side(const struct position*)
-	attribute(nonnull);
+bool position_cr_opponent_queen_side(const struct position*);
 
-void get_position_key(const struct position*, uint64_t key[static 2])
-	attribute(nonnull);
+void get_position_key(const struct position*, uint64_t key[static 2]);
 
-int fen_read_move(const char *fen, const char*, move*)
-	attribute(nonnull(1, 2));
+int fen_read_move(const char *fen, const char*, move*);
 
-int read_move(const struct position*, const char*, move*, enum player)
-	attribute(nonnull);
+int read_move(const struct position*, const char*, move*, enum player);
 
-char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], enum player)
-	attribute(nonnull, returns_nonnull);
+char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], enum player);
 
 char *print_san_move(const struct position *pos, move m, char *str,
 		     enum player turn);
@@ -480,65 +469,52 @@ char *print_move(const struct position*,
 		move,
 		char[static MOVE_STR_BUFFER_LENGTH],
 		enum move_notation_type,
-		enum player turn)
-	attribute(nonnull, returns_nonnull);
+		enum player turn);
 
 char *position_print_fen(const struct position*,
 		char[static FEN_BUFFER_LENGTH],
 		int ep_index,
-		enum player turn)
-	attribute(nonnull, returns_nonnull);
+		enum player turn);
 
 char *position_print_fen_full(const struct position*,
 		char[static FEN_BUFFER_LENGTH],
 		int ep_target,
 		unsigned full_move,
 		unsigned half_move,
-		enum player turn)
-	attribute(nonnull, returns_nonnull);
+		enum player turn);
 
 const char *position_read_fen(struct position*, const char*,
-		int *ep_index, enum player*)
-	attribute(nonnull(2));
+		int *ep_index, enum player*);
 
 const char *position_read_fen_full(struct position*,
 		const char *buffer,
 		int *ep_target,
 		unsigned *full_move,
 		unsigned *half_move,
-		enum player *turn)
-	attribute(nonnull, warn_unused_result);
+		enum player *turn);
 
 unsigned gen_moves(const struct position*,
-		move[static MOVE_ARRAY_LENGTH])
-	attribute(nonnull);
+		move[static MOVE_ARRAY_LENGTH]);
 
 unsigned gen_captures(const struct position*,
-		move[static MOVE_ARRAY_LENGTH])
-	attribute(nonnull);
+		move[static MOVE_ARRAY_LENGTH]);
 
-bool is_move_irreversible(const struct position*, move)
-	attribute(nonnull);
+bool is_move_irreversible(const struct position*, move);
 
-struct position *position_dup(const struct position*)
-	attribute(nonnull, warn_unused_result, malloc);
+struct position *position_dup(const struct position*);
 
 void position_flip(struct position *restrict dst,
-		const struct position *restrict src)
-	attribute(nonnull);
+		const struct position *restrict src);
 
 void position_make_move(struct position *restrict dst,
 		const struct position *restrict src,
-		move)
-	attribute(nonnull);
+		move);
 
-struct position *position_allocate(void)
-	attribute(returns_nonnull, warn_unused_result, malloc);
+struct position *position_allocate(void);
 
 struct position *position_create(const char board[static 64],
 		const bool castle_rights[static 4],
-		int en_passant_index)
-	attribute(nonnull, warn_unused_result, malloc);
+		int en_passant_index);
 
 enum castle_right_indices {
 	cri_king_side,
@@ -547,33 +523,25 @@ enum castle_right_indices {
 	cri_opponent_queen_side,
 };
 
-bool position_has_en_passant_index(const struct position*)
-	attribute(nonnull);
+bool position_has_en_passant_index(const struct position*);
 
-int position_get_en_passant_index(const struct position*)
-	attribute(nonnull);
+int position_get_en_passant_index(const struct position*);
 
 int position_reset(struct position*,
 		const char board[static 64],
 		const bool castle_rights[static 4],
-		int en_passant_index)
-	attribute(nonnull(2, 3), warn_unused_result);
+		int en_passant_index);
 
 void position_destroy(struct position*);
 
-bool has_any_legal_move(const struct position*)
-	attribute(nonnull);
+bool has_any_legal_move(const struct position*);
 
-bool is_legal_move(const struct position*, move)
-	attribute(nonnull);
+bool is_legal_move(const struct position*, move);
 
-bool pos_is_check(const struct position*)
-	attribute(nonnull);
+bool pos_is_check(const struct position*);
 
-bool pos_has_insufficient_material(const struct position*)
-	attribute(nonnull);
+bool pos_has_insufficient_material(const struct position*);
 
-bool pos_equal(const struct position*, const struct position*)
-	attribute(nonnull);
+bool pos_equal(const struct position*, const struct position*);
 
 #endif /* TALTOS_CHESS_H */

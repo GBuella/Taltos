@@ -127,8 +127,7 @@ flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
 #else
 
 static inline void
-flip_2_bb_pairs(uint64_t *restrict dst attribute(align_value(32)),
-	const uint64_t *restrict src attribute(align_value(32)))
+flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
 {
 	dst[0] = bswap(src[1]);
 	dst[1] = bswap(src[0]);

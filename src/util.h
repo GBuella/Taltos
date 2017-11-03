@@ -35,14 +35,11 @@
 #include <time.h>
 #endif
 
-void *xmalloc(size_t)
-	attribute(warn_unused_result, malloc, alloc_size(1));
+void *xmalloc(size_t);
 
-void *xcalloc(size_t count, size_t size)
-	attribute(warn_unused_result, malloc, alloc_size(1, 2));
+void *xcalloc(size_t count, size_t size);
 
-void *xrealloc(void*, size_t)
-	attribute(warn_unused_result, alloc_size(2));
+void *xrealloc(void*, size_t);
 
 /*
  * aligned_alloc might fail ( return NULL )
@@ -52,15 +49,12 @@ void *xrealloc(void*, size_t)
 #ifndef TALTOS_CAN_USE_ISO_ALIGNAD_ALLOC
 // damn you, libc on my laptop in 2016
 // y no no have aligned_alloc from ISOC ??
-void *aligned_alloc(size_t alignment, size_t size)
-	attribute(warn_unused_result, malloc, alloc_size(2), alloc_align(1));
+void *aligned_alloc(size_t alignment, size_t size);
 #endif
 
-void *xaligned_alloc(size_t alignment, size_t size)
-	attribute(warn_unused_result, malloc, alloc_size(2), alloc_align(1));
+void *xaligned_alloc(size_t alignment, size_t size);
 
-void *xaligned_calloc(size_t alignment, size_t count, size_t size)
-	attribute(warn_unused_result, malloc, alloc_size(2, 3), alloc_align(1));
+void *xaligned_calloc(size_t alignment, size_t count, size_t size);
 
 void xaligned_free(void*);
 
@@ -77,8 +71,7 @@ taltos_systime xnow(void);
 uintmax_t xseconds_since(taltos_systime);
 
 char *xstrtok_r(char *restrict str, const char *restrict sep,
-		char **restrict lasts)
-	attribute(nonnull(2, 3));
+		char **restrict lasts);
 
 void util_init(void);
 

@@ -181,7 +181,7 @@ position_print_fen_full(const struct position *pos,
 	return str;
 }
 
-static attribute(nonnull) const char*
+static const char*
 read_pos_rank(char board[static 64], int rank, const char *str, jmp_buf jb)
 {
 	int file = file_a;
@@ -211,7 +211,7 @@ read_pos_rank(char board[static 64], int rank, const char *str, jmp_buf jb)
 	return str;
 }
 
-static attribute(nonnull) const char*
+static const char*
 FEN_parse_board(char board[static 64], const char *str, jmp_buf jb)
 {
 	int rank = rank_7;
@@ -227,7 +227,7 @@ FEN_parse_board(char board[static 64], const char *str, jmp_buf jb)
 	return str;
 }
 
-static attribute(nonnull) const char*
+static const char*
 FEN_parse_side_to_move(enum player *turn, const char *str, jmp_buf jb)
 {
 	if (strspn(str, "wWbB") != 1 || !isspace((unsigned char)str[1])) {
@@ -237,7 +237,7 @@ FEN_parse_side_to_move(enum player *turn, const char *str, jmp_buf jb)
 	return ++str;
 }
 
-static attribute(nonnull) const char*
+static const char*
 FEN_parse_castle_rights(bool rights[static 4], const char *str, jmp_buf jb)
 {
 	rights[0] = rights[1] = rights[2] = rights[3] = false;
@@ -281,7 +281,7 @@ is_valid_ep_pos(const char c, enum player turn)
 	    || (c == '3' && turn == black));
 }
 
-static attribute(nonnull, returns_nonnull) const char*
+static const char*
 FEN_parse_ep_target(int *ep_pos, const char *str, enum player turn, jmp_buf jb)
 {
 	if (*str == '-') {
@@ -308,7 +308,7 @@ skip_space(const char *str)
 	return str;
 }
 
-static attribute(nonnull, returns_nonnull) const char*
+static const char*
 read_move_counter(unsigned *n, const char *str, jmp_buf jb)
 {
 	char *endptr;
@@ -383,7 +383,7 @@ flip_castle_rights(bool rights[static 4])
 	rights[cri_opponent_queen_side] = t;
 }
 
-static attribute(nonnull(2)) const char*
+static const char*
 read_fen(struct position *pos,
 	const char *volatile str,
 	int *ep_index,

@@ -86,8 +86,7 @@ flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
 #else
 
 static inline void
-flip_ray_array(uint64_t dst[restrict 64] attribute(align_value(pos_alignment)),
-		const uint64_t src[restrict 64] attribute(align_value(pos_alignment)))
+flip_ray_array(uint64_t dst[restrict 64], const uint64_t src[restrict 64])
 {
 	int rs = 0;
 	int rd = 56;

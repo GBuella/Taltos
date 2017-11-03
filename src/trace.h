@@ -31,13 +31,14 @@
 
 #include <stdio.h>
 
-void trace_init(char **argv)
-	attribute(nonnull);
+void trace_init(char **argv);
 
-void trace(const char *str)
-	attribute(nonnull);
+void trace(const char *str);
 
 void tracef(const char *format, ...)
-	attribute(format(printf, 1, 2));
+#ifdef TALTOS_CAN_USE_GNU_ATTRIBUTE_PRINTF
+	__attribute__((format(printf, 1, 2)))
+#endif
+;
 
 #endif

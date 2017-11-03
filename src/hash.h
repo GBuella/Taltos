@@ -229,8 +229,7 @@ z_toggle_sq(uint64_t hash, int i, enum piece p, enum player pl)
 }
 
 static inline void
-z2_toggle_sq(uint64_t attribute(align_value(16)) hash[2],
-		int i, enum piece p, enum player pl)
+z2_toggle_sq(uint64_t hash[2], int i, enum piece p, enum player pl)
 {
 	invariant(ivalid(i));
 
@@ -265,29 +264,28 @@ z_toggle_castle_king_side(uint64_t hash)
 }
 
 static inline void
-z2_toggle_castle_queen_side_opponent(
-	uint64_t attribute(align_value(16)) hash[2])
+z2_toggle_castle_queen_side_opponent(uint64_t hash[2])
 {
 	hash[0] = z_toggle_castle_queen_side_opponent(hash[0]);
 	hash[1] = z_toggle_castle_queen_side(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_queen_side(uint64_t attribute(align_value(16)) hash[2])
+z2_toggle_castle_queen_side(uint64_t hash[2])
 {
 	hash[0] = z_toggle_castle_queen_side(hash[0]);
 	hash[1] = z_toggle_castle_queen_side_opponent(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_king_side_opponent(uint64_t attribute(align_value(16)) hash[2])
+z2_toggle_castle_king_side_opponent(uint64_t hash[2])
 {
 	hash[0] = z_toggle_castle_king_side_opponent(hash[0]);
 	hash[1] = z_toggle_castle_king_side(hash[1]);
 }
 
 static inline void
-z2_toggle_castle_king_side(uint64_t attribute(align_value(16)) hash[2])
+z2_toggle_castle_king_side(uint64_t hash[2])
 {
 	hash[0] = z_toggle_castle_king_side(hash[0]);
 	hash[1] = z_toggle_castle_king_side_opponent(hash[1]);
@@ -302,7 +300,7 @@ prefetch_z2_xor_move(move m)
 }
 
 static inline void
-z2_xor_move(uint64_t attribute(align_value(16)) hash[2], move m)
+z2_xor_move(uint64_t hash[2], move m)
 {
 	extern uint64_t alignas(16) zhash_xor_table[64 * 64 * 8 * 8 * 8][2];
 
@@ -322,32 +320,25 @@ struct hash_table *ht_resize_mb(struct hash_table*, unsigned megabytes);
 
 void ht_destroy(struct hash_table*);
 
-ht_entry ht_lookup_fresh(const struct hash_table*, const struct position*)
-	attribute(nonnull);
+ht_entry ht_lookup_fresh(const struct hash_table*, const struct position*);
 
 ht_entry ht_lookup_deep(const struct hash_table*, const struct position*,
-			int depth, int beta)
-	attribute(nonnull);
+			int depth, int beta);
 
 #ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
-void ht_prefetch(const struct hash_table*, uint64_t hash_key)
-	attribute(nonnull);
+void ht_prefetch(const struct hash_table*, uint64_t hash_key);
 #else
 #define ht_prefetch(...)
 #endif
 
-size_t ht_slot_count(const struct hash_table*)
-	attribute(nonnull);
+size_t ht_slot_count(const struct hash_table*);
 
-void ht_pos_insert(struct hash_table*, const struct position*, ht_entry)
-	attribute(nonnull);
+void ht_pos_insert(struct hash_table*, const struct position*, ht_entry);
 
 void ht_extract_pv(const struct hash_table*, const struct position*,
-			int depth, move pv[], int value)
-	attribute(nonnull);
+			int depth, move pv[], int value);
 
-size_t ht_size(const struct hash_table*)
-	attribute(nonnull);
+size_t ht_size(const struct hash_table*);
 
 bool ht_is_mb_size_valid(unsigned megabytes);
 
@@ -355,17 +346,13 @@ unsigned ht_min_size_mb(void);
 
 unsigned ht_max_size_mb(void);
 
-void ht_clear(struct hash_table*)
-	attribute(nonnull);
+void ht_clear(struct hash_table*);
 
-void ht_swap(struct hash_table*)
-	attribute(nonnull);
+void ht_swap(struct hash_table*);
 
-size_t ht_usage(const struct hash_table*)
-	attribute(nonnull);
+size_t ht_usage(const struct hash_table*);
 
-uint64_t position_polyglot_key(const struct position*, enum player turn)
-	attribute(nonnull);
+uint64_t position_polyglot_key(const struct position*, enum player turn);
 
 void init_zhash_table(void);
 

@@ -66,12 +66,6 @@
 
 #endif
 
-#ifdef TALTOS_CAN_USE_GNU_ATTRIBUTE_SYNTAX
-#define attribute(...) __attribute__((__VA_ARGS__))
-#else
-#define attribute(...)
-#endif
-
 #ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 #define prefetch __builtin_prefetch
 #else

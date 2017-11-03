@@ -63,7 +63,7 @@ extern const int piece_value[14];
 
 struct position;
 
-int eval(const struct position*) attribute(nonnull);
+int eval(const struct position*);
 
 struct eval_factors {
 	int material;
@@ -78,10 +78,8 @@ struct eval_factors {
 	int threats;
 };
 
-int eval_threats(const struct position *pos)
-	attribute(nonnull);
+int eval_threats(const struct position *pos);
 
-struct eval_factors compute_eval_factors(const struct position*)
-	attribute(nonnull);
+struct eval_factors compute_eval_factors(const struct position*);
 
 #endif

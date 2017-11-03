@@ -92,11 +92,9 @@ struct move_order {
 };
 
 void move_order_setup(struct move_order*, const struct position*,
-		    bool is_qsearch, int history_side)
-	attribute(nonnull);
+		    bool is_qsearch, int history_side);
 
-void move_order_pick_next(struct move_order*)
-	attribute(nonnull);
+void move_order_pick_next(struct move_order*);
 
 static inline int64_t
 mo_current_entry(const struct move_order *mo)
@@ -117,14 +115,11 @@ mo_current_move_value(const struct move_order *mo)
 	return mo_entry_value(mo_current_entry(mo));
 }
 
-int move_order_add_weak_hint(struct move_order*, move hint_move)
-	attribute(nonnull);
+int move_order_add_weak_hint(struct move_order*, move hint_move);
 
-int move_order_add_hint(struct move_order*, move hint_move, int16_t priority)
-	attribute(nonnull);
+int move_order_add_hint(struct move_order*, move hint_move, int16_t priority);
 
-void move_order_add_killer(struct move_order*, move killer_move)
-	attribute(nonnull);
+void move_order_add_killer(struct move_order*, move killer_move);
 
 static inline unsigned
 move_order_remaining(const struct move_order *mo)
@@ -138,8 +133,7 @@ move_order_done(const struct move_order *mo)
 	return mo->picked_count == mo->count;
 }
 
-void move_order_adjust_history_on_cutoff(const struct move_order*)
-	attribute(nonnull);
+void move_order_adjust_history_on_cutoff(const struct move_order*);
 
 void move_order_enable_history(void);
 void move_order_disable_history(void);

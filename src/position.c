@@ -449,7 +449,7 @@ generate_opponent_pawn_reach_maps(struct position *pos)
  */
 
 // setup the Zobrist hash key from scratch
-static attribute(nonnull) void setup_zhash(struct position*);
+static void setup_zhash(struct position*);
 
 // setup the board, and corresponding bitboards from scratch
 static int board_reset(struct position*, const char board[static 64]);
@@ -567,7 +567,7 @@ position_destroy(struct position *p)
 	xaligned_free(p);
 }
 
-static attribute(nonnull) void
+static void
 setup_zhash(struct position *pos)
 {
 	pos->zhash[0] = 0;
@@ -829,10 +829,8 @@ static void
 flip_tail(struct position *restrict dst,
 	const struct position *restrict src)
 {
-	const __m128i attribute(align_value(16)) *restrict src16
-	    = (const __m128i*)(src->zhash);
-	__m128i attribute(align_value(16)) *restrict dst16
-	    = (__m128i*)(dst->zhash);
+	const __m128i *restrict src16 = (const __m128i*)(src->zhash);
+	__m128i *restrict dst16 = (__m128i*)(dst->zhash);
 
 	dst16[0] = _mm_shuffle_epi32(src16[0], (1 << 6) | (3 << 2) | 2);
 	dst16[1] = _mm_shuffle_epi32(src16[1], (1 << 6) | (3 << 2) | 2);

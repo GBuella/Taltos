@@ -455,7 +455,6 @@ has_insufficient_material(const struct position *p)
 
 void make_move(struct position *restrict dst,
 		const struct position *restrict src,
-		move)
-	attribute(nonnull);
+		move);
 
 #endif
