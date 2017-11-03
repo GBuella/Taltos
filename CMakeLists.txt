@@ -65,10 +65,8 @@ if(AUTO_CTAGS)
 endif()
 
 set(TALTOS_SOURCES
-	src/book.c
 	src/eval.c
 	src/fen.c
-	src/fen_book.c
 	src/game.c
 	src/hash.c
 	src/move.c
@@ -76,7 +74,6 @@ set(TALTOS_SOURCES
 	src/move_gen.c
 	src/move_order.c
 	src/perft.c
-	src/polyglot_book.c
 	src/position.c
 	src/str_util.c
 	src/util.c

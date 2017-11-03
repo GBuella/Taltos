@@ -64,9 +64,6 @@ void *xaligned_calloc(size_t alignment, size_t count, size_t size)
 
 void xaligned_free(void*);
 
-int bin_file_size(FILE*, size_t*)
-	attribute(warn_unused_result, nonnull(2));
-
 #if defined(TALTOS_CAN_USE_CLOCK_GETTIME)
 typedef struct timespec taltos_systime;
 #elif defined(TALTOS_CAN_USE_MACH_ABS_TIME) || \
@@ -78,7 +75,6 @@ typedef uint64_t taltos_systime;
 
 taltos_systime xnow(void);
 uintmax_t xseconds_since(taltos_systime);
-uintmax_t get_big_endian_num(size_t size, const unsigned char[size]);
 
 char *xstrtok_r(char *restrict str, const char *restrict sep,
 		char **restrict lasts)

@@ -59,7 +59,6 @@ include(perftsuite/CMakeLists_move_order.txt)
 include(perftsuite/CMakeLists_eval_symmetry.txt)
 include(perftsuite/CMakeLists_memcmp.txt)
 include(positions/CMakeLists.txt)
-add_subdirectory(books)
 
 set_property(TEST perft_000 PROPERTY LABELS long)
 set_property(TEST perft_001 PROPERTY LABELS long)

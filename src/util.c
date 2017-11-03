@@ -26,18 +26,11 @@
 
 #include "taltos_config.h"
 
-#if defined(TALTOS_CAN_USE_CLOCK_GETTIME) || \
-	defined(TALTOS_CAN_USE_POSIX_FSTAT)
+#if defined(TALTOS_CAN_USE_CLOCK_GETTIME)
 #define _POSIX_C_SOURCE 199309L
 #endif
 
-#ifdef TALTOS_CAN_USE_POSIX_FSTAT
-#include <stdio.h>
-#include <sys/stat.h>
-#endif
-
-#if defined(TALTOS_CAN_USE_W_FILELENGTHI64) || \
-	defined(TALTOS_CAN_USE_W_PERFCOUNTER)
+#if defined(TALTOS_CAN_USE_W_PERFCOUNTER)
 #include <Windows.h>
 #ifdef TALTOS_CAN_USE_W_PERFCOUNTER
 #include <io.h>
@@ -140,33 +133,6 @@ xaligned_calloc(size_t alignment, size_t count, size_t size)
 	return address;
 }
 
-/*CSTYLED*/
-// https://www.securecoding.cert.org/confluence/display/c/FIO19-C.+Do+not+use+fseek%28%29+and+ftell%28%29+to+compute+the+size+of+a+regular+file
-/*
- * "Setting the file position indicator to end-of-file, as
- * with fseek(file, 0, SEEK_END), has undefined behavior for a binary stream"
- *                                          ISO-9899-2011 7.21.3
- */
-int
-bin_file_size(FILE *file, size_t *size)
-{
-#ifdef TALTOS_CAN_USE_W_FILELENGTHI64
-
-	*size = _filelengthi64(_fileno(file));
-	return 0;
-
-#elif defined(TALTOS_CAN_USE_POSIX_FSTAT)
-	struct stat stat;
-	if (fstat(fileno(file), &stat) != 0) {
-		return -1;
-	}
-	*size = stat.st_size;
-	return 0;
-#else
-#error
-#endif
-}
-
 taltos_systime
 xnow(void)
 {
@@ -237,19 +203,6 @@ xseconds_since(taltos_systime some_time_ago)
 #else
 #error unable to use monotonic clock
 #endif
-}
-
-uintmax_t
-get_big_endian_num(size_t size, const unsigned char str[size])
-{
-	uintmax_t value = 0;
-
-	while (size > 0) {
-		value = (value << 8) + *str;
-		++str;
-		--size;
-	}
-	return value;
 }
 
 /*CSTYLED*/

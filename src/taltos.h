@@ -33,7 +33,6 @@
 
 #include "chess.h"
 #include "game.h"
-#include "book.h"
 
 struct search_settings {
 	bool use_LMR; // Late Move Reductions
@@ -64,8 +63,6 @@ struct taltos_conf {
 	bool timing;
 	taltos_systime start_time;
 	unsigned hash_table_size_mb;
-	char *book_path;
-	enum book_type book_type;
 	bool use_unicode;
 	struct search_settings search;
 	const char *display_name;
@@ -74,6 +71,6 @@ struct taltos_conf {
 
 const char *author_name;
 
-void loop_cli(struct taltos_conf*, struct book*);
+void loop_cli(struct taltos_conf*);
 
 #endif
