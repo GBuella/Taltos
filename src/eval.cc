@@ -103,7 +103,7 @@ eval_basic_mobility(const struct position *pos)
 	value -= popcnt(pos->attack[opponent_queen]) / 2;
 
 	if (non_pawn_material(pos) > rook_value * 3) {
-		uint64_t other_side = RANK_6 | RANK_7 | RANK_8;
+		bitboard other_side = bb_rank_6 | bb_rank_7 | bb_rank_8;
 		value += 6 * popcnt(pos->attack[pawn] & other_side);
 		value += 3 * popcnt(pos->attack[bishop] & other_side);
 		value += 3 * popcnt(pos->attack[knight] & other_side);
@@ -111,21 +111,21 @@ eval_basic_mobility(const struct position *pos)
 	}
 
 	if (opponent_non_pawn_material(pos) > rook_value * 3) {
-		uint64_t other_side = RANK_3 | RANK_2 | RANK_1;
+		bitboard other_side = bb_rank_3 | bb_rank_2 | bb_rank_1;
 		value -= 6 * popcnt(pos->attack[opponent_pawn] & other_side);
 		value -= 3 * popcnt(pos->attack[opponent_bishop] & other_side);
 		value -= 3 * popcnt(pos->attack[opponent_knight] & other_side);
 		value -= 3 * popcnt(pos->attack[opponent_rook] & other_side);
 	}
 
-	uint64_t free_sq = free_squares(pos);
+	bitboard free_sq = free_squares(pos);
 
 	value += popcnt(free_sq);
 	value += popcnt(pos->attack[bishop] & free_sq);
 	value += popcnt(pos->attack[knight] & free_sq);
 	value += popcnt(pos->attack[rook] & free_sq);
 
-	free_sq &= CENTER4_SQ;
+	free_sq &= center4;
 	value += popcnt(free_sq);
 	value += 4 * popcnt(pos->attack[bishop] & free_sq);
 	value += 4 * popcnt(pos->attack[knight] & free_sq);
@@ -137,7 +137,7 @@ eval_basic_mobility(const struct position *pos)
 	value -= popcnt(pos->attack[opponent_knight] & free_sq);
 	value -= popcnt(pos->attack[opponent_rook] & free_sq);
 
-	free_sq &= CENTER4_SQ;
+	free_sq &= center4;
 	value -= popcnt(free_sq);
 	value -= 4 * popcnt(pos->attack[opponent_bishop] & free_sq);
 	value -= 4 * popcnt(pos->attack[opponent_knight] & free_sq);
@@ -146,10 +146,10 @@ eval_basic_mobility(const struct position *pos)
 }
 
 static int
-king_safety_side(uint64_t king_map, uint64_t pawns, uint64_t opp_pawns,
-		uint64_t half_open_files,
-		uint64_t rooks, uint64_t king_reach,
-		uint64_t opp_attacks, uint64_t opp_sattacks)
+king_safety_side(bitboard king_map, bitboard pawns, bitboard opp_pawns,
+		bitboard half_open_files,
+		bitboard rooks, bitboard king_reach,
+		bitboard opp_attacks, bitboard opp_sattacks)
 {
 	int value = 0;
 
@@ -157,15 +157,13 @@ king_safety_side(uint64_t king_map, uint64_t pawns, uint64_t opp_pawns,
 	 * Bonus for castled king to encourage castling,
 	 * or at least not losing castling rights.
 	 */
-	if (is_nonempty(king_map & (SQ_G1|SQ_H1))
-	    && is_empty(rooks & SQ_H1))
+	if (king_map.is_any_set(g1, h1) and not rooks.is_set(h1))
 		value += castled_king_value;
-	else if (is_nonempty(king_map & (SQ_A1|SQ_C1|SQ_B1))
-	    && is_empty(rooks & SQ_A1))
+	if (king_map.is_any_set(a1, b1, c1) and not rooks.is_set(a1))
 		value += castled_king_value;
 
 	/* Count pawns around the king */
-	uint64_t p = king_reach & pawns;
+	bitboard p = king_reach & pawns;
 	value += (kings_pawn_value / 2) * popcnt(p & ~opp_attacks);
 
 	p = (king_reach | north_of(king_reach)) & pawn_attacks_player(pawns);
@@ -179,9 +177,9 @@ king_safety_side(uint64_t king_map, uint64_t pawns, uint64_t opp_pawns,
 	    popcnt(king_reach & opp_sattacks);
 
 	/* shield - up to three squares in front of the king */
-	uint64_t shield = north_of(king_map)
-	    | north_of(west_of(king_map & ~FILE_H))
-	    | north_of(east_of(king_map & ~FILE_A));
+	bitboard shield = north_of(king_map)
+	    | north_of(west_of(king_map & ~bb_file_h))
+	    | north_of(east_of(king_map & ~bb_file_a));
 
 	// Penalty for not having any pawn on a file around the king
 	value += king_open_file_value * popcnt(shield & half_open_files);
@@ -191,11 +189,11 @@ king_safety_side(uint64_t king_map, uint64_t pawns, uint64_t opp_pawns,
 		value += king_open_file_value;
 
 	// Penalty for opponent pawns advancing towards the king
-	uint64_t storm = kogge_stone_north(shield) & opp_pawns;
-	storm &= RANK_2 | RANK_3 | RANK_4 | RANK_5;
+	bitboard storm = filled_north(shield) & opp_pawns;
+	storm &= bb_rank_2 | bb_rank_3 | bb_rank_4 | bb_rank_5;
 	value += king_pawn_storm_value * popcnt(storm);
-	value += king_pawn_storm_value * popcnt(storm & ~RANK_5);
-	value += king_pawn_storm_value * popcnt(storm & opp_sattacks & ~RANK_5);
+	value += king_pawn_storm_value * popcnt(storm & ~bb_rank_5);
+	value += king_pawn_storm_value * popcnt(storm & opp_sattacks & ~bb_rank_5);
 	value += king_pawn_storm_value * popcnt(storm & north_of(shield));
 
 	return value;
@@ -204,7 +202,7 @@ king_safety_side(uint64_t king_map, uint64_t pawns, uint64_t opp_pawns,
 static int
 king_safety_wrapper(const struct position *pos)
 {
-	if (is_empty(pos->map[king] & (RANK_1|RANK_2)))
+	if (is_empty(pos->map[king] & (bb_rank_1 | bb_rank_2)))
 		return -50;
 
 	return king_safety_side(pos->map[king],
@@ -220,17 +218,17 @@ king_safety_wrapper(const struct position *pos)
 static int
 opponent_king_safety_wrapper(const struct position *pos)
 {
-	if (is_empty(pos->map[opponent_king] & (RANK_8|RANK_7)))
+	if (is_empty(pos->map[opponent_king] & (bb_rank_8 | bb_rank_7)))
 		return -50;
 
-	return king_safety_side(bswap(pos->map[opponent_king]),
-	    bswap(pos->map[opponent_pawn]),
-	    bswap(pos->map[pawn]),
-	    bswap(pos->half_open_files[1]),
-	    bswap(pos->map[opponent_rook]),
-	    bswap(pos->attack[opponent_king]),
-	    bswap(pos->attack[0]),
-	    bswap(pos->sliding_attacks[0]));
+	return king_safety_side(pos->map[opponent_king].flipped(),
+	    pos->map[opponent_pawn].flipped(),
+	    pos->map[pawn].flipped(),
+	    pos->half_open_files[1].flipped(),
+	    pos->map[opponent_rook].flipped(),
+	    pos->attack[opponent_king].flipped(),
+	    pos->attack[0].flipped(),
+	    pos->sliding_attacks[0].flipped());
 }
 
 static int
@@ -304,9 +302,9 @@ eval_rook_placement(const struct position *pos)
 }
 
 static int
-filecnt(uint64_t bitboard)
+filecnt(bitboard map)
 {
-	return popcnt(kogge_stone_north(bitboard) & RANK_8);
+	return popcnt(filled_north(map) & bb_rank_8);
 }
 
 static int
@@ -342,9 +340,9 @@ eval_knight_placement(const struct position *pos)
 	    * popcnt(opponent_knight_reach_outposts(pos));
 
 	value += knight_on_edge_value
-	    * popcnt(pos->map[knight] & EDGES);
+	    * popcnt(pos->map[knight] & edges);
 	value -= knight_on_edge_value
-	    * popcnt(pos->map[opponent_knight] & EDGES);
+	    * popcnt(pos->map[opponent_knight] & edges);
 
 	if (knight_cornered_a8(pos))
 		value += knight_cornered_value;
@@ -422,23 +420,23 @@ static int
 eval_passed_pawns(const struct position *pos)
 {
 	int value = 0;
-	uint64_t pawns = passed_pawns(pos);
-	uint64_t opp_pawns = opponent_passed_pawns(pos);
+	bitboard pawns = passed_pawns(pos);
+	bitboard opp_pawns = opponent_passed_pawns(pos);
 
 	value += passed_pawn_value * popcnt(pawns);
 	value -= passed_pawn_value * popcnt(opp_pawns);
-	value += (passed_pawn_value / 2) * popcnt(pawns & RANK_6);
-	value -= (passed_pawn_value / 2)* popcnt(opp_pawns & RANK_3);
-	value += passed_pawn_value * popcnt(pawns & RANK_7);
-	value -= passed_pawn_value * popcnt(opp_pawns & RANK_2);
+	value += (passed_pawn_value / 2) * popcnt(pawns & bb_rank_6);
+	value -= (passed_pawn_value / 2)* popcnt(opp_pawns & bb_rank_3);
+	value += passed_pawn_value * popcnt(pawns & bb_rank_7);
+	value -= passed_pawn_value * popcnt(opp_pawns & bb_rank_2);
 
 	pawns &= pos->attack[pawn];
 	opp_pawns &= pos->attack[opponent_pawn];
 
-	value += (passed_pawn_value / 3) * popcnt(pawns & RANK_6);
-	value -= (passed_pawn_value / 3) * popcnt(opp_pawns & RANK_3);
-	value += (passed_pawn_value / 2) * popcnt(pawns & RANK_7);
-	value -= (passed_pawn_value / 2) * popcnt(opp_pawns & RANK_2);
+	value += (passed_pawn_value / 3) * popcnt(pawns & bb_rank_6);
+	value -= (passed_pawn_value / 3) * popcnt(opp_pawns & bb_rank_3);
+	value += (passed_pawn_value / 2) * popcnt(pawns & bb_rank_7);
+	value -= (passed_pawn_value / 2) * popcnt(opp_pawns & bb_rank_2);
 
 	return value;
 }
@@ -448,8 +446,8 @@ eval_threats(const struct position *pos)
 {
 	int value = 0;
 
-	uint64_t attacks = pos->attack[pawn];
-	uint64_t victims = pos->map[1] & ~pos->map[opponent_pawn];
+	bitboard attacks = pos->attack[pawn];
+	bitboard victims = pos->map[1] & ~pos->map[opponent_pawn];
 	value += threat_value * popcnt(attacks & victims);
 	attacks |= pos->attack[knight] & pos->attack[bishop];
 	victims = pos->map[opponent_rook] | pos->map[opponent_queen];

@@ -26,7 +26,6 @@
 
 #include "tests.h"
 
-#include "constants.h"
 #include "hash.h"
 #include "game.h"
 

@@ -44,23 +44,26 @@ main(int argc, char **argv)
 			fprintf(stderr, "Invalid number %s\n", *argv);
 			return EXIT_FAILURE;
 		}
+		bitboard board{n};
+		bitboard flipped_board = board;
+		flipped_board.flip();
 
 		printf("hex: 0x%016" PRIX64 "\n", n);
 		printf("dec: %" PRIu64 "\n", n);
-		uint64_t swapped = bswap(n);
+
 		puts("             flipped");
 		puts("  ABCDEFGH   ABCDEFGH");
 		for (int r = 0; r < 8; ++r) {
 			printf("%d ", 8 - r);
 			for (int f = 7; f >= 0; --f) {
-				if (is_nonempty(n & bit64(r * 8 + f)))
+				if (board.is_set(r * 8 + f))
 					putchar('1');
 				else
 					putchar('.');
 			}
 			printf(" %d ", 8 - r);
 			for (int f = 7; f >= 0; --f) {
-				if (is_nonempty(swapped & bit64(r * 8 + f)))
+				if (flipped_board.is_set(r * 8 + f))
 					putchar('1');
 				else
 					putchar('.');

@@ -30,7 +30,6 @@
 
 #include "macros.h"
 #include "bitboard.h"
-#include "constants.h"
 #include "chess.h"
 #include "position.h"
 #include "str_util.h"
@@ -43,14 +42,14 @@ print_san_move_from(const struct position *pos, move m,
 			char *str, enum player turn)
 {
 	move moves[MOVE_ARRAY_LENGTH];
-	uint64_t ambig_pieces = UINT64_C(0);
+	bitboard ambig_pieces = empty;
 	int p = pos_piece_at(pos, mfrom(m));
 
 	(void) gen_moves(pos, moves);
 	for (move *im = moves; *im != 0; ++im) {
 		if ((mfrom(*im) != mfrom(m)) && (mto(*im) == mto(m))
 		    && (pos_piece_at(pos, mfrom(*im)) == p))
-			ambig_pieces |= mfrom64(*im);
+			ambig_pieces |= bb(mfrom(*im));
 	}
 	if ((p == pawn) && is_capture(m)) {
 		*(str++) = index_to_file_ch(mfrom(m));

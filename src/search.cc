@@ -87,9 +87,9 @@ struct node {
 	int static_value;
 	bool static_value_computed;
 
-	uint64_t opp_king_sliding_reach;
-	uint64_t opp_king_knight_reach;
-	uint64_t opp_king_pawn_reach;
+	bitboard opp_king_sliding_reach;
+	bitboard opp_king_knight_reach;
+	bitboard opp_king_pawn_reach;
 	bool king_reach_maps_computed;
 
 	enum player debug_player_to_move;
@@ -455,8 +455,8 @@ opponent_has_positive_capture(const struct node *node)
 {
 	const struct position *pos = node->pos;
 
-	uint64_t attacks = pos->attack[opponent_pawn];
-	uint64_t victims = pos->map[0] & ~pos->map[pawn];
+	bitboard attacks = pos->attack[opponent_pawn];
+	bitboard victims = pos->map[0] & ~pos->map[pawn];
 
 	if (is_nonempty(attacks & victims))
 		return true;
@@ -820,12 +820,12 @@ setup_bounds(struct node *node)
 
 	// if a side has only a king left, the best value it can get is zero
 	if (node->root_distance > 0) {
-		if (is_singular(node->pos->map[1]))
+		if (node->pos->map[1].is_singular())
 			node->lower_bound = max(0, node->lower_bound);
 
 		// no need to use "min(0, node->upper_bound)",
 		// upper_bound is not affected before this
-		if (is_singular(node->pos->map[0]))
+		if (node->pos->map[0].is_singular())
 			node->upper_bound = 0;
 	}
 

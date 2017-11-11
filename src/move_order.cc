@@ -30,7 +30,6 @@
 #include "search.h"
 #include "eval.h"
 #include "move_order.h"
-#include "constants.h"
 
 namespace taltos
 {
@@ -41,7 +40,7 @@ create_entry(move move, int16_t value, bool is_check)
 	int64_t entry = move;
 	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
 	if (is_check)
-		entry |= bit64(mo_entry_check_flag_bit);
+		entry |= UINT64_C(1) << mo_entry_check_flag_bit;
 
 	return entry;
 }
@@ -50,7 +49,7 @@ static int64_t
 create_hint_entry(move move, int16_t value, bool is_check)
 {
 	int64_t entry = create_entry(move, value, is_check);
-	entry |= bit64(mo_entry_hint_flag_bit);
+	entry |= UINT64_C(1) << mo_entry_hint_flag_bit;
 
 	return entry;
 }
@@ -58,7 +57,7 @@ create_hint_entry(move move, int16_t value, bool is_check)
 static int64_t
 reset_entry_value(int64_t entry, int16_t value)
 {
-	entry &= (bit64(64 - mo_entry_value_bits) - 1);
+	entry &= (INT64_C(1) << (64 - mo_entry_value_bits)) - 1;
 	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
 	return entry;
 }
@@ -212,14 +211,14 @@ is_strong_capture(const struct position *pos, move m)
 		 * next move (when the pawns recaptures), and enlarge
 		 * the searchtree, instead of shrinking it.
 		 */
-		if (is_nonempty(mto64(m) & pos->attack[opponent_pawn]))
+		if (pos->attack[opponent_pawn].is_set(mto(m)))
 			return false;
 	}
 
 	if (mcapturedp(m) == rook)
 		return true;
 
-	if (is_empty(mto64(m) & pos->attack[1]))
+	if (not pos->attack[1].is_set(mto(m)))
 		return true;
 
 	if (piece_value[mcapturedp(m)] >= piece_value[mresultp(m)])
@@ -236,7 +235,7 @@ add_strong_capture_entries(struct move_order *mo)
 		if (is_strong_capture(mo->pos, m)) {
 			remove_raw_move(mo, i);
 			int value = 1000 + piece_value[mcapturedp(m)];
-			if (is_nonempty(mto64(m) & mo->pos->attack[1]))
+			if (mo->pos->attack[1].is_set(mto(m)))
 				value -= piece_value[mresultp(m)] / 20;
 			insert(mo, create_entry(m, value, false));
 		}
@@ -341,7 +340,7 @@ move_order_adjust_history_on_cutoff(const struct move_order *mo)
 		if (piece_value[mcapturedp(best)] >=
 		    piece_value[mresultp(best)])
 			return;
-		if (is_empty(mo->pos->attack[1] & mto64(best)))
+		if (not mo->pos->attack[1].is_set(mto(best)))
 			return;
 	}
 

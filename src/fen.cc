@@ -34,7 +34,6 @@
 #include <setjmp.h>
 
 #include "chess.h"
-#include "constants.h"
 #include "str_util.h"
 #include "hash.h"
 #include "util.h"

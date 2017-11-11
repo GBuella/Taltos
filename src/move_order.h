@@ -37,17 +37,15 @@
 namespace taltos
 {
 
-enum {
-	mo_entry_move_bits = 32,
-	mo_entry_value_bits = 16,
-	mo_entry_check_flag_bit = 33,
-	mo_entry_hint_flag_bit = 34
-};
+constexpr uint64_t mo_entry_move_bits = 32;
+constexpr uint64_t mo_entry_value_bits = 16;
+constexpr uint64_t mo_entry_check_flag_bit = 33;
+constexpr uint64_t mo_entry_hint_flag_bit = 34;
 
 static inline move
 mo_entry_move(int64_t entry)
 {
-	return (move)(entry & (bit64(mo_entry_move_bits) - 1));
+	return (move)(entry & ((UINT64_C(1) << mo_entry_move_bits) - 1));
 }
 
 static inline int16_t
@@ -59,13 +57,13 @@ mo_entry_value(int64_t entry)
 static inline bool
 mo_entry_gives_check(int64_t entry)
 {
-	return (entry & bit64(mo_entry_check_flag_bit)) != 0;
+	return (entry & (UINT64_C(1) << mo_entry_check_flag_bit)) != 0;
 }
 
 static inline bool
 mo_entry_is_hint(int64_t entry)
 {
-	return (entry & bit64(mo_entry_hint_flag_bit)) != 0;
+	return (entry & (UINT64_C(1) << mo_entry_hint_flag_bit)) != 0;
 }
 
 enum {

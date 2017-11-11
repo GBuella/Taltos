@@ -28,6 +28,7 @@
 #define TALTOS_MOVE_DESC_H
 
 #include "chess.h"
+#include "bitboard.h"
 
 namespace taltos
 {
@@ -35,10 +36,10 @@ namespace taltos
 struct move_square_desc {
 	int index;
 	int piece;
-	uint64_t rreach;
-	uint64_t breach;
-	uint64_t attacks;
-	uint64_t attackers;
+	bitboard rreach;
+	bitboard breach;
+	bitboard attacks;
+	bitboard attackers;
 	int SEE_loss;
 };
 
@@ -46,7 +47,7 @@ struct move_desc {
 	move m;
 	int value;
 
-	uint64_t discovered_attacks;
+	bitboard discovered_attacks;
 	bool direct_check;
 	bool discovered_check;
 

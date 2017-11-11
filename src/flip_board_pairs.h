@@ -130,12 +130,12 @@ flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
 #else
 
 static inline void
-flip_2_bb_pairs(uint64_t *restrict dst, const uint64_t *restrict src)
+flip_2_bb_pairs(bitboard *restrict dst, const bitboard *restrict src)
 {
-	dst[0] = bswap(src[1]);
-	dst[1] = bswap(src[0]);
-	dst[2] = bswap(src[3]);
-	dst[3] = bswap(src[2]);
+	dst[0] = src[1].flipped();
+	dst[1] = src[0].flipped();
+	dst[2] = src[3].flipped();
+	dst[3] = src[2].flipped();
 }
 
 #endif

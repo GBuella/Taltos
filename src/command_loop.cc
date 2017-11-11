@@ -1519,17 +1519,17 @@ print_move_desc(const char *move_str, const struct move_desc *desc)
 	printf("%s\tSEE loss on source square: %d\n",
 	       move_str, desc->src_sq.SEE_loss);
 	printf("\tattacks from source square: 0x%016" PRIx64 "\n",
-	       desc->src_sq.attacks);
+	       desc->src_sq.attacks.value);
 	printf("\tattacks on source square: 0x%016" PRIx64 "\n",
-	       desc->src_sq.attackers);
+	       desc->src_sq.attackers.value);
 	printf("\tSEE loss on destination square: %d\n", desc->dst_sq.SEE_loss);
 	printf("\tattacks from destination square: 0x%016" PRIx64 "\n",
-	       desc->dst_sq.attacks);
+	       desc->dst_sq.attacks.value);
 	printf("\tattacks on destination square: 0x%016" PRIx64 "\n",
-	       desc->dst_sq.attackers);
+	       desc->dst_sq.attackers.value);
 	printf("\tSEE value: %d\n", desc->SEE_value);
 	printf("\tdiscovered_attacks: 0x%016" PRIx64 "\n",
-	       desc->discovered_attacks);
+	       desc->discovered_attacks.value);
 	printf("\tvalue: %d\n", desc->value);
 	if (desc->direct_check)
 		printf("\tdirect check\n");

@@ -86,14 +86,14 @@ static inline enum player opponent_of(enum player p)
 
 
 enum {
-	sq_h1 = 56, sq_g1, sq_f1, sq_e1, sq_d1, sq_c1, sq_b1, sq_a1,
-	sq_h2 = 48, sq_g2, sq_f2, sq_e2, sq_d2, sq_c2, sq_b2, sq_a2,
-	sq_h3 = 40, sq_g3, sq_f3, sq_e3, sq_d3, sq_c3, sq_b3, sq_a3,
-	sq_h4 = 32, sq_g4, sq_f4, sq_e4, sq_d4, sq_c4, sq_b4, sq_a4,
-	sq_h5 = 24, sq_g5, sq_f5, sq_e5, sq_d5, sq_c5, sq_b5, sq_a5,
-	sq_h6 = 16, sq_g6, sq_f6, sq_e6, sq_d6, sq_c6, sq_b6, sq_a6,
-	sq_h7 = 8,  sq_g7, sq_f7, sq_e7, sq_d7, sq_c7, sq_b7, sq_a7,
-	sq_h8 = 0,  sq_g8, sq_f8, sq_e8, sq_d8, sq_c8, sq_b8, sq_a8
+	h1 = 56, g1, f1, e1, d1, c1, b1, a1,
+	h2 = 48, g2, f2, e2, d2, c2, b2, a2,
+	h3 = 40, g3, f3, e3, d3, c3, b3, a3,
+	h4 = 32, g4, f4, e4, d4, c4, b4, a4,
+	h5 = 24, g5, f5, e5, d5, c5, b5, a5,
+	h6 = 16, g6, f6, e6, d6, c6, b6, a6,
+	h7 = 8,  g7, f7, e7, d7, c7, b7, a7,
+	h8 = 0,  g8, f8, e8, d8, c8, b8, a8
 };
 
 enum {
@@ -244,14 +244,14 @@ is_valid_mt(int t)
 #define MOVE_TYPE_MASK (7 << move_bit_off_type)
 
 constexpr move mcastle_king_side =
-		(sq_e1 << move_bit_off_from) |
-		(sq_g1 << move_bit_off_to) |
+		(e1 << move_bit_off_from) |
+		(g1 << move_bit_off_to) |
 		mt_castle_kingside |
 		(king << (move_bit_off_result - 1));
 
 constexpr move mcastle_queen_side =
-		(sq_e1 << move_bit_off_from) |
-		(sq_c1 << move_bit_off_to) |
+		(e1 << move_bit_off_from) |
+		(c1 << move_bit_off_to) |
 		mt_castle_queenside |
 		(king << (move_bit_off_result - 1));
 
@@ -261,22 +261,10 @@ mfrom(move m)
 	return (m >> move_bit_off_from) & 0x3f;
 }
 
-static inline uint64_t
-mfrom64(move m)
-{
-	return UINT64_C(1) << mfrom(m);
-}
-
 static inline int
 mto(move m)
 {
 	return (m >> move_bit_off_to) & 0x3f;
-}
-
-static inline uint64_t
-mto64(move m)
-{
-	return UINT64_C(1) << mto(m);
 }
 
 static inline uint64_t
@@ -289,12 +277,6 @@ static inline uint64_t
 set_mto(move m, int to)
 {
 	return m | (to << move_bit_off_to);
-}
-
-static inline uint64_t
-m64(move m)
-{
-	return mfrom64(m) | mto64(m);
 }
 
 static inline move

@@ -89,19 +89,19 @@ flip_ray_array(uint64_t dst[], const uint64_t src[])
 #else
 
 static inline void
-flip_ray_array(uint64_t dst[], const uint64_t src[])
+flip_ray_array(bitboard dst[], const bitboard src[])
 {
 	int rs = 0;
 	int rd = 56;
 	do {
-		dst[rd + 0] = bswap(src[rs + 0]);
-		dst[rd + 1] = bswap(src[rs + 1]);
-		dst[rd + 2] = bswap(src[rs + 2]);
-		dst[rd + 3] = bswap(src[rs + 3]);
-		dst[rd + 4] = bswap(src[rs + 4]);
-		dst[rd + 5] = bswap(src[rs + 5]);
-		dst[rd + 6] = bswap(src[rs + 6]);
-		dst[rd + 7] = bswap(src[rs + 7]);
+		dst[rd + 0] = src[rs + 0].flipped();
+		dst[rd + 1] = src[rs + 1].flipped();
+		dst[rd + 2] = src[rs + 2].flipped();
+		dst[rd + 3] = src[rs + 3].flipped();
+		dst[rd + 4] = src[rs + 4].flipped();
+		dst[rd + 5] = src[rs + 5].flipped();
+		dst[rd + 6] = src[rs + 6].flipped();
+		dst[rd + 7] = src[rs + 7].flipped();
 		rs += 8;
 		rd -= 8;
 	} while (rs < 64);

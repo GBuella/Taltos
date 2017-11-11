@@ -86,8 +86,7 @@ position_polyglot_key(const struct position *pos, enum player turn)
 			key = z_toggle_castle_king_side_opponent(key);
 	}
 	if (pos_has_ep_target(pos)) {
-		if (is_nonempty(pos_pawn_attacks_player(pos)
-		    & bit64(pos->ep_index + NORTH))) {
+		if (pos_pawn_attacks_player(pos).is_set(pos->ep_index + NORTH)) {
 			int file = 7 - pos_en_passant_file(pos);
 			key = z_toggle_ep_file(key, file);
 		}
@@ -180,31 +179,31 @@ init_zhash_table_castles(void)
 	move m = flip_m(mcastle_king_side);
 	assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 
-	uint64_t hash = z_random[opponent_king][sq_e8];
-	hash ^= z_random[opponent_king][sq_g8];
-	hash ^= z_random[opponent_rook][sq_f8];
-	hash ^= z_random[opponent_rook][sq_h8];
+	uint64_t hash = z_random[opponent_king][e8];
+	hash ^= z_random[opponent_king][g8];
+	hash ^= z_random[opponent_rook][f8];
+	hash ^= z_random[opponent_rook][h8];
 	zhash_xor_table[m][0] = hash;
 
-	hash = z_random[king][sq_e1];
-	hash ^= z_random[king][sq_g1];
-	hash ^= z_random[rook][sq_f1];
-	hash ^= z_random[rook][sq_h1];
+	hash = z_random[king][e1];
+	hash ^= z_random[king][g1];
+	hash ^= z_random[rook][f1];
+	hash ^= z_random[rook][h1];
 	zhash_xor_table[m][1] = hash;
 
 	m = flip_m(mcastle_queen_side);
 	assert((unsigned)m < ARRAY_LENGTH(zhash_xor_table));
 
-	hash = z_random[opponent_king][sq_e8];
-	hash ^= z_random[opponent_king][sq_c8];
-	hash ^= z_random[opponent_rook][sq_a8];
-	hash ^= z_random[opponent_rook][sq_d8];
+	hash = z_random[opponent_king][e8];
+	hash ^= z_random[opponent_king][c8];
+	hash ^= z_random[opponent_rook][a8];
+	hash ^= z_random[opponent_rook][d8];
 	zhash_xor_table[m][0] = hash;
 
-	hash = z_random[king][sq_e1];
-	hash ^= z_random[king][sq_c1];
-	hash ^= z_random[rook][sq_a1];
-	hash ^= z_random[rook][sq_d1];
+	hash = z_random[king][e1];
+	hash ^= z_random[king][c1];
+	hash ^= z_random[rook][a1];
+	hash ^= z_random[rook][d1];
 	zhash_xor_table[m][1] = hash;
 }
 

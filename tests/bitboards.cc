@@ -33,126 +33,78 @@ taltos::test::run_tests(void)
 {
 	struct position pos;
 
-	position_read_fen(&pos, start_position_fen, NULL, NULL);
-	assert(pos.occupied == (RANK_1 | RANK_2 | RANK_7 | RANK_8));
-	assert(pos.map[0] == (RANK_1 | RANK_2));
-	assert(pos.map[1] == (RANK_7 | RANK_8));
-	assert(pos.attack[pawn] == RANK_3);
-	assert(pos.attack[rook] ==
-	    (SQ_B1 | SQ_A2 | SQ_G1 | SQ_H2));
-	assert(pos.attack[bishop] ==
-	    (SQ_B2 | SQ_D2 | SQ_E2 | SQ_G2));
-	assert(pos.attack[knight] ==
-	    (SQ_A3 | SQ_C3 | SQ_D2 | SQ_E2 | SQ_F3 | SQ_H3));
-	assert(pos.attack[queen] ==
-	    (SQ_C1 | SQ_C2 | SQ_D2 | SQ_E2 | SQ_E1));
-	assert(pos.attack[king] ==
-	    (SQ_D1 | SQ_D2 | SQ_E2 | SQ_F2 | SQ_F1));
-	assert(pos.attack[0] ==
-	    (SQ_B1 | SQ_C1 | SQ_D1 | SQ_E1 | SQ_F1 | SQ_G1 | RANK_2 | RANK_3));
-	assert(pos.attack[opponent_pawn] == RANK_6);
-	assert(pos.attack[opponent_rook] ==
-	    (SQ_B8 | SQ_A7 | SQ_G8 | SQ_H7));
-	assert(pos.attack[opponent_bishop] ==
-	    (SQ_B7 | SQ_D7 | SQ_E7 | SQ_G7));
-	assert(pos.attack[opponent_knight] ==
-	    (SQ_A6 | SQ_C6 | SQ_D7 | SQ_E7 | SQ_F6 | SQ_H6));
-	assert(pos.attack[opponent_queen] ==
-	    (SQ_C8 | SQ_C7 | SQ_D7 | SQ_E7 | SQ_E8));
-	assert(pos.attack[opponent_king] ==
-	    (SQ_D8 | SQ_D7 | SQ_E7 | SQ_F7 | SQ_F8));
-	assert(pos.attack[1] ==
-	    (SQ_B8 | SQ_C8 | SQ_D8 | SQ_E8 | SQ_F8 | SQ_G8 | RANK_7 | RANK_6));
+	position_read_fen(&pos, start_position_fen, nullptr, nullptr);
+	assert(pos.occupied == (bb_rank_1 | bb_rank_2 | bb_rank_7 | bb_rank_8));
+	assert(pos.map[0] == (bb_rank_1 | bb_rank_2));
+	assert(pos.map[1] == (bb_rank_7 | bb_rank_8));
+	assert(pos.attack[pawn] == bb_rank_3);
+	assert(pos.attack[rook] == bb(b1, a2, g1, h2));
+	assert(pos.attack[bishop] == bb(b2, d2, e2, g2));
+	assert(pos.attack[knight] == bb(a3, c3, d2, e2, f3, h3));
+	assert(pos.attack[queen] == bb(c1, c2, d2, e2, e1));
+	assert(pos.attack[king] == bb(d1, d2, e2, f2, f1));
+	assert(pos.attack[0] == (bb(b1, c1, d1, e1, f1, g1) | bb_rank_2 | bb_rank_3));
+	assert(pos.attack[opponent_pawn] == bb_rank_6);
+	assert(pos.attack[opponent_rook] == bb(b8, a7, g8, h7));
+	assert(pos.attack[opponent_bishop] == bb(b7, d7, e7, g7));
+	assert(pos.attack[opponent_knight] == bb(a6, c6, d7, e7, f6, h6));
+	assert(pos.attack[opponent_queen] == bb(c8, c7, d7, e7, e8));
+	assert(pos.attack[opponent_king] == bb(d8, d7, e7, f7, f8));
+	assert(pos.attack[1] == (bb(b8, c8, d8, e8, f8, g8) | bb_rank_7 | bb_rank_6));
 	assert(is_empty(pos.king_attack_map));
 
 	position_read_fen(&pos,
 	    "rnbqkbnr/pppp1ppp/4p3/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
-	    NULL, NULL);
+	    nullptr, nullptr);
 	assert(pos.occupied ==
-	    bswap((RANK_1 | RANK_2 | RANK_7 | RANK_8 | SQ_E4 | SQ_E6 | SQ_B5)
-	    & ~(SQ_F1 | SQ_E2 | SQ_E7)));
-	assert(pos.map[0] ==
-	    bswap((RANK_7 | RANK_8 | SQ_E6) & ~SQ_E7));
-	assert(pos.map[1] ==
-	    bswap((RANK_1 | RANK_2 | SQ_E4 | SQ_B5) & ~(SQ_F1 | SQ_E2)));
-	assert(pos.attack[opponent_pawn] ==
-	    bswap(RANK_3 | SQ_D5 | SQ_F5));
-	assert(pos.attack[opponent_rook] ==
-	    bswap(SQ_B1 | SQ_A2 | SQ_G1 | SQ_H2));
-	assert(pos.attack[opponent_bishop] ==
-	    bswap(SQ_B2 | SQ_D2 | SQ_A6 | SQ_A4 | SQ_C6 |
-	    SQ_C4 | SQ_D7 | SQ_D3 | SQ_E2 | SQ_F1));
-	assert(pos.attack[opponent_knight] ==
-	    bswap(SQ_A3 | SQ_C3 | SQ_D2 | SQ_E2 | SQ_F3 | SQ_H3));
-	assert(pos.attack[opponent_queen] ==
-	    bswap(SQ_C1 | SQ_C2 | SQ_D2 | SQ_E2 |
-	    SQ_E1 | SQ_F3 | SQ_G4 | SQ_H5));
-	assert(pos.attack[opponent_king] ==
-	    bswap(SQ_D1 | SQ_D2 | SQ_E2 | SQ_F2 | SQ_F1));
-	assert(pos.attack[pawn] ==
-	    bswap(RANK_6 | SQ_D5 | SQ_F5));
-	assert(pos.attack[rook] ==
-	    bswap(SQ_B8 | SQ_A7 | SQ_G8 | SQ_H7));
-	assert(pos.attack[bishop] ==
-	    bswap(SQ_B7 | SQ_D7 | SQ_E7 | SQ_G7 |
-	    SQ_D6 | SQ_C5 | SQ_B4 | SQ_A3));
-	assert(pos.attack[knight] ==
-	    bswap(SQ_A6 | SQ_C6 | SQ_D7 | SQ_E7 | SQ_F6 | SQ_H6));
-	assert(pos.attack[queen] ==
-	    bswap(SQ_C8 | SQ_C7 | SQ_D7 | SQ_E7 |
-	    SQ_E8 | SQ_F6 | SQ_G5 | SQ_H4));
-	assert(pos.attack[king] ==
-	    bswap(SQ_D8 | SQ_D7 | SQ_E7 | SQ_F7 | SQ_F8));
+	    ((bb_rank_1 | bb_rank_2 | bb_rank_7 | bb_rank_8 | bb(e4, e6, b5)) & ~bb(f1, e2, e7)).flipped());
+	assert(pos.map[0] == ((bb_rank_7 | bb_rank_8 | bb(e6)) & ~bb(e7)).flipped());
+	assert(pos.map[1] == ((bb_rank_1 | bb_rank_2 | bb(e4, b5)) & ~bb(f1, e2)).flipped());
+	assert(pos.attack[opponent_pawn] == (bb_rank_3 | bb(d5, f5)).flipped());
+	assert(pos.attack[opponent_rook] == bb(b1, a2, g1, h2).flipped());
+	assert(pos.attack[opponent_bishop] == bb(b2, d2, a6, a4, c6, c4, d7, d3, e2, f1).flipped());
+	assert(pos.attack[opponent_knight] == bb(a3, c3, d2, e2, f3, h3).flipped());
+	assert(pos.attack[opponent_queen] == bb(c1, c2, d2, e2, e1, f3, g4, h5).flipped());
+	assert(pos.attack[opponent_king] == bb(d1, d2, e2, f2, f1).flipped());
+	assert(pos.attack[pawn] == (bb_rank_6 | bb(d5, f5)).flipped());
+	assert(pos.attack[rook] == bb(b8, a7, g8, h7).flipped());
+	assert(pos.attack[bishop] == bb(b7, d7, e7, g7, d6, c5, b4, a3).flipped());
+	assert(pos.attack[knight] == bb(a6, c6, d7, e7, f6, h6).flipped());
+	assert(pos.attack[queen] == bb(c8, c7, d7, e7, e8, f6, g5, h4).flipped());
+	assert(pos.attack[king] == bb(d8, d7, e7, f7, f8).flipped());
 	assert(is_empty(pos.king_attack_map));
 
 	position_read_fen(&pos,
 	    "rnbqkbnr/ppppp1pp/5p2/7Q/8/4P3/PPPP1PPP/RNB1KBNR b KQkq - 1 2",
-	    NULL, NULL);
+	    nullptr, nullptr);
 	assert(pos.occupied ==
-	    bswap((RANK_1 | RANK_2 | RANK_7 | RANK_8 | SQ_E3 | SQ_H5 | SQ_F6)
-	    & ~(SQ_E2 | SQ_D1 | SQ_F7)));
-	assert(pos.map[0] ==
-	    bswap((RANK_7 | RANK_8 | SQ_F6) & ~SQ_F7));
-	assert(pos.map[1] ==
-	    bswap((RANK_1 | RANK_2 | SQ_E3 | SQ_H5) & ~(SQ_E2 | SQ_D1)));
-	assert(pos.attack[opponent_pawn] ==
-	    bswap(RANK_3 | SQ_D4 | SQ_F4));
-	assert(pos.attack[opponent_rook] ==
-	    bswap(SQ_B1 | SQ_A2 | SQ_G1 | SQ_H2));
-	assert(pos.attack[opponent_bishop] ==
-	    bswap(SQ_B2 | SQ_D2 | SQ_A6 | SQ_B5 |
-	    SQ_C4 | SQ_D3 | SQ_E2 | SQ_G2));
-	assert(pos.attack[opponent_knight] ==
-	    bswap(SQ_A3 | SQ_C3 | SQ_D2 | SQ_E2 | SQ_F3 | SQ_H3));
+	    ((bb_rank_1 | bb_rank_2 | bb_rank_7 | bb_rank_8 | bb(e3, h5, f6))
+	     & ~bb(e2, d1, f7)).flipped());
+	assert(pos.map[0] == ((bb_rank_7 | bb_rank_8 | bb(f6)) & ~bb(f7)).flipped());
+	assert(pos.map[1] == ((bb_rank_1 | bb_rank_2 | bb(e3, h5)) & ~bb(e2, d1)).flipped());
+	assert(pos.attack[opponent_pawn] == (bb_rank_3 | bb(d4, f4)).flipped());
+	assert(pos.attack[opponent_rook] == bb(b1, a2, g1, h2).flipped());
+	assert(pos.attack[opponent_bishop] == bb(b2, d2, a6, b5, c4, d3, e2, g2).flipped());
+	assert(pos.attack[opponent_knight] == bb(a3, c3, d2, e2, f3, h3).flipped());
 	assert(pos.attack[opponent_queen] ==
-	    bswap((SQ_D1 | SQ_E2 | SQ_F3 | SQ_G4 | RANK_5 |
-	    SQ_G6 | SQ_F7 | SQ_E8 | FILE_H) & ~(SQ_H8 | SQ_H1 | SQ_H5)));
-	assert(pos.attack[opponent_king] ==
-	    bswap(SQ_D1 | SQ_D2 | SQ_E2 | SQ_F2 | SQ_F1));
-	assert(pos.attack[pawn] ==
-	    bswap(RANK_6 | SQ_E5 | SQ_G5));
-	assert(pos.attack[rook] ==
-	    bswap(SQ_B8 | SQ_A7 | SQ_G8 | SQ_H7));
-	assert(pos.attack[bishop] ==
-	    bswap(SQ_B7 | SQ_D7 | SQ_E7 | SQ_G7));
-	assert(pos.attack[knight] ==
-	    bswap(SQ_A6 | SQ_C6 | SQ_D7 | SQ_E7 | SQ_F6 | SQ_H6));
-	assert(pos.attack[queen] ==
-	    bswap(SQ_C8 | SQ_C7 | SQ_D7 | SQ_E7 | SQ_E8));
-	assert(pos.attack[king] ==
-	    bswap(SQ_D8 | SQ_D7 | SQ_E7 | SQ_F7 | SQ_F8));
-	assert(pos.king_attack_map ==
-	    bswap(SQ_F7 | SQ_G6 | SQ_H5));
+	    ((bb(d1, e2, f3, g4) | bb_rank_5 | bb(g6, f7, e8) | bb_file_h) & ~bb(h8, h1, h5)).flipped());
+	assert(pos.attack[opponent_king] == bb(d1, d2, e2, f2, f1).flipped());
+	assert(pos.attack[pawn] == (bb_rank_6 | bb(e5, g5)).flipped());
+	assert(pos.attack[rook] == bb(b8, a7, g8, h7).flipped());
+	assert(pos.attack[bishop] == bb(b7, d7, e7, g7).flipped());
+	assert(pos.attack[knight] == bb(a6, c6, d7, e7, f6, h6).flipped());
+	assert(pos.attack[queen] == bb(c8, c7, d7, e7, e8).flipped());
+	assert(pos.attack[king] == bb(d8, d7, e7, f7, f8).flipped());
+	assert(pos.king_attack_map == bb(f7, g6, h5).flipped());
 
 	position_read_fen(&pos,
 	    "rnb1kbnr/pppp1ppp/4p3/8/7q/5PP1/PPPPP2P/RNBQKBNR w KQkq - 4 3",
-	    NULL, NULL);
-	assert(pos.attack[pawn] ==
-	    ((RANK_3 | SQ_E4 | SQ_F4| SQ_G4 | SQ_H4) & ~(SQ_H3)));
+	    nullptr, nullptr);
+	assert(pos.attack[pawn] == ((bb_rank_3 | bb(e4, f4, g4, h4)) & ~bb(h3)));
 	assert(is_empty(pos.king_attack_map));
 
 	position_read_fen(&pos,
 	    "rnb1kbnr/pp1ppppp/8/q1p5/1P6/3P4/P1P1PPPP/RNBQKBNR w KQkq - 1 3",
-	    NULL, NULL);
+	    nullptr, nullptr);
 	assert(is_empty(pos.king_attack_map));
 }

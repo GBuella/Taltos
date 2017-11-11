@@ -72,10 +72,10 @@ dump_hanging_board(void)
 }
 
 static void
-print_bitboard_rank(uint64_t bitboard, int r)
+print_bitboard_rank(bitboard board, int r)
 {
 	for (int f = 7; f >= 0; --f) {
-		if (is_nonempty(bitboard & bit64(r * 8 + f)))
+		if (board.is_set(r * 8 + f))
 			putchar('1');
 		else
 			putchar('.');
@@ -83,30 +83,30 @@ print_bitboard_rank(uint64_t bitboard, int r)
 }
 
 static void
-dump_bitboards_generic(std::size_t count, const uint64_t bitboards[], int index_scale)
+dump_bitboards_generic(std::size_t count, const bitboard boards[], int index_scale)
 {
 	for (int r = 0; r < 8; ++r) {
 		for (std::size_t i = 0; i < count; ++ i) {
 			if (i > 0)
 				fputs("    ", stdout);
-			print_bitboard_rank(bitboards[i * index_scale], r);
+			print_bitboard_rank(boards[i * index_scale], r);
 		}
 		putchar('\n');
 	}
 }
 
 static void
-dump_bitboards(std::size_t count, const uint64_t bitboards[])
+dump_bitboards(std::size_t count, const bitboard boards[])
 {
-	dump_bitboards_generic(count, bitboards, 1);
+	dump_bitboards_generic(count, boards, 1);
 }
 
 static void
-dump_bitboard_pairs(std::size_t count, const uint64_t bitboards[])
+dump_bitboard_pairs(std::size_t count, const bitboard boards[])
 {
-	dump_bitboards_generic(count, bitboards, 2);
+	dump_bitboards_generic(count, boards, 2);
 	putchar('\n');
-	dump_bitboards_generic(count, bitboards + 1, 2);
+	dump_bitboards_generic(count, boards + 1, 2);
 }
 
 static void
@@ -269,7 +269,7 @@ main(int argc, char **argv)
 
 	printf("\noffset 0x%zx: .hanging_map\n",
 	       offsetof(struct position, hanging_map));
-	printf(" 0x%016" PRIx64 "\n", pos->hanging_map);
+	printf(" 0x%016" PRIx64 "\n", pos->hanging_map.value);
 
 	game_destroy(g);
 

@@ -45,18 +45,14 @@ check_eval_symmetry(const struct position *pos)
 
 	position_flip(flipped, pos);
 
-	assert(pos->pawn_attack_reach[0] ==
-	    bswap(flipped->pawn_attack_reach[1]));
-	assert(pos->pawn_attack_reach[1] ==
-	    bswap(flipped->pawn_attack_reach[0]));
-	assert(pos->half_open_files[0] ==
-	    bswap(flipped->half_open_files[1]));
-	assert(pos->half_open_files[1] ==
-	    bswap(flipped->half_open_files[0]));
+	assert(pos->pawn_attack_reach[0] == flipped->pawn_attack_reach[1].flipped());
+	assert(pos->pawn_attack_reach[1] == flipped->pawn_attack_reach[0].flipped());
+	assert(pos->half_open_files[0] == flipped->half_open_files[1].flipped());
+	assert(pos->half_open_files[1] == flipped->half_open_files[0].flipped());
 
 #define CHECK_TERM(func) \
-	assert(func(pos) == bswap(opponent_##func(flipped))); \
-	assert(func(flipped) == bswap(opponent_##func(pos)));
+	assert(func(pos) == opponent_##func(flipped).flipped()); \
+	assert(func(flipped) == opponent_##func(pos).flipped());
 
 #define CHECK_BOOL_TERM(func) \
 	assert(func(pos) == opponent_##func(flipped)); \
@@ -82,34 +78,22 @@ check_eval_symmetry(const struct position *pos)
 	CHECK_TERM(pawns_on_center4);
 	CHECK_TERM(center4_attacks);
 	CHECK_BOOL_TERM(has_bishop_pair);
-	assert(pawns_on_white(pos) == bswap(pawns_on_black(flipped)));
-	assert(pawns_on_white(flipped) == bswap(pawns_on_black(pos)));
-	assert(bishops_on_white(pos) ==
-	    bswap(opponent_bishops_on_black(flipped)));
-	assert(bishops_on_white(flipped) ==
-	    bswap(opponent_bishops_on_black(pos)));
-	assert(bishops_on_black(pos) ==
-	    bswap(opponent_bishops_on_white(flipped)));
-	assert(bishops_on_black(flipped) ==
-	    bswap(opponent_bishops_on_white(pos)));
+	assert(pawns_on_white(pos) == pawns_on_black(flipped).flipped());
+	assert(pawns_on_white(flipped) == pawns_on_black(pos).flipped());
+	assert(bishops_on_white(pos) == opponent_bishops_on_black(flipped).flipped());
+	assert(bishops_on_white(flipped) == opponent_bishops_on_black(pos).flipped());
+	assert(bishops_on_black(pos) == opponent_bishops_on_white(flipped).flipped());
+	assert(bishops_on_black(flipped) == opponent_bishops_on_white(pos).flipped());
 	CHECK_TERM(free_squares);
 	CHECK_INT_TERM(non_pawn_material);
-	assert(bishop_c1_is_trapped(pos) ==
-	    opponent_bishop_c8_is_trapped(flipped));
-	assert(bishop_f1_is_trapped(pos) ==
-	    opponent_bishop_f8_is_trapped(flipped));
-	assert(bishop_c1_is_trapped(flipped) ==
-	    opponent_bishop_c8_is_trapped(pos));
-	assert(bishop_f1_is_trapped(flipped) ==
-	    opponent_bishop_f8_is_trapped(pos));
-	assert(bishop_trapped_at_a7(pos) ==
-	    opponent_bishop_trapped_at_a2(flipped));
-	assert(bishop_trapped_at_a7(flipped) ==
-	    opponent_bishop_trapped_at_a2(pos));
-	assert(bishop_trapped_at_h7(pos) ==
-	    opponent_bishop_trapped_at_h2(flipped));
-	assert(bishop_trapped_at_h7(flipped) ==
-	    opponent_bishop_trapped_at_h2(pos));
+	assert(bishop_c1_is_trapped(pos) == opponent_bishop_c8_is_trapped(flipped));
+	assert(bishop_f1_is_trapped(pos) == opponent_bishop_f8_is_trapped(flipped));
+	assert(bishop_c1_is_trapped(flipped) == opponent_bishop_c8_is_trapped(pos));
+	assert(bishop_f1_is_trapped(flipped) == opponent_bishop_f8_is_trapped(pos));
+	assert(bishop_trapped_at_a7(pos) == opponent_bishop_trapped_at_a2(flipped));
+	assert(bishop_trapped_at_a7(flipped) == opponent_bishop_trapped_at_a2(pos));
+	assert(bishop_trapped_at_h7(pos) == opponent_bishop_trapped_at_h2(flipped));
+	assert(bishop_trapped_at_h7(flipped) == opponent_bishop_trapped_at_h2(pos));
 	assert(rook_a1_is_trapped(pos) == opponent_rook_a8_is_trapped(flipped));
 	assert(rook_a1_is_trapped(flipped) == opponent_rook_a8_is_trapped(pos));
 	assert(rook_h1_is_trapped(pos) == opponent_rook_h8_is_trapped(flipped));

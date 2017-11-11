@@ -28,7 +28,6 @@
 #include <cstring>
 
 #include "position.h"
-#include "constants.h"
 #include "hash.h"
 #include "util.h"
 #include "eval.h"
@@ -143,11 +142,8 @@ get_position_key(const struct position *pos, uint64_t key[])
 static bool
 has_potential_ep_captor(struct position *pos, int index)
 {
-	return ((ind_file(index) != file_h)
-	    && is_nonempty(pos->map[pawn] & bit64(index + EAST)))
-	    ||
-	    ((ind_file(index) != file_a)
-	    && is_nonempty(pos->map[pawn] & bit64(index + WEST)));
+	return ((ind_file(index) != file_h) and pos->map[pawn].is_set(index + EAST))
+	    or ((ind_file(index) != file_a) and pos->map[pawn].is_set(index + WEST));
 }
 
 
@@ -169,29 +165,25 @@ static void search_pins(struct position*);
 static void
 search_player_king_pins(struct position *pos, int player)
 {
-	uint64_t accumulator = EMPTY;
-	int ki = bsf(pos->map[king + player]);
-	uint64_t bandits = bishop_masks[ki] & pos->bq[opponent_of(player)];
-	bandits &= ~bishop_reach(pos, ki);
+	bitboard accumulator = empty;
+	int ki = pos->map[king + player].ls1b_index();
+	int opp = opponent_of(player);
 
-	for (; is_nonempty(bandits); bandits = reset_lsb(bandits)) {
-		uint64_t bandit_reach = bishop_reach(pos, bsf(bandits));
-		uint64_t between = bishop_reach(pos, ki) & bandit_reach;
+	for (int bandit : bishop_masks[ki] & pos->bq[opp] & ~bishop_reach(pos, ki)) {
+		bitboard bandit_reach = bishop_reach(pos, bandit);
+		bitboard between = bishop_reach(pos, ki) & bandit_reach;
 		between &= pos->occupied;
 
-		if (is_singular(between))
+		if (between.is_singular())
 			accumulator |= between;
 	}
 
-	bandits = rook_masks[ki] & pos->rq[opponent_of(player)];
-	bandits &= ~rook_reach(pos, ki);
-
-	for (; is_nonempty(bandits); bandits = reset_lsb(bandits)) {
-		uint64_t bandit_reach = rook_reach(pos, bsf(bandits));
-		uint64_t between = rook_reach(pos, ki) & bandit_reach;
+	for (int bandit : rook_masks[ki] & pos->rq[opp] & ~rook_reach(pos, ki)) {
+		bitboard bandit_reach = rook_reach(pos, bandit);
+		bitboard between = rook_reach(pos, ki) & bandit_reach;
 		between &= pos->occupied;
 
-		if (is_singular(between))
+		if (between.is_singular())
 			accumulator |= between;
 	}
 
@@ -206,19 +198,19 @@ search_pins(struct position *pos)
 }
 
 static void
-generate_rays(struct position *pos, uint64_t rays[64], int dir, uint64_t edge)
+generate_rays(struct position *pos, bitboard rays[64], int dir, bitboard edge)
 {
 	for (int from = 0; from < 64; ++from) {
-		uint64_t bit = bit64(from);
+		bitboard bit = bb(from);
 		if (is_nonempty(edge & bit))
 			continue;
 
-		uint64_t stop = edge | pos->occupied;
+		bitboard stop = edge | pos->occupied;
 		int i = from;
 
 		do {
 			i += dir;
-			bit = bit64(i);
+			bit = bb(i);
 			rays[from] |= bit;
 		} while (is_empty(stop & bit));
 	}
@@ -229,22 +221,22 @@ generate_all_rays(struct position *pos)
 {
 	memset(pos->rays, 0, sizeof(pos->rays));
 
-	generate_rays(pos, pos->rays[pr_rook], WEST, FILE_A);
-	generate_rays(pos, pos->rays[pr_rook], EAST, FILE_H);
-	generate_rays(pos, pos->rays[pr_rook], NORTH, RANK_8);
-	generate_rays(pos, pos->rays[pr_rook], SOUTH, RANK_1);
-	generate_rays(pos, pos->rays[pr_bishop], SOUTH + EAST, RANK_1 | FILE_H);
-	generate_rays(pos, pos->rays[pr_bishop], NORTH + WEST, RANK_8 | FILE_A);
-	generate_rays(pos, pos->rays[pr_bishop], SOUTH + WEST, RANK_1 | FILE_A);
-	generate_rays(pos, pos->rays[pr_bishop], NORTH + EAST, RANK_8 | FILE_H);
+	generate_rays(pos, pos->rays[pr_rook], WEST, bb_file_a);
+	generate_rays(pos, pos->rays[pr_rook], EAST, bb_file_h);
+	generate_rays(pos, pos->rays[pr_rook], NORTH, bb_rank_8);
+	generate_rays(pos, pos->rays[pr_rook], SOUTH, bb_rank_1);
+	generate_rays(pos, pos->rays[pr_bishop], SOUTH + EAST, bb_rank_1 | bb_file_h);
+	generate_rays(pos, pos->rays[pr_bishop], NORTH + WEST, bb_rank_8 | bb_file_a);
+	generate_rays(pos, pos->rays[pr_bishop], SOUTH + WEST, bb_rank_1 | bb_file_a);
+	generate_rays(pos, pos->rays[pr_bishop], NORTH + EAST, bb_rank_8 | bb_file_h);
 }
 
 static void
-update_rays_empty_square(uint64_t rays[64], const uint64_t masks[64], int i)
+update_rays_empty_square(bitboard rays[64], const bitboard masks[64], int i)
 {
-	uint64_t reach = rays[i];
-	for (uint64_t map = reach; is_nonempty(map); map = reset_lsb(map))
-		rays[bsf(map)] |= reach & masks[bsf(map)];
+	bitboard reach = rays[i];
+	for (int dst : reach)
+		rays[dst] |= reach & masks[dst];
 }
 
 static void
@@ -255,16 +247,17 @@ update_all_rays_empty_square(struct position *pos, int i)
 }
 
 static void
-update_rays_occupied_square(uint64_t rays[64], int i)
+update_rays_occupied_square(bitboard rays[64], int i)
 {
-	uint64_t lower_half = rays[i] & (bit64(i) - 1);
-	uint64_t higher_half = rays[i] & ~lower_half;
+	bitboard below_i{(UINT64_C(1) << i) - 1};
+	bitboard lower_half = rays[i] & below_i;
+	bitboard higher_half = rays[i] & ~lower_half;
 
-	for (uint64_t map = lower_half; is_nonempty(map); map = reset_lsb(map))
-		rays[bsf(map)] &= ~higher_half;
+	for (int dst : lower_half)
+		rays[dst] &= ~higher_half;
 
-	for (uint64_t map = higher_half; is_nonempty(map); map = reset_lsb(map))
-		rays[bsf(map)] &= ~lower_half;
+	for (int dst : higher_half)
+		rays[dst] &= ~lower_half;
 }
 
 static void
@@ -285,49 +278,49 @@ update_all_rays(struct position *pos, move m)
 	else if (!is_capture(m)) {
 		update_all_rays_occupied_square(pos, mto(m));
 		if (mtype(m) == mt_castle_kingside) {
-			update_all_rays_occupied_square(pos, sq_f8);
+			update_all_rays_occupied_square(pos, f8);
 		}
 		else if (mtype(m) == mt_castle_queenside) {
-			update_all_rays_occupied_square(pos, sq_d8);
+			update_all_rays_occupied_square(pos, d8);
 		}
 	}
 }
 
-static uint64_t
-bishop_attacks(uint64_t bishops, const struct position *pos)
+static bitboard
+bishop_attacks(bitboard bishops, const struct position *pos)
 {
-	uint64_t accumulator = EMPTY;
+	bitboard accumulator = empty;
 
-	for (; is_nonempty(bishops); bishops = reset_lsb(bishops))
-		accumulator |= pos->rays[pr_bishop][bsf(bishops)];
+	for (int i : bishops)
+		accumulator |= pos->rays[pr_bishop][i];
 
 	return accumulator;
 }
 
-static uint64_t
-rook_attacks(uint64_t rooks, const struct position *pos)
+static bitboard
+rook_attacks(bitboard rooks, const struct position *pos)
 {
-	uint64_t accumulator = EMPTY;
+	bitboard accumulator = empty;
 
-	for (; is_nonempty(rooks); rooks = reset_lsb(rooks))
-		accumulator |= pos->rays[pr_rook][bsf(rooks)];
+	for (int i : rooks)
+		accumulator |= pos->rays[pr_rook][i];
 
 	return accumulator;
 }
 
-static uint64_t
-knight_attacks(uint64_t knights)
+static bitboard
+knight_attacks(bitboard knights)
 {
-	uint64_t accumulator = EMPTY;
+	bitboard accumulator = empty;
 
-	for (; is_nonempty(knights); knights = reset_lsb(knights))
-		accumulator |= knight_pattern[bsf(knights)];
+	for (int i : knights)
+		accumulator |= knight_pattern[i];
 
 	return accumulator;
 }
 
 static void
-accumulate_attacks(uint64_t *attack, uint64_t *sliding_attacks)
+accumulate_attacks(bitboard *attack, bitboard *sliding_attacks)
 {
 	*sliding_attacks = attack[bishop];
 	*sliding_attacks |= attack[rook];
@@ -375,7 +368,7 @@ generate_opponent_attacks(struct position *pos)
 static void
 search_king_attacks(struct position *pos)
 {
-	pos->king_danger_map = EMPTY;
+	pos->king_danger_map = empty;
 
 	pos->king_attack_map =
 	    pawn_attacks_player(pos->map[king]) & pos->map[opponent_pawn];
@@ -383,11 +376,11 @@ search_king_attacks(struct position *pos)
 	pos->king_attack_map |=
 	    knight_pattern[pos->ki] & pos->map[opponent_knight];
 
-	uint64_t breach = bishop_reach(pos, pos->ki);
-	uint64_t bandits = breach & pos->bq[1];
-	for (; is_nonempty(bandits); bandits = reset_lsb(bandits)) {
-		uint64_t bandit = lsb(bandits);
-		uint64_t reach = breach;
+	bitboard breach = bishop_reach(pos, pos->ki);
+	bitboard bandits = breach & pos->bq[1];
+	for (; is_nonempty(bandits); bandits.reset_ls1b()) {
+		bitboard bandit = bandits.ls1b();
+		bitboard reach = breach;
 
 		if (is_nonempty(bandit & diag_masks[pos->ki]))
 			reach &= diag_masks[pos->ki];
@@ -396,15 +389,15 @@ search_king_attacks(struct position *pos)
 
 		pos->king_danger_map |= reach & ~bandit;
 
-		reach &= bishop_reach(pos, bsf(bandit));
+		reach &= bishop_reach(pos, bandit.ls1b_index());
 		pos->king_attack_map |= reach | bandit;
 	}
 
-	uint64_t rreach = rook_reach(pos, pos->ki);
+	bitboard rreach = rook_reach(pos, pos->ki);
 	bandits = rreach & pos->rq[1];
-	for (; is_nonempty(bandits); bandits = reset_lsb(bandits)) {
-		uint64_t bandit = lsb(bandits);
-		uint64_t reach = rreach;
+	for (; is_nonempty(bandits); bandits.reset_ls1b()) {
+		bitboard bandit = bandits.ls1b();
+		bitboard reach = rreach;
 
 		if (is_nonempty(bandit & hor_masks[pos->ki]))
 			reach &= hor_masks[pos->ki];
@@ -413,7 +406,7 @@ search_king_attacks(struct position *pos)
 
 		pos->king_danger_map |= reach & ~bandit;
 
-		reach &= rook_reach(pos, bsf(bandit));
+		reach &= rook_reach(pos, bandit.ls1b_index());
 		pos->king_attack_map |= reach | bandit;
 	}
 }
@@ -424,21 +417,20 @@ search_king_attacks(struct position *pos)
 static void
 generate_pawn_reach_maps(struct position *pos)
 {
-	uint64_t reach = kogge_stone_north(north_of(pos->map[pawn]));
+	bitboard reach = north_of(pos->map[pawn]);
+	reach.fill_north();
 
-	pos->half_open_files[0] = ~kogge_stone_south(reach);
-	pos->pawn_attack_reach[0] = (west_of(reach) & ~FILE_H) |
-	    (east_of(reach) & ~FILE_A);
+	pos->half_open_files[0] = ~filled_south(reach);
+	pos->pawn_attack_reach[0] = (west_of(reach) & ~bb_file_h) | (east_of(reach) & ~bb_file_a);
 }
 
 static void
 generate_opponent_pawn_reach_maps(struct position *pos)
 {
-	uint64_t reach = kogge_stone_south(south_of(pos->map[opponent_pawn]));
+	bitboard reach = filled_south(south_of(pos->map[opponent_pawn]));
 
-	pos->half_open_files[1] = ~kogge_stone_north(reach);
-	pos->pawn_attack_reach[1] = (west_of(reach) & ~FILE_H) |
-	    (east_of(reach) & ~FILE_A);
+	pos->half_open_files[1] = ~filled_north(reach);
+	pos->pawn_attack_reach[1] = (west_of(reach) & ~bb_file_h) | (east_of(reach) & ~bb_file_a);
 }
 
 
@@ -510,8 +502,8 @@ position_reset(struct position *pos,
 		return -1;
 	if (!kings_valid(pos))
 		return -1;
-	pos->ki = bsf(pos->map[king]);
-	pos->opp_ki = bsf(pos->map[opponent_king]);
+	pos->ki = pos->map[king].ls1b_index();
+	pos->opp_ki = pos->map[opponent_king].ls1b_index();
 	if (!pawns_valid(pos))
 		return -1;
 	if (!castle_rights_valid(pos))
@@ -575,10 +567,7 @@ setup_zhash(struct position *pos)
 {
 	pos->zhash[0] = 0;
 	pos->zhash[1] = 0;
-	for (uint64_t occ = pos->occupied;
-	    is_nonempty(occ);
-	    occ = reset_lsb(occ)) {
-		int i = bsf(occ);
+	for (int i : pos->occupied) {
 		z2_toggle_sq(pos->zhash, i,
 		    pos_piece_at(pos, i),
 		    pos_player_at(pos, i));
@@ -597,15 +586,14 @@ static bool
 kings_valid(const struct position *pos)
 {
 	// Are there exactly one of each king?
-	if (!is_singular(pos->map[king]))
+	if (not pos->map[king].is_singular())
 		return false;
-	if (!is_singular(pos->map[opponent_king]))
+	if (not pos->map[opponent_king].is_singular())
 		return false;
 
 	// Are the two kings too close?
-	int k0 = bsf(pos->map[king]);
-	uint64_t k1 = pos->map[opponent_king];
-	if (is_nonempty(king_pattern[k0] & k1))
+	int k0 = pos->map[king].ls1b_index();
+	if (is_nonempty(king_pattern[k0] & pos->map[opponent_king]))
 		return false;
 
 	return true;
@@ -617,7 +605,7 @@ kings_attacks_valid(const struct position *pos)
 	if (is_nonempty(pos->attack[0] & pos->map[opponent_king]))
 		return false;
 
-	uint64_t k = pos->map[king];
+	bitboard k = pos->map[king];
 
 	if (popcnt(pawn_attacks_player(k) & pos->map[opponent_pawn]) > 1)
 		return false;
@@ -625,12 +613,12 @@ kings_attacks_valid(const struct position *pos)
 	if (popcnt(pos->rays[pr_bishop][pos->ki] & pos->bq[1]) > 1)
 		return false;
 
-	uint64_t rq_attackers = pos->rays[pr_rook][pos->ki] & pos->rq[1];
+	bitboard rq_attackers = pos->rays[pr_rook][pos->ki] & pos->rq[1];
 
 	if (popcnt(rq_attackers) > 2)
 		return false;
 
-	if (popcnt(rq_attackers & ~RANK_1) > 1)
+	if (popcnt(rq_attackers & ~bb_rank_1) > 1)
 		return false;
 
 	if (popcnt(knight_pattern[pos->ki] & pos->map[opponent_knight]) > 1)
@@ -642,8 +630,8 @@ kings_attacks_valid(const struct position *pos)
 static bool
 pawns_valid(const struct position *pos)
 {
-	uint64_t pawns = pos->map[pawn];
-	uint64_t opponent_pawns = pos->map[opponent_pawn];
+	bitboard pawns = pos->map[pawn];
+	bitboard opponent_pawns = pos->map[opponent_pawn];
 
 	// Each side can have up to 8 pawns
 	if (popcnt(pawns) > 8)
@@ -652,7 +640,7 @@ pawns_valid(const struct position *pos)
 		return false;
 
 	// No pawn can reside on rank #1 or #8
-	if (is_nonempty((pawns | opponent_pawns) & (RANK_1 | RANK_8)))
+	if (is_nonempty((pawns | opponent_pawns) & (bb_rank_1 | bb_rank_8)))
 		return false;
 
 	return true;
@@ -662,23 +650,23 @@ static bool
 castle_rights_valid(const struct position *pos)
 {
 	if (pos->cr_king_side) {
-		if (pos_square_at(pos, sq_e1) != king
-		    || pos_square_at(pos, sq_h1) != rook)
+		if (pos_square_at(pos, e1) != king
+		    || pos_square_at(pos, h1) != rook)
 			return false;
 	}
 	if (pos->cr_queen_side) {
-		if (pos_square_at(pos, sq_e1) != king
-		    || pos_square_at(pos, sq_a1) != rook)
+		if (pos_square_at(pos, e1) != king
+		    || pos_square_at(pos, a1) != rook)
 			return false;
 	}
 	if (pos->cr_opponent_king_side) {
-		if (pos_square_at(pos, sq_e8) != opponent_king
-		    || pos_square_at(pos, sq_h8) != opponent_rook)
+		if (pos_square_at(pos, e8) != opponent_king
+		    || pos_square_at(pos, h8) != opponent_rook)
 			return false;
 	}
 	if (pos->cr_opponent_queen_side) {
-		if (pos_square_at(pos, sq_e8) != opponent_king
-		    || pos_square_at(pos, sq_a8) != opponent_rook)
+		if (pos_square_at(pos, e8) != opponent_king
+		    || pos_square_at(pos, a8) != opponent_rook)
 			return false;
 	}
 	return true;
@@ -691,9 +679,9 @@ pos_add_piece(struct position *pos, int i, int piece)
 
 	invariant(ivalid(i));
 	pos->board[i] = piece & ~1;
-	pos->occupied |= bit64(i);
-	pos->map[piece & 1] |= bit64(i);
-	pos->map[piece] |= bit64(i);
+	pos->occupied |= bb(i);
+	pos->map[piece & 1] |= bb(i);
+	pos->map[piece] |= bb(i);
 
 	if ((piece & ~1) != king) {
 		if ((piece & 1) == 0)
@@ -747,7 +735,7 @@ board_reset(struct position *pos, const char board[])
 static bool
 can_be_valid_ep_index(const struct position *pos, int index)
 {
-	uint64_t bit = bit64(index);
+	bitboard bit = bb(index);
 
 	if (ind_rank(index) != rank_5)
 		return false;
@@ -861,22 +849,22 @@ flip_tail(struct position *restrict dst,
 static void
 adjust_castle_rights_move(struct position *pos, move m)
 {
-	if (pos->cr_king_side && mto(m) == sq_h1) {
+	if (pos->cr_king_side && mto(m) == h1) {
 		z2_toggle_castle_king_side(pos->zhash);
 		pos->cr_king_side = false;
 	}
-	if (pos->cr_queen_side && mto(m) == sq_a1) {
+	if (pos->cr_queen_side && mto(m) == a1) {
 		z2_toggle_castle_queen_side(pos->zhash);
 		pos->cr_queen_side = false;
 	}
 	if (pos->cr_opponent_king_side) {
-		if (mfrom(m) == sq_h8 || mfrom(m) == sq_e8) {
+		if (mfrom(m) == h8 || mfrom(m) == e8) {
 			z2_toggle_castle_king_side_opponent(pos->zhash);
 			pos->cr_opponent_king_side = false;
 		}
 	}
 	if (pos->cr_opponent_queen_side) {
-		if (mfrom(m) == sq_a8 || mfrom(m) == sq_e8) {
+		if (mfrom(m) == a8 || mfrom(m) == e8) {
 			z2_toggle_castle_queen_side_opponent(pos->zhash);
 			pos->cr_opponent_queen_side = false;
 		}
@@ -896,8 +884,8 @@ clear_extra_bitboards(struct position *pos)
 
 #else
 
-	pos->king_attack_map = EMPTY;
-	pos->king_danger_map = EMPTY;
+	pos->king_attack_map = empty;
+	pos->king_danger_map = empty;
 	pos->ep_index = 0;
 
 #endif
@@ -911,11 +899,11 @@ position_flip(struct position *restrict dst,
 
 	flip_chess_board(dst->board, src->board);
 	clear_extra_bitboards(dst);
-	dst->occupied = bswap(src->occupied);
+	dst->occupied = src->occupied.flipped();
 	dst->ki = flip_i(src->opp_ki);
 	dst->opp_ki = flip_i(src->ki);
-	dst->attack[0] = bswap(src->attack[1]);
-	dst->attack[1] = bswap(src->attack[0]);
+	dst->attack[0] = src->attack[1].flipped();
+	dst->attack[1] = src->attack[0].flipped();
 	flip_2_bb_pairs(dst->attack + 2, src->attack + 2);
 	flip_2_bb_pairs(dst->attack + 6, src->attack + 6);
 	flip_2_bb_pairs(dst->attack + 10, src->attack + 10);
@@ -925,14 +913,14 @@ position_flip(struct position *restrict dst,
 	flip_all_rays(dst, src);
 	flip_tail(dst, src);
 	flip_2_bb_pairs(dst->king_pins, src->king_pins);
-	dst->undefended[0] = bswap(src->undefended[1]);
-	dst->undefended[1] = bswap(src->undefended[0]);
-	dst->all_kings = bswap(src->all_kings);
-	dst->all_knights = bswap(src->all_knights);
-	dst->all_rq = bswap(src->all_rq);
-	dst->all_bq = bswap(src->all_bq);
+	dst->undefended[0] = src->undefended[1].flipped();
+	dst->undefended[1] = src->undefended[0].flipped();
+	dst->all_kings = src->all_kings.flipped();
+	dst->all_knights = src->all_knights.flipped();
+	dst->all_rq = src->all_rq.flipped();
+	dst->all_bq = src->all_bq.flipped();
 	flip_chess_board(dst->hanging, src->hanging);
-	dst->hanging_map = bswap(src->hanging_map);
+	dst->hanging_map = src->hanging_map.flipped();
 }
 
 bool
@@ -953,11 +941,11 @@ is_move_irreversible(const struct position *pos, move m)
 {
 	return (mtype(m) != mt_general)
 	    || (mcapturedp(m) != 0)
-	    || (mfrom(m) == sq_a1 && pos->cr_queen_side)
-	    || (mfrom(m) == sq_h1 && pos->cr_king_side)
-	    || (mfrom(m) == sq_e1 && (pos->cr_queen_side || pos->cr_king_side))
-	    || (mto(m) == sq_a8 && pos->cr_opponent_queen_side)
-	    || (mto(m) == sq_h8 && pos->cr_opponent_king_side)
+	    || (mfrom(m) == a1 && pos->cr_queen_side)
+	    || (mfrom(m) == h1 && pos->cr_king_side)
+	    || (mfrom(m) == e1 && (pos->cr_queen_side || pos->cr_king_side))
+	    || (mto(m) == a8 && pos->cr_opponent_queen_side)
+	    || (mto(m) == h8 && pos->cr_opponent_king_side)
 	    || (pos->board[mfrom(m)] == pawn);
 }
 
@@ -975,7 +963,7 @@ clear_to_square(struct position *pos, int i)
 		pos->material_value -= piece_value[(unsigned)(pos->board[i])];
 		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
-		pos->map[(unsigned char)(pos->board[i])] &= ~bit64(i);
+		pos->map[(unsigned char)(pos->board[i])] &= ~bb(i);
 	}
 }
 
@@ -984,10 +972,10 @@ move_pawn(struct position *pos, move m)
 {
 	pos->board[mto(m)] = pawn;
 	pos->board[mfrom(m)] = 0;
-	pos->map[opponent_pawn] ^= m64(m);
+	pos->map[opponent_pawn] ^= bb(mfrom(m), mto(m));
 	if (mtype(m) == mt_en_passant) {
 		pos->board[mto(m) + NORTH] = 0;
-		pos->map[pawn] &= ~bit64(mto(m) + NORTH);
+		pos->map[pawn] &= ~bb(mto(m) + NORTH);
 		pos->material_value -= pawn_value;
 		invariant(pos->material_value >= 0);
 		invariant(value_bounds(pos->material_value));
@@ -1003,24 +991,24 @@ static void
 move_piece(struct position *pos, move m)
 {
 	if (m == flip_m(mcastle_king_side)) {
-		pos->board[sq_e8] = 0;
-		pos->board[sq_g8] = king;
-		pos->board[sq_f8] = rook;
-		pos->board[sq_h8] = 0;
-		pos->map[opponent_rook] ^= SQ_F8 | SQ_H8;
-		pos->map[opponent_king] ^= SQ_E8 | SQ_G8;
+		pos->board[e8] = 0;
+		pos->board[g8] = king;
+		pos->board[f8] = rook;
+		pos->board[h8] = 0;
+		pos->map[opponent_rook] ^= bb(f8, h8);
+		pos->map[opponent_king] ^= bb(e8, g8);
 	}
 	else if (m == flip_m(mcastle_queen_side)) {
-		pos->board[sq_e8] = 0;
-		pos->board[sq_c8] = king;
-		pos->board[sq_d8] = rook;
-		pos->board[sq_a8] = 0;
-		pos->map[opponent_rook] ^= SQ_D8 | SQ_A8;
-		pos->map[opponent_king] ^= SQ_E8 | SQ_C8;
+		pos->board[e8] = 0;
+		pos->board[c8] = king;
+		pos->board[d8] = rook;
+		pos->board[a8] = 0;
+		pos->map[opponent_rook] ^= bb(d8, a8);
+		pos->map[opponent_king] ^= bb(e8, c8);
 	}
 	else {
-		uint64_t from = mfrom64(m);
-		uint64_t to = mto64(m);
+		bitboard from = bb(mfrom(m));
+		bitboard to = bb(mto(m));
 		int porig = pos_piece_at(pos, mfrom(m));
 
 		pos->opponent_material_value +=
@@ -1052,15 +1040,15 @@ make_move(struct position *restrict dst,
 	invariant(value_bounds(dst->material_value));
 	invariant(value_bounds(dst->opponent_material_value));
 	clear_to_square(dst, mto(m));
-	dst->ki = bsf(dst->map[king]);
+	dst->ki = dst->map[king].ls1b_index();
 	if (mresultp(m) == pawn) {
-		dst->opp_ki = bsf(dst->map[opponent_king]);
+		dst->opp_ki = dst->map[opponent_king].ls1b_index();
 		move_pawn(dst, m);
 		generate_opponent_pawn_reach_maps(dst);
 	}
 	else {
 		move_piece(dst, m);
-		dst->opp_ki = bsf(dst->map[opponent_king]);
+		dst->opp_ki = dst->map[opponent_king].ls1b_index();
 		adjust_castle_rights_move(dst, m);
 		if (is_promotion(m))
 			generate_opponent_pawn_reach_maps(dst);
