@@ -240,7 +240,7 @@ compute_SEE_value(struct move_desc *desc)
 }
 
 static uint16_t
-attacks_value(uint16_t all_attacks, const struct position *pos)
+attacks_value(uint64_t all_attacks, const struct position *pos)
 {
 	uint16_t value = 0;
 
