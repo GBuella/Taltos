@@ -28,7 +28,6 @@
 #include <cstring>
 
 #include "position.h"
-#include "hash.h"
 #include "util.h"
 #include "eval.h"
 #include "move_desc.h"
@@ -37,6 +36,8 @@
 #include "flip_ray_array.h"
 
 #include "bitboard_constants.inc"
+
+#include "z_random.inc"
 
 namespace taltos
 {
@@ -130,13 +131,6 @@ bool
 position_cr_opponent_queen_side(const struct position *pos)
 {
 	return pos->cr_opponent_queen_side;
-}
-
-void
-get_position_key(const struct position *pos, uint64_t key[])
-{
-	key[0] = pos->zhash[0];
-	key[1] = pos->zhash[1];
 }
 
 static bool
@@ -565,21 +559,19 @@ position_destroy(struct position *p)
 static void
 setup_zhash(struct position *pos)
 {
-	pos->zhash[0] = 0;
-	pos->zhash[1] = 0;
-	for (int i : pos->occupied) {
-		z2_toggle_sq(pos->zhash, i,
-		    pos_piece_at(pos, i),
-		    pos_player_at(pos, i));
-	}
+	pos->hash.reset();
+
+	for (int i : pos->occupied)
+		pos->hash.toggle_square(i, pos_piece_at(pos, i), pos_player_at(pos, i));
+
 	if (pos->cr_king_side)
-		z2_toggle_castle_king_side(pos->zhash);
+		pos->hash.toggle_castle_king_side();
 	if (pos->cr_queen_side)
-		z2_toggle_castle_queen_side(pos->zhash);
+		pos->hash.toggle_castle_queen_side_opponent();
 	if (pos->cr_opponent_king_side)
-		z2_toggle_castle_king_side_opponent(pos->zhash);
+		pos->hash.toggle_castle_king_side_opponent();
 	if (pos->cr_opponent_queen_side)
-		z2_toggle_castle_queen_side_opponent(pos->zhash);
+		pos->hash.toggle_castle_queen_side_opponent();
 }
 
 static bool
@@ -833,8 +825,7 @@ static void
 flip_tail(struct position *restrict dst,
 	const struct position *restrict src)
 {
-	dst->zhash[0] = src->zhash[1];
-	dst->zhash[1] = src->zhash[0];
+	dst->hash = src->hash.flipped();
 	dst->cr_king_side = src->cr_opponent_king_side;
 	dst->cr_queen_side = src->cr_opponent_queen_side;
 	dst->material_value = src->opponent_material_value;
@@ -850,22 +841,22 @@ static void
 adjust_castle_rights_move(struct position *pos, move m)
 {
 	if (pos->cr_king_side && mto(m) == h1) {
-		z2_toggle_castle_king_side(pos->zhash);
+		pos->hash.toggle_castle_king_side();
 		pos->cr_king_side = false;
 	}
 	if (pos->cr_queen_side && mto(m) == a1) {
-		z2_toggle_castle_queen_side(pos->zhash);
+		pos->hash.toggle_castle_queen_side();
 		pos->cr_queen_side = false;
 	}
 	if (pos->cr_opponent_king_side) {
 		if (mfrom(m) == h8 || mfrom(m) == e8) {
-			z2_toggle_castle_king_side_opponent(pos->zhash);
+			pos->hash.toggle_castle_king_side_opponent();
 			pos->cr_opponent_king_side = false;
 		}
 	}
 	if (pos->cr_opponent_queen_side) {
 		if (mfrom(m) == a8 || mfrom(m) == e8) {
-			z2_toggle_castle_queen_side_opponent(pos->zhash);
+			pos->hash.toggle_castle_queen_side_opponent();
 			pos->cr_opponent_queen_side = false;
 		}
 	}
@@ -1062,7 +1053,6 @@ make_move(struct position *restrict dst,
 	generate_opponent_attacks(dst);
 	accumulate_misc_patterns(dst, 0);
 	accumulate_misc_patterns(dst, 1);
-	z2_xor_move(dst->zhash, m);
 	find_hanging_pieces(dst);
 }
 

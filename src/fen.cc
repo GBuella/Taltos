@@ -35,7 +35,6 @@
 
 #include "chess.h"
 #include "str_util.h"
-#include "hash.h"
 #include "util.h"
 
 namespace taltos

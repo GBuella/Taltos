@@ -28,7 +28,6 @@
 #include "game.h"
 #include "engine.h"
 #include "taltos.h"
-#include "hash.h"
 #include "eval.h"
 #include "str_util.h"
 #include "trace.h"
@@ -1157,13 +1156,6 @@ cmd_poskey(void)
 }
 
 static void
-cmd_polyglotkey(void)
-{
-	printf("%016" PRIx64 "\n",
-	    position_polyglot_key(current_position(), turn()));
-}
-
-static void
 cmd_hash_size(void)
 {
 	guard stdout_guard(stdout_mutex);
@@ -1253,8 +1245,6 @@ display_position_info(void)
 	cmd_printfen();
 	printf("internal hash key: ");
 	cmd_poskey();
-	printf("polyglot hash key: ");
-	cmd_polyglotkey();
 	puts("static evaluation:");
 	cmd_eval();
 }
@@ -1652,7 +1642,6 @@ static std::vector<cmd_entry> cmd_list = {
 	{"ping",         cmd_ping,               NULL},
 	{"eval",         cmd_eval,               NULL},
 	{"poskey",       cmd_poskey,             NULL},
-	{"polyglot_key", cmd_polyglotkey,        NULL},
 	{"hash_size",    cmd_hash_size,          NULL},
 	{"hash_entry",   cmd_hash_entry,         NULL},
 	{"hash_value_min",

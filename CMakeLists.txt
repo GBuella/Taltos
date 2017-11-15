@@ -74,7 +74,6 @@ set(TALTOS_SOURCES
 	src/eval.cc
 	src/fen.cc
 	src/game.cc
-	src/hash.cc
 	src/move.cc
 	src/move_desc.cc
 	src/move_gen.cc
@@ -84,7 +83,7 @@ set(TALTOS_SOURCES
 	src/str_util.cc
 	src/util.cc
 	src/trace.cc
-	src/zobrist.cc)
+	src/tt.cc)
 
 add_library(taltos_code STATIC ${TALTOS_SOURCES})
 

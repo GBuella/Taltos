@@ -35,7 +35,7 @@
 #include "macros.h"
 #include "bitboard.h"
 #include "chess.h"
-#include "hash.h"
+#include "zhash.h"
 
 namespace taltos
 {
@@ -197,7 +197,7 @@ struct alignas(64) position {
 	 * position structure - and can recognize transpositions that
 	 * appear with opposite players.
 	 */
-	uint64_t zhash[2];
+	zhash_pair hash;
 
 	/*
 	 * Two booleans corresponding to castling rights, and the sum of piece
@@ -231,6 +231,15 @@ struct alignas(64) position {
 	alignas(64)
 	uint8_t hanging[64];
 	bitboard hanging_map;
+
+	uint64_t key() const
+	{
+		if (ep_index != 0)
+			return hash.key(ind_file(ep_index));
+		else
+			return hash.key();
+	}
+
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
@@ -240,7 +249,7 @@ static_assert(offsetof(struct position, opponent_material_value) +
 
 static_assert(offsetof(struct position, opponent_material_value) +
 	sizeof(((struct position*)NULL)->opponent_material_value) -
-	offsetof(struct position, zhash) == 32,
+	offsetof(struct position, hash) == 32,
 	"struct position layout error");
 
 enum position_ray_directions {
@@ -335,15 +344,6 @@ static inline int
 pos_has_ep_target(const struct position *p)
 {
 	return p->ep_index != 0;
-}
-
-static inline uint64_t
-pos_hash(const struct position *p)
-{
-	uint64_t key = p->zhash[0];
-	if (pos_has_ep_target(p))
-		key = z_toggle_ep_file(key, pos_en_passant_file(p));
-	return key;
 }
 
 static inline bitboard

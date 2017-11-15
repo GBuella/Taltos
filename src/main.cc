@@ -27,7 +27,6 @@
 #include "macros.h"
 #include "chess.h"
 #include "engine.h"
-#include "hash.h"
 #include "taltos.h"
 #include "trace.h"
 #include "search.h"
@@ -59,7 +58,6 @@ main(int argc, char **argv)
 	(void) argc;
 	setup_defaults();
 	trace_init(argv);
-	init_zhash_table();
 	init_search();
 	process_args(argv);
 	init_engine(&conf);
@@ -177,11 +175,17 @@ set_default_hash_size(const char *arg)
 	if (n == 0 || *endptr != '\0')
 		usage(EXIT_FAILURE);
 
-	if (!taltos::ht_is_mb_size_valid(n)) {
-		(void) fprintf(stderr,
-		    "Invalid hash table size \"%s\".\n"
-		    "Must be a power of two, minimum %u, maximum %u.\n",
-		    arg, taltos::ht_min_size_mb(), taltos::ht_max_size_mb());
+	if (n < taltos::transposition_table::min_size_mb) {
+		std::cerr << "Invalid TT size " << n << "mb\n"
+		    << "Minimum size is: "
+		    << taltos::transposition_table::min_size_mb << "mb\n";
+		exit(EXIT_FAILURE);
+	}
+
+	if (n > taltos::transposition_table::max_size_mb) {
+		std::cerr << "Invalid TT size " << n << "mb\n"
+		    << "Maximum size is: "
+		    << taltos::transposition_table::max_size_mb << "mb\n";
 		exit(EXIT_FAILURE);
 	}
 

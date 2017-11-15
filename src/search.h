@@ -32,7 +32,7 @@
 
 #include "chess.h"
 #include "position.h"
-#include "hash.h"
+#include "tt.h"
 #include "util.h"
 #include "taltos.h"
 

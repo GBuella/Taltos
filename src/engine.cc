@@ -28,7 +28,7 @@
 #include "engine.h"
 #include "game.h"
 #include "search.h"
-#include "hash.h"
+#include "tt.h"
 #include "eval.h"
 #include "taltos.h"
 #include "move_order.h"
