@@ -62,6 +62,11 @@ static_assert(rook >= 2 && rook < PIECE_ARRAY_SIZE);
 static_assert(bishop >= 2 && bishop < PIECE_ARRAY_SIZE);
 static_assert(queen >= 2 && queen < PIECE_ARRAY_SIZE);
 
+enum position_ray_directions {
+	pr_bishop,
+	pr_rook,
+};
+
 struct alignas(64) position {
 	static void* operator new(size_t);
 	static void* operator new[](size_t);
@@ -231,6 +236,78 @@ struct alignas(64) position {
 	alignas(64)
 	uint8_t hanging[64];
 	bitboard hanging_map;
+
+	bool is_in_check() const
+	{
+		return king_attack_map.is_nonempty();
+	}
+
+	int piece_at(int i) const
+	{
+		invariant(ivalid(i));
+		return board[i];
+	}
+
+	int player_at(int i) const
+	{
+		invariant(ivalid(i));
+		return map[1].is_set(i) ? 1 : 0;
+	}
+
+	int square_at(int i) const
+	{
+		return piece_at(i) | player_at(i);
+	}
+
+	bitboard bishop_reach(int i) const
+	{
+		return rays[pr_bishop][i];
+	}
+
+	bitboard rook_reach(int i) const
+	{
+		return rays[pr_rook][i];
+	}
+
+	bitboard diag_reach(int i) const
+	{
+		return bishop_reach(i) & diag_masks[i];
+	}
+
+	bitboard adiag_reach(int i) const
+	{
+		return bishop_reach(i) & adiag_masks[i];
+	}
+
+	bitboard hor_reac(int i) const
+	{
+		return rook_reach(i) & hor_masks[i];
+	}
+
+	bitboard ver_reac(int i) const
+	{
+		return rook_reach(i) & ver_masks[i];
+	}
+
+	bitboard king_attackers() const
+	{
+		return king_attack_map & map[1];
+	}
+
+	bitboard absolute_pins(int player) const
+	{
+		return king_pins[player] & map[player];
+	}
+
+	int en_passant_file() const
+	{
+		return ind_file(ep_index);
+	}
+
+	bool has_ep_target() const
+	{
+		return ep_index != 0;
+	}
 };
 
 static_assert(offsetof(struct position, opponent_material_value) +
@@ -243,99 +320,7 @@ static_assert(offsetof(struct position, opponent_material_value) +
 	offsetof(struct position, zhash) == 32,
 	"struct position layout error");
 
-enum position_ray_directions {
-	pr_bishop,
-	pr_rook,
-};
-
 
-
-static inline int
-pos_piece_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->board[i];
-}
-
-static inline int
-pos_player_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->map[1].is_set(i) ? 1 : 0;
-}
-
-static inline int
-pos_square_at(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return pos_piece_at(p, i) | pos_player_at(p, i);
-}
-
-static inline bitboard
-bishop_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->rays[pr_bishop][i];
-}
-
-static inline bitboard
-rook_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return p->rays[pr_rook][i];
-}
-
-static inline bitboard
-diag_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return bishop_reach(p, i) & diag_masks[i];
-}
-
-static inline bitboard
-adiag_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return bishop_reach(p, i) & adiag_masks[i];
-}
-
-static inline bitboard
-hor_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return rook_reach(p, i) & hor_masks[i];
-}
-
-static inline bitboard
-ver_reach(const struct position *p, int i)
-{
-	invariant(ivalid(i));
-	return rook_reach(p, i) & ver_masks[i];
-}
-
-static inline bitboard
-pos_king_attackers(const struct position *p)
-{
-	return p->king_attack_map & p->map[1];
-}
-
-static inline bitboard
-absolute_pins(const struct position *p, int player)
-{
-	return p->king_pins[player] & p->map[player];
-}
-
-static inline int
-pos_en_passant_file(const struct position *p)
-{
-	return ind_file(p->ep_index);
-}
-
-static inline int
-pos_has_ep_target(const struct position *p)
-{
-	return p->ep_index != 0;
-}
 
 static inline uint64_t
 pos_hash(const struct position *p)
