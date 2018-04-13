@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,7 +35,7 @@
 
 #include "macros.h"
 #include "book_types.h"
-#include "hash.h"
+#include "tt.h"
 #include "util.h"
 
 struct entry {
@@ -240,15 +240,13 @@ pmpromotion(uint16_t pm)
 }
 
 static bool
-pmove_match(uint16_t polyglot_move, move m, bool flip)
+pmove_match(uint16_t polyglot_move, struct move m)
 {
-	if (flip)
-		m = flip_m(m);
-	if (pmfrom(polyglot_move) != mfrom(m)
-	    || pmto(polyglot_move) != mto(m))
+	if (pmfrom(polyglot_move) != m.from || pmto(polyglot_move) != m.to)
 		return false;
+
 	if (is_promotion(m))
-		return pmpromotion(polyglot_move) == mresultp(m);
+		return pmpromotion(polyglot_move) == m.result;
 	else
 		return pmpromotion(polyglot_move) == 0;
 }
@@ -256,22 +254,22 @@ pmove_match(uint16_t polyglot_move, move m, bool flip)
 static void
 pick_legal_moves(struct search *search,
 		const struct position *position,
-		enum player side, move moves[])
+		struct move moves[])
 {
-	move legal_moves[MOVE_ARRAY_LENGTH];
+	struct move legal_moves[MOVE_ARRAY_LENGTH];
 
 	(void) gen_moves(position, legal_moves);
 	for (unsigned ri = 0; ri < search->count; ++ri) {
 		uint16_t m = search->entries[ri].move;
 
-		for (unsigned i = 0; legal_moves[i] != 0; ++i) {
-			if (pmove_match(m, legal_moves[i], side == white)) {
+		for (unsigned i = 0; !is_null_move(legal_moves[i]); ++i) {
+			if (pmove_match(m, legal_moves[i])) {
 				*moves++ = legal_moves[i];
 				break;
 			}
 		}
 	}
-	*moves = 0;
+	*moves = null_move();
 }
 
 static int
@@ -297,10 +295,10 @@ sort_entries(size_t count, struct entry entries[count])
 void
 polyglot_book_get_move(const struct book *book,
 			const struct position *position,
-			size_t msize, move moves[msize])
+			size_t msize, struct move moves[msize])
 {
 
-	moves[0] = 0;
+	moves[0] = null_move();
 	if (msize < 2)
 		return;
 
@@ -311,27 +309,16 @@ polyglot_book_get_move(const struct book *book,
 				.file = book->file,
 				.size = book->polyglot_book.size, };
 
-	enum player side;
 
-	side = white;
-	search.key = position_polyglot_key(position, side);
-	if (get_entries(&search) != 0)
+	search.key = position_polyglot_key(position);
+	if (get_entries(&search) != 0) {
 		search.count = 0;
-
-	if (search.count == 0) {
-		side = black;
-		search.key = position_polyglot_key(position, side);
-		if (get_entries(&search) != 0) {
-			search.count = 0;
-		}
-
-		if (search.count == 0)
-			return;
+		return;
 	}
 
 	sort_entries(search.count, entries);
 
-	pick_legal_moves(&search, position, side, moves);
+	pick_legal_moves(&search, position, moves);
 }
 
 size_t

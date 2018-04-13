@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017, Gabor Buella
+ * Copyright 2017-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,7 +40,7 @@ struct move_square_desc {
 };
 
 struct move_desc {
-	move move;
+	struct move move;
 	int value;
 
 	uint64_t discovered_attacks;
@@ -56,10 +56,10 @@ struct move_desc {
 static inline void
 move_desc_setup(struct move_desc *desc)
 {
-	desc->move = 0;
+	desc->move = null_move();
 }
 
-void describe_move(struct move_desc*, const struct position*, move);
+void describe_move(struct move_desc*, const struct position*, struct move);
 
 void find_hanging_pieces(struct position*);
 

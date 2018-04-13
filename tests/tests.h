@@ -40,6 +40,9 @@
 
 #include <assert.h>
 
+#define MUNIT_ENABLE_ASSERT_ALIASES 1
+#include "munit.h"
+
 #include "macros.h"
 
 extern int prog_argc;

@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2016-2017, Gabor Buella
+ * Copyright 2016-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -57,11 +57,30 @@ run_tests(void)
 {
 	struct position position[1];
 
-	for (size_t i = 0; i < ARRAY_LENGTH(data); ++i) {
-		enum player turn;
+	position_read_fen(data[0].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[0].polyglot_key);
 
-		position_read_fen(position, data[i].FEN, NULL, &turn);
-		assert(position_polyglot_key(position, turn)
-		    == data[i].polyglot_key);
-	}
+	position_read_fen(data[1].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[1].polyglot_key);
+
+	position_read_fen(data[2].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[2].polyglot_key);
+
+	position_read_fen(data[3].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[3].polyglot_key);
+
+	position_read_fen(data[4].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[4].polyglot_key);
+
+	position_read_fen(data[5].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[5].polyglot_key);
+
+	position_read_fen(data[6].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[6].polyglot_key);
+
+	position_read_fen(data[7].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[7].polyglot_key);
+
+	position_read_fen(data[8].FEN, position);
+	assert_int64(position_polyglot_key(position), ==, data[8].polyglot_key);
 }

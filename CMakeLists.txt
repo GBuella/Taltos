@@ -1,7 +1,7 @@
 # vim: set filetype=cmake :
 # vim: set noet ts=8 sw=8 cinoptions=+4,(4: #
 #
-# Copyright 2014-2017, Gabor Buella
+# Copyright 2014-2018, Gabor Buella
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -70,7 +70,7 @@ set(TALTOS_SOURCES
 	src/fen.c
 	src/fen_book.c
 	src/game.c
-	src/hash.c
+	src/tt.c
 	src/move.c
 	src/move_desc.c
 	src/move_gen.c
@@ -82,6 +82,8 @@ set(TALTOS_SOURCES
 	src/util.c
 	src/trace.c
 	src/zobrist.c)
+
+set_source_files_properties(src/position.c PROPERTIES COMPILE_FLAGS -fno-builtin-memcpy)
 
 if(NOT TALTOS_CAN_USE_ISO_THREADS)
 	set(TALTOS_SOURCES tinycthread/tinycthread.c ${TALTOS_SOURCES})

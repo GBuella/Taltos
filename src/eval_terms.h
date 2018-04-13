@@ -32,76 +32,77 @@
 #include "eval.h"
 
 static inline uint64_t
-pawn_chains(const struct position *pos)
+white_pawn_chains(const struct position *pos)
 {
-	return pos->map[pawn] & pos->attack[pawn];
+	return pos->map[white_pawn] & pos->attack[white_pawn];
 }
 
 static inline uint64_t
-opponent_pawn_chains(const struct position *pos)
+black_pawn_chains(const struct position *pos)
 {
-	return pos->map[opponent_pawn] & pos->attack[opponent_pawn];
+	return pos->map[black_pawn] & pos->attack[black_pawn];
 }
 
 static inline uint64_t
-isolated_pawns(const struct position *pos)
+white_isolated_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[pawn];
+	uint64_t pawns = pos->map[white_pawn];
 
-	pawns &= east_of(pos->half_open_files[0] & ~FILE_H);
-	pawns &= west_of(pos->half_open_files[0] & ~FILE_A);
+	pawns &= east_of(pos->half_open_files[white] & ~FILE_H);
+	pawns &= west_of(pos->half_open_files[white] & ~FILE_A);
 
 	return pawns;
 }
 
 static inline uint64_t
-opponent_isolated_pawns(const struct position *pos)
+black_isolated_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[opponent_pawn];
+	uint64_t pawns = pos->map[black_pawn];
 
-	pawns &= east_of(pos->half_open_files[1] & ~FILE_H);
-	pawns &= west_of(pos->half_open_files[1] & ~FILE_A);
+	pawns &= east_of(pos->half_open_files[black] & ~FILE_H);
+	pawns &= west_of(pos->half_open_files[black] & ~FILE_A);
 
 	return pawns;
 }
 
 static inline uint64_t
-blocked_pawns(const struct position *pos)
+white_blocked_pawns(const struct position *pos)
 {
-	return north_of(pos->map[pawn]) & pos->map[1];
+	return north_of(pos->map[white_pawn]) & pos->map[black];
 }
 
 static inline uint64_t
-opponent_blocked_pawns(const struct position *pos)
+black_blocked_pawns(const struct position *pos)
 {
-	return south_of(pos->map[opponent_pawn]) & pos->map[0];
+	return south_of(pos->map[black_pawn]) & pos->map[white];
 }
 
 static inline uint64_t
-double_pawns(const struct position *pos)
+white_double_pawns(const struct position *pos)
 {
-	return north_of(kogge_stone_north(pos->map[pawn])) & pos->map[pawn];
+	return north_of(kogge_stone_north(pos->map[white_pawn])) &
+	    pos->map[white_pawn];
 }
 
 static inline uint64_t
-opponent_double_pawns(const struct position *pos)
+black_double_pawns(const struct position *pos)
 {
-	return south_of(kogge_stone_south(pos->map[opponent_pawn]))
-	    & pos->map[opponent_pawn];
+	return south_of(kogge_stone_south(pos->map[black_pawn]))
+	    & pos->map[black_pawn];
 }
 
 static inline uint64_t
-backward_pawns(const struct position *pos)
+white_backward_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[pawn];
+	uint64_t pawns = pos->map[white_pawn];
 
 	// No friendly pawns an adjacent files, next to - or behind
-	pawns &= ~south_of(pos->pawn_attack_reach[0]);
+	pawns &= ~south_of(pos->pawn_attack_reach[white]);
 
 	// How far can a pawn advance, without being attacked by another pawn?
 	uint64_t advance = kogge_stone_north(pawns);
-	advance &= ~kogge_stone_north(advance & pos->attack[opponent_pawn]);
-	advance &= south_of(pos->attack[pawn]);
+	advance &= ~kogge_stone_north(advance & pos->attack[black_pawn]);
+	advance &= south_of(pos->attack[white_pawn]);
 
 	// If it can't reach a square next to a friendly pawn, it is backwards
 	pawns &= ~kogge_stone_south(advance);
@@ -110,181 +111,183 @@ backward_pawns(const struct position *pos)
 }
 
 static inline uint64_t
-opponent_backward_pawns(const struct position *pos)
+black_backward_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[opponent_pawn];
-	pawns &= ~north_of(pos->pawn_attack_reach[1]);
+	uint64_t pawns = pos->map[black_pawn];
+	pawns &= ~north_of(pos->pawn_attack_reach[black]);
 
 	uint64_t advance = kogge_stone_south(pawns);
-	advance &= ~kogge_stone_south(advance & pos->attack[pawn]);
-	advance &= north_of(pos->attack[opponent_pawn]);
+	advance &= ~kogge_stone_south(advance & pos->attack[white_pawn]);
+	advance &= north_of(pos->attack[black_pawn]);
 	pawns &= ~kogge_stone_north(advance);
 
 	return pawns;
 }
 
 static inline uint64_t
-outposts(const struct position *pos)
+white_outposts(const struct position *pos)
 {
-	return pos->attack[pawn]
-	    & ~pos->pawn_attack_reach[1]
+	return pos->attack[white_pawn]
+	    & ~pos->pawn_attack_reach[black]
 	    & ~(RANK_8 | FILE_A | FILE_H);
 }
 
 static inline uint64_t
-opponent_outposts(const struct position *pos)
+black_outposts(const struct position *pos)
 {
-	return pos->attack[opponent_pawn]
-	    & ~pos->pawn_attack_reach[0]
+	return pos->attack[black_pawn]
+	    & ~pos->pawn_attack_reach[white]
 	    & ~(RANK_1 | FILE_A | FILE_H);
 }
 
 static inline uint64_t
-knight_outposts(const struct position *pos)
+white_knight_outposts(const struct position *pos)
 {
-	return pos->map[knight] & outposts(pos);
+	return pos->map[white_knight] & white_outposts(pos);
 }
 
 static inline uint64_t
-opponent_knight_outposts(const struct position *pos)
+black_knight_outposts(const struct position *pos)
 {
-	return pos->map[opponent_knight] & opponent_outposts(pos);
+	return pos->map[black_knight] & black_outposts(pos);
 }
 
 static inline uint64_t
-knight_reach_outposts(const struct position *pos)
+white_knight_reach_outposts(const struct position *pos)
 {
-	return pos->attack[knight] & outposts(pos)
-	    & ~pos->map[0];
+	return pos->attack[white_knight] & white_outposts(pos)
+	    & ~pos->map[white];
 }
 
 static inline uint64_t
-opponent_knight_reach_outposts(const struct position *pos)
+black_knight_reach_outposts(const struct position *pos)
 {
-	return pos->attack[opponent_knight] & opponent_outposts(pos)
-	    & ~pos->map[1];
+	return pos->attack[black_knight] & black_outposts(pos)
+	    & ~pos->map[black];
 }
 
 static inline uint64_t
-passed_pawns(const struct position *pos)
+white_passed_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[pawn];
+	uint64_t pawns = pos->map[white_pawn];
 	pawns &= (RANK_7 | RANK_6 | RANK_5 | RANK_4);
-	pawns &= ~pos->pawn_attack_reach[1];
-	pawns &= ~kogge_stone_south(pos->map[opponent_pawn]);
+	pawns &= ~pos->pawn_attack_reach[black];
+	pawns &= ~kogge_stone_south(pos->map[black_pawn]);
 
 	return pawns;
 }
 
 static inline uint64_t
-opponent_passed_pawns(const struct position *pos)
+black_passed_pawns(const struct position *pos)
 {
-	uint64_t pawns = pos->map[opponent_pawn];
+	uint64_t pawns = pos->map[black_pawn];
 	pawns &= (RANK_2 | RANK_3 | RANK_4 | RANK_5);
-	pawns &= ~pos->pawn_attack_reach[0];
-	pawns &= ~kogge_stone_north(pos->map[pawn]);
+	pawns &= ~pos->pawn_attack_reach[white];
+	pawns &= ~kogge_stone_north(pos->map[white_pawn]);
 
 	return pawns;
 }
 
 static inline uint64_t
-rooks_on_half_open_files(const struct position *pos)
+white_rooks_on_half_open_files(const struct position *pos)
 {
-	return pos->map[rook] & pos->half_open_files[0];
+	return pos->map[white_rook] & pos->half_open_files[white];
 }
 
 static inline uint64_t
-opponent_rooks_on_half_open_files(const struct position *pos)
+black_rooks_on_half_open_files(const struct position *pos)
 {
-	return pos->map[opponent_rook] & pos->half_open_files[1];
+	return pos->map[black_rook] & pos->half_open_files[black];
 }
 
 static inline uint64_t
-rooks_on_open_files(const struct position *pos)
+white_rooks_on_open_files(const struct position *pos)
 {
-	return pos->map[rook] &
-	    pos->half_open_files[0] & pos->half_open_files[1];
+	return pos->map[white_rook] &
+	    pos->half_open_files[white] & pos->half_open_files[black];
 }
 
 static inline uint64_t
-opponent_rooks_on_open_files(const struct position *pos)
+black_rooks_on_open_files(const struct position *pos)
 {
-	return pos->map[opponent_rook] &
-	    pos->half_open_files[0] & pos->half_open_files[1];
+	return pos->map[black_rook] &
+	    pos->half_open_files[white] & pos->half_open_files[black];
 }
 
 static inline uint64_t
-rook_batteries(const struct position *pos)
+white_rook_batteries(const struct position *pos)
 {
-	return pos->map[rook] & pos->attack[rook]
-	    & pos->half_open_files[0]
-	    & south_of(kogge_stone_south(pos->map[rook]));
+	return pos->map[white_rook] & pos->attack[white_rook]
+	    & pos->half_open_files[white]
+	    & south_of(kogge_stone_south(pos->map[white_rook]));
 }
 
 static inline uint64_t
-opponent_rook_batteries(const struct position *pos)
+black_rook_batteries(const struct position *pos)
 {
-	return pos->map[opponent_rook] & pos->attack[opponent_rook]
-	    & pos->half_open_files[1]
-	    & north_of(kogge_stone_north(pos->map[opponent_rook]));
+	return pos->map[black_rook] & pos->attack[black_rook]
+	    & pos->half_open_files[black]
+	    & north_of(kogge_stone_north(pos->map[black_rook]));
 }
 
 static inline uint64_t
-pawns_on_center(const struct position *pos)
+white_pawns_on_center(const struct position *pos)
 {
-	return pos->map[pawn] & CENTER_SQ;
+	return pos->map[white_pawn] & CENTER_SQ;
 }
 
 static inline uint64_t
-opponent_pawns_on_center(const struct position *pos)
+black_pawns_on_center(const struct position *pos)
 {
-	return pos->map[opponent_pawn] & CENTER_SQ;
+	return pos->map[black_pawn] & CENTER_SQ;
 }
 
 static inline uint64_t
-pawns_on_center4(const struct position *pos)
+white_pawns_on_center4(const struct position *pos)
 {
-	return pos->map[pawn] & pos->attack[pawn] & CENTER4_SQ;
-}
-
-static inline uint64_t
-opponent_pawns_on_center4(const struct position *pos)
-{
-	return pos->map[opponent_pawn] & pos->attack[opponent_pawn]
+	return pos->map[white_pawn] & pos->attack[white_pawn]
 	    & CENTER4_SQ;
 }
 
 static inline uint64_t
-center4_attacks(const struct position *pos)
+black_pawns_on_center4(const struct position *pos)
 {
-	return (pos->attack[knight] | pos->attack[bishop]) & CENTER4_SQ;
+	return pos->map[black_pawn] & pos->attack[black_pawn]
+	    & CENTER4_SQ;
 }
 
 static inline uint64_t
-opponent_center4_attacks(const struct position *pos)
+white_center4_attacks(const struct position *pos)
 {
-	return (pos->attack[opponent_knight] | pos->attack[opponent_bishop])
+	return (pos->attack[white_knight] | pos->attack[white_bishop])
+	    & CENTER4_SQ;
+}
+
+static inline uint64_t
+black_center4_attacks(const struct position *pos)
+{
+	return (pos->attack[black_knight] | pos->attack[black_bishop])
 	    & CENTER4_SQ;
 }
 
 static inline bool
-has_bishop_pair(const struct position *pos)
+white_has_bishop_pair(const struct position *pos)
 {
-	return is_nonempty(pos->map[bishop] & BLACK_SQUARES)
-	    && is_nonempty(pos->map[bishop] & WHITE_SQUARES);
+	return is_nonempty(pos->map[white_bishop] & BLACK_SQUARES)
+	    && is_nonempty(pos->map[white_bishop] & WHITE_SQUARES);
 }
 
 static inline bool
-opponent_has_bishop_pair(const struct position *pos)
+black_has_bishop_pair(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_bishop] & BLACK_SQUARES)
-	    && is_nonempty(pos->map[opponent_bishop] & WHITE_SQUARES);
+	return is_nonempty(pos->map[black_bishop] & BLACK_SQUARES)
+	    && is_nonempty(pos->map[black_bishop] & WHITE_SQUARES);
 }
 
 static inline uint64_t
 all_pawns(const struct position *pos)
 {
-	return pos->map[pawn] | pos->map[opponent_pawn];
+	return pos->map[white_pawn] | pos->map[black_pawn];
 }
 
 static inline uint64_t
@@ -300,229 +303,229 @@ pawns_on_black(const struct position *pos)
 }
 
 static inline uint64_t
-bishops_on_white(const struct position *pos)
+white_bishops_on_white(const struct position *pos)
 {
-	return WHITE_SQUARES & pos->map[bishop];
+	return WHITE_SQUARES & pos->map[white_bishop];
 }
 
 static inline uint64_t
-bishops_on_black(const struct position *pos)
+white_bishops_on_black(const struct position *pos)
 {
-	return BLACK_SQUARES & pos->map[bishop];
+	return BLACK_SQUARES & pos->map[white_bishop];
 }
 
 static inline uint64_t
-opponent_bishops_on_white(const struct position *pos)
+black_bishops_on_white(const struct position *pos)
 {
-	return WHITE_SQUARES & pos->map[opponent_bishop];
+	return WHITE_SQUARES & pos->map[black_bishop];
 }
 
 static inline uint64_t
-opponent_bishops_on_black(const struct position *pos)
+black_bishops_on_black(const struct position *pos)
 {
-	return BLACK_SQUARES & pos->map[opponent_bishop];
+	return BLACK_SQUARES & pos->map[black_bishop];
 }
 
 static inline uint64_t
-free_squares(const struct position *pos)
+white_free_squares(const struct position *pos)
 {
-	uint64_t map = ~pos->attack[1];
-	map |= pos->attack[pawn] & ~pos->attack[opponent_pawn];
-	return map & ~pos->map[0];
+	uint64_t map = ~pos->attack[black];
+	map |= pos->attack[white_pawn] & ~pos->attack[black_pawn];
+	return map & ~pos->map[white];
 }
 
 static inline uint64_t
-opponent_free_squares(const struct position *pos)
+black_free_squares(const struct position *pos)
 {
-	uint64_t map = ~pos->attack[0];
-	map |= pos->attack[opponent_pawn] & ~pos->attack[pawn];
-	return map & ~pos->map[1];
+	uint64_t map = ~pos->attack[white];
+	map |= pos->attack[black_pawn] & ~pos->attack[white_pawn];
+	return map & ~pos->map[black];
 }
 
 static inline int
-non_pawn_material(const struct position *pos)
+white_non_pawn_material(const struct position *pos)
 {
-	return pos->material_value -
-	    pawn_value * popcnt(pos->map[pawn]);
+	return pos->material_value[white] -
+	    pawn_value * popcnt(pos->map[white_pawn]);
 }
 
 static inline int
-opponent_non_pawn_material(const struct position *pos)
+black_non_pawn_material(const struct position *pos)
 {
-	return pos->opponent_material_value -
-	    pawn_value * popcnt(pos->map[opponent_pawn]);
+	return pos->material_value[black] -
+	    pawn_value * popcnt(pos->map[black_pawn]);
 }
 
 static inline bool
 bishop_c1_is_trapped(const struct position *pos)
 {
-	return (pos->map[pawn] & (SQ_B2 | SQ_D2)) == (SQ_B2 | SQ_D2);
+	return (pos->map[white_pawn] & (SQ_B2 | SQ_D2)) == (SQ_B2 | SQ_D2);
 }
 
 static inline bool
 bishop_f1_is_trapped(const struct position *pos)
 {
-	return (pos->map[pawn] & (SQ_E2 | SQ_G2)) == (SQ_E2 | SQ_G2);
+	return (pos->map[white_pawn] & (SQ_E2 | SQ_G2)) == (SQ_E2 | SQ_G2);
 }
 
 static inline bool
-opponent_bishop_c8_is_trapped(const struct position *pos)
+bishop_c8_is_trapped(const struct position *pos)
 {
-	return (pos->map[opponent_pawn] & (SQ_B7 | SQ_D7)) == (SQ_B7 | SQ_D7);
+	return (pos->map[black_pawn] & (SQ_B7 | SQ_D7)) == (SQ_B7 | SQ_D7);
 }
 
 static inline bool
-opponent_bishop_f8_is_trapped(const struct position *pos)
+bishop_f8_is_trapped(const struct position *pos)
 {
-	return (pos->map[opponent_pawn] & (SQ_E7 | SQ_G7)) == (SQ_E7 | SQ_G7);
+	return (pos->map[black_pawn] & (SQ_E7 | SQ_G7)) == (SQ_E7 | SQ_G7);
 }
 
 static inline bool
-bishop_trapped_at_a7(const struct position *pos)
+white_bishop_trapped_at_a7(const struct position *pos)
 {
-	return is_nonempty(pos->map[bishop] & SQ_A7)
-	    && ((pos->map[opponent_pawn] & (SQ_B6 | SQ_C7)) == (SQ_B6 | SQ_C7));
+	return is_nonempty(pos->map[white_bishop] & SQ_A7)
+	    && ((pos->map[black_pawn] & (SQ_B6 | SQ_C7)) == (SQ_B6 | SQ_C7));
 }
 
 static inline bool
-bishop_trapped_at_h7(const struct position *pos)
+white_bishop_trapped_at_h7(const struct position *pos)
 {
-	return is_nonempty(pos->map[bishop] & SQ_H7)
-	    && ((pos->map[opponent_pawn] & (SQ_G6 | SQ_F7)) == (SQ_G6 | SQ_F7));
+	return is_nonempty(pos->map[white_bishop] & SQ_H7)
+	    && ((pos->map[black_pawn] & (SQ_G6 | SQ_F7)) == (SQ_G6 | SQ_F7));
 }
 
 static inline bool
-opponent_bishop_trapped_at_a2(const struct position *pos)
+black_bishop_trapped_at_a2(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_bishop] & SQ_A2)
-	    && ((pos->map[pawn] & (SQ_B3 | SQ_C2)) == (SQ_B3 | SQ_C2));
+	return is_nonempty(pos->map[black_bishop] & SQ_A2)
+	    && ((pos->map[white_pawn] & (SQ_B3 | SQ_C2)) == (SQ_B3 | SQ_C2));
 }
 
 static inline bool
-opponent_bishop_trapped_at_h2(const struct position *pos)
+black_bishop_trapped_at_h2(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_bishop] & SQ_H2)
-	    && ((pos->map[pawn] & (SQ_G3 | SQ_F2)) == (SQ_G3 | SQ_F2));
+	return is_nonempty(pos->map[black_bishop] & SQ_H2)
+	    && ((pos->map[white_pawn] & (SQ_G3 | SQ_F2)) == (SQ_G3 | SQ_F2));
 }
 
 static inline bool
-bishop_trappable_at_a7(const struct position *pos)
+white_bishop_trappable_at_a7(const struct position *pos)
 {
-	return is_nonempty(pos->map[bishop] & SQ_A7)
-	    && ((pos->map[opponent_pawn] & (SQ_B7 | SQ_C7)) == (SQ_B7 | SQ_C7));
+	return is_nonempty(pos->map[white_bishop] & SQ_A7)
+	    && ((pos->map[black_pawn] & (SQ_B7 | SQ_C7)) == (SQ_B7 | SQ_C7));
 }
 
 static inline bool
-bishop_trappable_at_h7(const struct position *pos)
+white_bishop_trappable_at_h7(const struct position *pos)
 {
-	return is_nonempty(pos->map[bishop] & SQ_H7)
-	    && ((pos->map[opponent_pawn] & (SQ_G7 | SQ_F7)) == (SQ_G7 | SQ_F7));
+	return is_nonempty(pos->map[white_bishop] & SQ_H7)
+	    && ((pos->map[black_pawn] & (SQ_G7 | SQ_F7)) == (SQ_G7 | SQ_F7));
 }
 
 static inline bool
-opponent_bishop_trappable_at_a2(const struct position *pos)
+black_bishop_trappable_at_a2(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_bishop] & SQ_A2)
-	    && ((pos->map[pawn] & (SQ_B2 | SQ_C2)) == (SQ_B2 | SQ_C2));
+	return is_nonempty(pos->map[black_bishop] & SQ_A2)
+	    && ((pos->map[white_pawn] & (SQ_B2 | SQ_C2)) == (SQ_B2 | SQ_C2));
 }
 
 static inline bool
-opponent_bishop_trappable_at_h2(const struct position *pos)
+black_bishop_trappable_at_h2(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_bishop] & SQ_H2)
-	    && ((pos->map[pawn] & (SQ_G2 | SQ_F2)) == (SQ_G2 | SQ_F2));
+	return is_nonempty(pos->map[black_bishop] & SQ_H2)
+	    && ((pos->map[white_pawn] & (SQ_G2 | SQ_F2)) == (SQ_G2 | SQ_F2));
 }
 
 static inline bool
 rook_a1_is_trapped(const struct position *pos)
 {
-	if (pos->cr_queen_side)
+	if (pos->cr_white_queen_side)
 		return false;
 
-	uint64_t r = pos->map[rook] & (SQ_A1 | SQ_B1 | SQ_C1);
+	uint64_t r = pos->map[white_rook] & (SQ_A1 | SQ_B1 | SQ_C1);
 	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D1;
 	uint64_t blockers =
-	    pos->map[king] | pos->map[bishop] | pos->map[knight];
+	    pos->map[white_king] | pos->map[white_bishop] | pos->map[white_knight];
 	return is_nonempty(r)
-	    && is_empty(r & pos->half_open_files[0])
+	    && is_empty(r & pos->half_open_files[white])
 	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
 rook_h1_is_trapped(const struct position *pos)
 {
-	if (pos->cr_king_side)
+	if (pos->cr_white_king_side)
 		return false;
 
-	uint64_t r = pos->map[rook] & (SQ_F1 | SQ_G1 | SQ_H1);
+	uint64_t r = pos->map[white_rook] & (SQ_F1 | SQ_G1 | SQ_H1);
 	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E1;
 	uint64_t blockers =
-	    pos->map[king] | pos->map[bishop] | pos->map[knight];
+	    pos->map[white_king] | pos->map[white_bishop] | pos->map[white_knight];
 	return is_nonempty(r)
-	    && is_empty(r & pos->half_open_files[0])
+	    && is_empty(r & pos->half_open_files[white])
 	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
-opponent_rook_a8_is_trapped(const struct position *pos)
+rook_a8_is_trapped(const struct position *pos)
 {
-	if (pos->cr_opponent_queen_side)
+	if (pos->cr_black_queen_side)
 		return false;
 
-	uint64_t r = pos->map[opponent_rook] & (SQ_A8 | SQ_B8 | SQ_C8);
+	uint64_t r = pos->map[black_rook] & (SQ_A8 | SQ_B8 | SQ_C8);
 	uint64_t trap = east_of(r) | east_of(east_of(r)) | SQ_D8;
-	uint64_t blockers = pos->map[opponent_king]
-	    | pos->map[opponent_bishop] | pos->map[opponent_knight];
+	uint64_t blockers = pos->map[black_king]
+	    | pos->map[black_bishop] | pos->map[black_knight];
 	return is_nonempty(r)
-	    && is_empty(r & pos->half_open_files[1])
+	    && is_empty(r & pos->half_open_files[black])
 	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
-opponent_rook_h8_is_trapped(const struct position *pos)
+rook_h8_is_trapped(const struct position *pos)
 {
-	if (pos->cr_opponent_king_side)
+	if (pos->cr_black_king_side)
 		return false;
 
-	uint64_t r = pos->map[opponent_rook] & (SQ_F8 | SQ_G8 | SQ_H8);
+	uint64_t r = pos->map[black_rook] & (SQ_F8 | SQ_G8 | SQ_H8);
 	uint64_t trap = west_of(r) | west_of(west_of(r)) | SQ_E8;
-	uint64_t blockers = pos->map[opponent_king]
-	    | pos->map[opponent_bishop] | pos->map[opponent_knight];
+	uint64_t blockers = pos->map[black_king]
+	    | pos->map[black_bishop] | pos->map[black_knight];
 	return is_nonempty(r)
-	    && is_empty(r & pos->half_open_files[1])
+	    && is_empty(r & pos->half_open_files[black])
 	    && is_nonempty(trap & blockers);
 }
 
 static inline bool
-knight_cornered_a8(const struct position *pos)
+white_knight_cornered_a8(const struct position *pos)
 {
-	return is_nonempty(pos->map[knight] & SQ_A8)
-	    && is_nonempty(pos->attack[opponent_pawn] & SQ_B6)
-	    && is_nonempty(pos->attack[1] & SQ_C7);
+	return is_nonempty(pos->map[white_knight] & SQ_A8)
+	    && is_nonempty(pos->attack[black_pawn] & SQ_B6)
+	    && is_nonempty(pos->attack[black] & SQ_C7);
 }
 
 static inline bool
-knight_cornered_h8(const struct position *pos)
+white_knight_cornered_h8(const struct position *pos)
 {
-	return is_nonempty(pos->map[knight] & SQ_H8)
-	    && is_nonempty(pos->attack[opponent_pawn] & SQ_G6)
-	    && is_nonempty(pos->attack[1] & SQ_F7);
+	return is_nonempty(pos->map[white_knight] & SQ_H8)
+	    && is_nonempty(pos->attack[black_pawn] & SQ_G6)
+	    && is_nonempty(pos->attack[black] & SQ_F7);
 }
 
 static inline bool
-opponent_knight_cornered_a1(const struct position *pos)
+black_knight_cornered_a1(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_knight] & SQ_A1)
-	    && is_nonempty(pos->attack[pawn] & SQ_B3)
-	    && is_nonempty(pos->attack[0] & SQ_C2);
+	return is_nonempty(pos->map[black_knight] & SQ_A1)
+	    && is_nonempty(pos->attack[white_pawn] & SQ_B3)
+	    && is_nonempty(pos->attack[white] & SQ_C2);
 }
 
 static inline bool
-opponent_knight_cornered_h1(const struct position *pos)
+black_knight_cornered_h1(const struct position *pos)
 {
-	return is_nonempty(pos->map[opponent_knight] & SQ_H1)
-	    && is_nonempty(pos->attack[pawn] & SQ_G3)
-	    && is_nonempty(pos->attack[0] & SQ_F2);
+	return is_nonempty(pos->map[black_knight] & SQ_H1)
+	    && is_nonempty(pos->attack[white_pawn] & SQ_G3)
+	    && is_nonempty(pos->attack[white] & SQ_F2);
 }
 
 #endif

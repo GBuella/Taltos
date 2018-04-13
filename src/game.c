@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,14 +35,10 @@
 
 struct history_item {
 	struct position *pos;
-	move move_to_next;
+	struct move move_to_next;
 	struct history_item *prev;
 	struct history_item *next;
 	unsigned time_spent;
-	unsigned full_move;
-	unsigned half_move;
-	int ep_target_index;
-	enum player turn;
 };
 
 static void
@@ -121,19 +117,19 @@ game_current_position(const struct game *g)
 enum player
 game_turn(const struct game *g)
 {
-	return g->current->turn;
+	return position_turn(g->current->pos);
 }
 
 unsigned
 game_half_move_count(const struct game *g)
 {
-	return g->tail->half_move;
+	return position_half_move_count(g->tail->pos);
 }
 
 unsigned
 game_full_move_count(const struct game *g)
 {
-	return g->tail->full_move;
+	return position_full_move_count(g->tail->pos);
 }
 
 const struct position*
@@ -175,7 +171,7 @@ game_history_forward(struct game *g)
 	return 0;
 }
 
-move
+struct move
 game_move_to_next(const struct game *g)
 {
 	return g->current->move_to_next;
@@ -189,13 +185,13 @@ game_truncate(struct game *g)
 	history_destroy(g->current->next);
 	g->tail = g->current;
 	g->current->next = NULL;
-	g->current->move_to_next = 0;
+	g->current->move_to_next = null_move();
 	g->current->time_spent = 0;
 	g->item_count = g->current_index + 1;
 }
 
 int
-game_append(struct game *g, move m)
+game_append(struct game *g, struct move m)
 {
 	if (!is_legal_move(g->current->pos, m))
 		return -1;
@@ -203,30 +199,9 @@ game_append(struct game *g, move m)
 	struct history_item *next = xmalloc(sizeof *next);
 	next->pos = position_allocate();
 	game_truncate(g);
-	position_make_move(next->pos, g->current->pos, m);
-	next->ep_target_index = 0;
-	if (is_move_irreversible(g->current->pos, m)) {
-		if (mtype(m) == mt_pawn_double_push) {
-			if (g->current->turn == white)
-				next->ep_target_index = flip_i(mto(m));
-			else
-				next->ep_target_index = mto(m);
-		}
-		next->half_move = 0;
-	}
-	else {
-		next->half_move = g->current->half_move + 1;
-	}
-	if (g->current->turn == white) {
-		next->turn = black;
-		next->full_move = g->current->full_move;
-	}
-	else {
-		next->turn = white;
-		next->full_move = g->current->full_move + 1;
-	}
+	make_move(next->pos, g->current->pos, m);
 	next->next = NULL;
-	next->move_to_next = 0;
+	next->move_to_next = null_move();
 	next->time_spent = 0;
 	g->current->next = next;
 	g->current->move_to_next = m;
@@ -240,12 +215,7 @@ game_append(struct game *g, move m)
 char*
 game_print_fen(const struct game *g, char str[static FEN_BUFFER_LENGTH])
 {
-	(void) position_print_fen_full(g->current->pos, str,
-	    g->current->ep_target_index,
-	    g->current->full_move,
-	    g->current->half_move,
-	    g->current->turn);
-	return str;
+	return position_print_fen(str, g->current->pos);
 }
 
 static struct history_item*
@@ -324,7 +294,7 @@ game_is_draw_by_insufficient_material(const struct game *g)
 bool
 game_is_draw_by_50_move_rule(const struct game *g)
 {
-	return g->current->half_move >= 100;
+	return game_half_move_count(g) >= 100;
 }
 
 bool
@@ -336,19 +306,17 @@ game_is_draw_by_repetition(const struct game *g)
 
 	while (i->prev != NULL) {
 		i = i->prev;
-		if (i->turn == g->current->turn
-		    && pos_equal(i->pos, g->current->pos))
+		if (pos_equal(i->pos, g->current->pos))
 			++repetitions;
 	}
 
 	return repetitions >= 3;
 }
 
-
-move
+struct move
 game_get_single_response(const struct game *g)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
 	(void) gen_moves(g->current->pos, moves);
 	return moves[0];
@@ -357,10 +325,9 @@ game_get_single_response(const struct game *g)
 bool
 game_has_single_response(const struct game *g)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
-	(void) gen_moves(g->current->pos, moves);
-	return moves[0] != 0 && moves[1] == 0;
+	return gen_moves(g->current->pos, moves) == 1;
 }
 
 int
@@ -376,14 +343,9 @@ game_reset_fen(struct game *g, const char *fen)
 	new.tail = &g->head;
 	new.head.pos = position_allocate();
 
-	if (NULL == position_read_fen_full(new.head.pos,
-	    fen,
-	    &new.head.ep_target_index,
-	    &new.head.full_move,
-	    &new.head.half_move,
-	    &new.head.turn)) {
+	if (position_read_fen(fen, new.head.pos) == NULL) {
 		position_destroy(new.head.pos);
-		return -1;
+		return 1;
 	}
 
 	g->current_index = 0;
@@ -402,22 +364,25 @@ game_continues(const struct game *a, const struct game *b)
 	const struct history_item *ha = &a->head;
 	const struct history_item *hb = &b->head;
 
-	if (!pos_equal(ha->pos, hb->pos))
+	if (game_length(a) < game_length(b))
 		return false;
 
-	if (ha->ep_target_index != hb->ep_target_index)
-		return false;
-
-	while (ha->move_to_next == hb->move_to_next && ha->next != NULL) {
+	while (pos_equal(ha->pos, hb->pos) && ha->next != NULL) {
 		ha = ha->next;
 		hb = hb->next;
 	}
 
-	return hb->move_to_next == 0;
+	return hb->next == NULL;
 }
 
 size_t
 game_length(const struct game *g)
 {
 	return g->item_count;
+}
+
+bool
+game_has_more_postions(const struct game *g)
+{
+	return g->current->next != NULL;
 }

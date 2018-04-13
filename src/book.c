@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -90,10 +90,10 @@ pick_half_bell_curve(int size)
 }
 
 static int
-mlength(const move *m)
+mlength(const struct move *m)
 {
 	int l = 0;
-	while (*m != 0) {
+	while (!is_null_move(*m)) {
 		++l;
 		++m;
 	}
@@ -102,10 +102,10 @@ mlength(const move *m)
 
 void
 book_get_move_list(const struct book *book, const struct position *position,
-		move moves[static MOVE_ARRAY_LENGTH])
+		struct move moves[static MOVE_ARRAY_LENGTH])
 {
 	if (book->type == bt_empty) {
-		moves[0] = 0;
+		moves[0] = null_move();
 		return;
 	}
 
@@ -125,19 +125,19 @@ book_get_move_list(const struct book *book, const struct position *position,
 	return;
 }
 
-move
+struct move
 book_get_move(const struct book *book, const struct position *position)
 {
 	if (book->type == bt_empty)
-		return none_move;
-	move moves[MOVE_ARRAY_LENGTH];
+		return null_move();
+	struct move moves[MOVE_ARRAY_LENGTH];
 
 	book_get_move_list(book, position, moves);
 
-	if (moves[0] != 0)
+	if (!is_null_move(moves[0]))
 		return moves[pick_half_bell_curve(mlength(moves))];
 	else
-		return none_move;
+		return null_move();
 }
 
 size_t

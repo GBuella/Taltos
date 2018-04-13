@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,7 +35,7 @@
 #include "macros.h"
 #include "search.h"
 #include "position.h"
-#include "hash.h"
+#include "tt.h"
 #include "eval.h"
 #include "move_order.h"
 #include "util.h"
@@ -56,16 +56,15 @@ struct nodes_common_data {
 	struct search_result result;
 	jmp_buf terminate_jmp_buf;
 	volatile bool *run_flag;
-	struct search_description sd;
+	const struct search_description *sd;
 
-	enum player debug_root_player_to_move;
 	char debug_move_stack[0x10000];
 	char *debug_move_stack_end;
 };
 
 struct node {
 	struct position pos[1];
-	struct hash_table *tt;
+	struct tt *tt;
 	unsigned root_distance;
 	enum node_type expected_type;
 	int lower_bound;
@@ -75,9 +74,8 @@ struct node {
 	int depth;
 	int value;
 	bool is_search_root;
-	ht_entry deep_entry;
-	ht_entry fresh_entry;
-	move best_move;
+	struct tt_entry tt_entry;
+	struct move best_move;
 	bool is_GHI_barrier;
 	bool has_repetition_in_history;
 	bool search_reached;
@@ -97,9 +95,9 @@ struct node {
 
 	enum player debug_player_to_move;
 
-	move pv[MAX_PLY];
-	move forced_pv;
-	move forced_extension;
+	struct move pv[MAX_PLY];
+	struct move forced_pv;
+	int forced_extension;
 
 	int repetition_affected_best;
 	int repetition_affected_any;
@@ -115,8 +113,6 @@ debug_trace_tree_init(struct node *node)
 	(void) node;
 #else
 	if (node->root_distance == 0) {
-		node->debug_player_to_move =
-		    node->common->debug_root_player_to_move;
 		node->common->debug_move_stack_end =
 		    node->common->debug_move_stack;
 		node->common->debug_move_stack[0] = '\0';
@@ -129,7 +125,7 @@ debug_trace_tree_init(struct node *node)
 }
 
 static void
-debug_trace_tree_push_move(struct node *node, move m)
+debug_trace_tree_push_move(struct node *node, struct move m)
 {
 #ifdef NDEBUG
 	(void) node;
@@ -139,10 +135,9 @@ debug_trace_tree_push_move(struct node *node, move m)
 
 	*(node->common->debug_move_stack_end++) = ' ';
 
-	if (m != 0) {
+	if (!is_null_move(m)) {
 		node->common->debug_move_stack_end = print_coor_move(
-		    m, node->common->debug_move_stack_end,
-		    node->debug_player_to_move);
+		    node->common->debug_move_stack_end, m);
 	}
 	else {
 		strcpy(node->common->debug_move_stack_end, "null");
@@ -186,31 +181,29 @@ max(int a, int b)
 }
 #endif
 
-static ht_entry
+static struct tt_entry
 hash_current_node_value(const struct node *node)
 {
-	ht_entry entry;
+	struct tt_entry entry = {.depth = node->depth, };
 
-	entry = ht_set_depth(HT_NULL, node->depth);
-
-	if (node->best_move == 0) {
-		if (node->alpha < 0 || node->repetition_affected_any == 0)
-			entry = ht_set_value(entry,
-			    vt_upper_bound, node->alpha);
+	if (is_null_move(node->best_move)) {
+		if (node->alpha < 0 || node->repetition_affected_any == 0) {
+			entry.value = node->alpha;
+			entry.is_upper_bound = true;
+		}
 	}
 	else if (node->value >= node->beta) {
-		if (node->beta > 0 || node->repetition_affected_best == 0)
-			entry = ht_set_value(entry, vt_lower_bound, node->beta);
+		if (node->beta > 0 || node->repetition_affected_best == 0) {
+			entry.value = node->beta;
+			entry.is_lower_bound = true;
+		}
 	}
 	else {
-		int type = 0;
+		entry.value = node->value;
 		if (node->value < 0 || node->repetition_affected_any == 0)
-			type |= vt_upper_bound;
+			entry.is_upper_bound = true;
 		if (node->value > 0 || node->repetition_affected_best == 0)
-			type |= vt_lower_bound;
-
-		if (type != 0)
-			entry = ht_set_value(entry, type, node->value);
+			entry.is_lower_bound = true;
 	}
 
 	return entry;
@@ -219,11 +212,9 @@ hash_current_node_value(const struct node *node)
 static void
 setup_best_move(struct node *node)
 {
-	if (node->best_move == 0) {
-		if (ht_has_move(node->deep_entry))
-			node->best_move = ht_move(node->deep_entry);
-		else if (ht_has_move(node->fresh_entry))
-			node->best_move = ht_move(node->fresh_entry);
+	if (is_null_move(node->best_move)) {
+		if (tt_has_move(node->tt_entry))
+			node->best_move = tt_move(node->tt_entry);
 	}
 }
 
@@ -273,7 +264,7 @@ static const unsigned LMP[] = {0, 2, 2, 6, 6, 18, 19, 20, 22, 24, 26};
 static int
 get_LMR_factor(struct node *node)
 {
-	if (!node->common->sd.settings.use_LMR)
+	if (!node->common->sd->settings.use_LMR)
 		return 0;
 
 	if (node->value <= -mate_value)
@@ -334,17 +325,17 @@ fail_high(struct node *node)
 static void
 check_node_count_limit(struct nodes_common_data *data)
 {
-	if (data->result.node_count == data->sd.node_count_limit)
+	if (data->result.node_count == data->sd->node_count_limit)
 		longjmp(data->terminate_jmp_buf, 1);
 }
 
 static void
 check_time_limit(struct nodes_common_data *data)
 {
-	if (data->sd.time_limit == 0)
+	if (data->sd->time_limit == 0)
 		return; // zero means no limit
 
-	if (xseconds_since(data->sd.thinking_started) >= data->sd.time_limit)
+	if (xseconds_since(data->sd->thinking_started) >= data->sd->time_limit)
 		longjmp(data->terminate_jmp_buf, 1);
 }
 
@@ -371,7 +362,7 @@ node_init(struct node *node)
 	node->non_pawn_move_count = 0;
 	node->non_pawn_move_piece_count = 0;
 
-	node->pv[0] = 0;
+	node->pv[0] = null_move();
 
 	check_node_count_limit(node->common);
 
@@ -385,12 +376,11 @@ node_init(struct node *node)
 		node->search_reached = true;
 
 	node->value = NON_VALUE;
-	node->best_move = 0;
+	node->best_move = null_move();
 	node->static_value_computed = false;
 	node->king_reach_maps_computed = false;
 
-	node->deep_entry = 0;
-	node->fresh_entry = 0;
+	node->tt_entry = tt_null();
 }
 
 static int
@@ -407,12 +397,12 @@ negamax_child(struct node *node)
 
 	negamax(node + 1);
 
-	if (node->forced_pv == 0)
-		node[1].forced_pv = 0;
+	if (is_null_move(node->forced_pv))
+		node[1].forced_pv = null_move();
 
 	int value = -node[1].value;
 
-	if (node->common->sd.settings.use_strict_repetition_check) {
+	if (node->common->sd->settings.use_strict_repetition_check) {
 		node->repetition_affected_any = max(
 		    node->repetition_affected_any,
 		    node[1].repetition_affected_best - 1);
@@ -434,16 +424,16 @@ negamax_child(struct node *node)
 enum { prune_successfull = 1 };
 
 static bool
-ht_entry_prevents_null_move(struct node *node, ht_entry entry)
+tt_entry_prevents_null_move(struct node *node, struct tt_entry entry)
 {
-	if (!ht_is_set(entry) || ht_depth(entry) < node->depth - 2 * PLY)
+	if (!tt_entry_is_set(entry) || (entry.depth < node->depth - 2 * PLY))
 		return false;
 
-	if (ht_no_null(entry))
+	if (entry.no_null)
 		return true;
 
-	if (ht_value_is_upper_bound(entry)) {
-		if (ht_value(entry) <= node->beta)
+	if (entry.is_upper_bound) {
+		if (entry.value <= node->beta)
 			return true;
 	}
 
@@ -455,28 +445,29 @@ opponent_has_positive_capture(const struct node *node)
 {
 	const struct position *pos = node->pos;
 
-	uint64_t attacks = pos->attack[opponent_pawn];
-	uint64_t victims = pos->map[0] & ~pos->map[pawn];
+	uint64_t attacks = pos->attack[node->pos->opponent + pawn];
+	uint64_t victims = pos->map[node->pos->turn]
+	    & ~pos->map[node->pos->turn + pawn];
 
 	if (is_nonempty(attacks & victims))
 		return true;
 
-	attacks |= pos->attack[opponent_knight];
-	attacks |= pos->attack[opponent_bishop];
-	victims &= ~pos->map[bishop];
-	victims &= ~pos->map[knight];
+	attacks |= pos->attack[node->pos->opponent + knight];
+	attacks |= pos->attack[node->pos->opponent + bishop];
+	victims &= ~pos->map[node->pos->turn + bishop];
+	victims &= ~pos->map[node->pos->turn + knight];
 
 	if (is_nonempty(attacks & victims))
 		return true;
 
-	attacks |= pos->attack[opponent_rook];
-	victims = pos->map[queen];
+	attacks |= pos->attack[node->pos->opponent + rook];
+	victims = pos->map[node->pos->turn + queen];
 
 	if (is_nonempty(attacks & victims))
 		return true;
 
-	attacks = pos->attack[opponent_king];
-	victims = pos->map[0] & ~pos->attack[0];
+	attacks = pos->attack[node->pos->opponent + king];
+	victims = pos->map[node->pos->turn] & ~pos->attack[node->pos->turn];
 
 	if (is_nonempty(attacks & victims))
 		return true;
@@ -487,16 +478,13 @@ opponent_has_positive_capture(const struct node *node)
 static int
 try_null_move_prune(struct node *node)
 {
-	if (!node->common->sd.settings.use_null_moves)
+	if (!node->common->sd->settings.use_null_moves)
 		return 0;
 
-	if (node->forced_pv != 0)
+	if (!is_null_move(node->forced_pv))
 		return 0;
 
-	if (ht_entry_prevents_null_move(node, node->deep_entry))
-		return 0;
-
-	if (ht_entry_prevents_null_move(node, node->fresh_entry))
+	if (tt_entry_prevents_null_move(node, node->tt_entry))
 		return 0;
 
 	if (node->has_repetition_in_history)
@@ -523,7 +511,8 @@ try_null_move_prune(struct node *node)
 
 	struct node *child = node + 1;
 
-	position_flip(child->pos, node->pos);
+	memcpy(child->pos, node->pos, sizeof(*child->pos));
+	pos_switch_turn(child->pos);
 
 	int required = node->beta;
 	if (node->depth < 9 * PLY)
@@ -542,7 +531,7 @@ try_null_move_prune(struct node *node)
 		child->depth = PLY;
 
 	node->is_in_null_move_search = true;
-	debug_trace_tree_push_move(node, 0);
+	debug_trace_tree_push_move(node, null_move());
 	int value = negamax_child(node);
 	debug_trace_tree_pop_move(node);
 	node->is_in_null_move_search = false;
@@ -561,9 +550,9 @@ try_null_move_prune(struct node *node)
 enum { hash_cutoff = 1 };
 
 static int
-check_hash_value_lower_bound(struct node *node, ht_entry entry)
+check_hash_value_lower_bound(struct node *node, struct tt_entry entry)
 {
-	int hash_bound = ht_value(entry);
+	int hash_bound = entry.value;
 
 	if (hash_bound > 0 && node->has_repetition_in_history)
 		hash_bound = 0;
@@ -571,7 +560,7 @@ check_hash_value_lower_bound(struct node *node, ht_entry entry)
 	if (node->lower_bound < hash_bound) {
 		node->lower_bound = hash_bound;
 		if (node->lower_bound >= node->beta) {
-			node->best_move = ht_move(entry);
+			node->best_move = tt_move(entry);
 			node->value = node->lower_bound;
 			return hash_cutoff;
 		}
@@ -580,9 +569,9 @@ check_hash_value_lower_bound(struct node *node, ht_entry entry)
 }
 
 static int
-check_hash_value_upper_bound(struct node *node, ht_entry entry)
+check_hash_value_upper_bound(struct node *node, struct tt_entry entry)
 {
-	int hash_bound = ht_value(entry);
+	int hash_bound = entry.value;
 
 	if (hash_bound < 0 && node->has_repetition_in_history)
 		hash_bound = 0;
@@ -598,22 +587,22 @@ check_hash_value_upper_bound(struct node *node, ht_entry entry)
 }
 
 static int
-check_hash_value(struct node *node, ht_entry entry)
+check_hash_value(struct node *node, struct tt_entry entry)
 {
 	if (node->root_distance == 0)
 		return 0;
 
-	if (node[-1].forced_pv != 0
+	if ((!is_null_move(node[-1].forced_pv))
 	    && node->alpha == -max_value
 	    && node->beta == max_value)
 		return 0;
 
-	if (node->depth > ht_depth(entry)) {
-		if (ht_value_is_lower_bound(entry)) {
-			if (ht_value(entry) >= mate_value) {
+	if (node->depth > entry.depth) {
+		if (entry.is_lower_bound) {
+			if (entry.value >= mate_value) {
 				if (!node->has_repetition_in_history) {
-					node->value = ht_value(entry);
-					node->best_move = ht_move(entry);
+					node->value = entry.value;
+					node->best_move = tt_move(entry);
 					return hash_cutoff;
 				}
 				else if (node->lower_bound < 0) {
@@ -625,10 +614,10 @@ check_hash_value(struct node *node, ht_entry entry)
 				}
 			}
 		}
-		if (ht_value_is_upper_bound(entry)) {
-			if (ht_value(entry) <= -mate_value) {
+		if (entry.is_upper_bound) {
+			if (entry.value <= -mate_value) {
 				if (!node->has_repetition_in_history) {
-					node->value = ht_value(entry);
+					node->value = entry.value;
 					return hash_cutoff;
 				}
 				else if (node->upper_bound > 0) {
@@ -643,13 +632,15 @@ check_hash_value(struct node *node, ht_entry entry)
 		return 0;
 	}
 
-	if (ht_value_is_lower_bound(entry))
+	if (entry.is_lower_bound) {
 		if (check_hash_value_lower_bound(node, entry) == hash_cutoff)
 			return hash_cutoff;
+	}
 
-	if (ht_value_is_upper_bound(entry))
+	if (entry.is_upper_bound) {
 		if (check_hash_value_upper_bound(node, entry) == hash_cutoff)
 			return hash_cutoff;
+	}
 
 	if (node->lower_bound >= node->upper_bound) {
 		node->value = node->lower_bound;
@@ -686,33 +677,13 @@ adjust_depth(struct node *node)
 static int
 fetch_hash_value(struct node *node)
 {
-	ht_entry entry = ht_lookup_deep(node->tt, node->pos,
-	    node->depth, node->beta);
-	if (ht_is_set(entry)) {
-		if (move_order_add_hint(node->mo, ht_move(entry), 1) == 0) {
-			node->deep_entry = entry;
+	struct tt_entry entry = tt_lookup(node->tt, node->pos);
+	if (tt_entry_is_set(entry)) {
+		if (move_order_add_hint(node->mo, tt_move(entry), 1) == 0) {
+			node->tt_entry = entry;
 			if (check_hash_value(node, entry) == hash_cutoff)
 				return hash_cutoff;
 		}
-	}
-
-	entry = ht_lookup_fresh(node->tt, node->pos);
-	if (!ht_is_set(entry))
-		return 0;
-
-	if (ht_has_move(node->deep_entry)) {
-		if (move_order_add_weak_hint(node->mo, ht_move(entry)) != 0)
-			return 0;
-	}
-	else {
-		if (move_order_add_hint(node->mo, ht_move(entry), 1) != 0)
-			return 0;
-	}
-
-	node->fresh_entry = entry;
-	if (check_hash_value(node, entry) == hash_cutoff) {
-		ht_pos_insert(node->tt, node->pos, entry);
-		return hash_cutoff;
 	}
 
 	return 0;
@@ -741,7 +712,7 @@ setup_moves(struct node *node)
 	bool moving_piece[PIECE_ARRAY_SIZE] = {0};
 
 	for (unsigned i = 0; i < node->mo->count; ++i) {
-		enum piece p = mresultp(node->mo->moves[i]);
+		enum piece p = node->mo->moves[i].result;
 		if (p != pawn) {
 			node->non_pawn_move_count++;
 			if (!moving_piece[p]) {
@@ -782,7 +753,7 @@ can_prune_moves(const struct node *node)
 		return false;
 	}
 
-	if (!node->common->sd.settings.use_LMP)
+	if (!node->common->sd->settings.use_LMP)
 		return false;
 
 	if (node->non_pawn_move_count < 4 && node->mo->count < 6)
@@ -863,18 +834,18 @@ recheck_bounds(struct node *node)
 static int
 find_repetition(struct node *node)
 {
-	if (!node->common->sd.settings.use_repetition_check)
+	if (!node->common->sd->settings.use_repetition_check)
 		return 0;
 
 	int r = 0;
 	int found_first = 0;
-	const uint64_t *zhash = node->pos->zhash;
-	bool strict = node->common->sd.settings.use_strict_repetition_check;
+	const uint64_t zhash = node->pos->zhash;
+	bool strict = node->common->sd->settings.use_strict_repetition_check;
 
 	while (!node[-r].is_GHI_barrier) {
 		r += 2;
-		if (node[-r].pos->zhash[0] == zhash[0]
-		    && node[-r].pos->zhash[1] == zhash[1]) {
+		if (node[-r].pos->zhash == zhash
+		    && node[-r].pos->zhash == zhash) {
 			if (strict) {
 				node->has_repetition_in_history = true;
 				if (found_first != 0)
@@ -913,11 +884,11 @@ check_trivial_draw(struct node *node)
 }
 
 static void
-setup_child_node(struct node *node, move m, int *LMR_factor)
+setup_child_node(struct node *node, struct move m, int *LMR_factor)
 {
 	struct node *child = node + 1;
 
-	if (node->common->sd.settings.use_repetition_check) {
+	if (node->common->sd->settings.use_repetition_check) {
 		if (is_move_irreversible(node->pos, m)) {
 			child->is_GHI_barrier = true;
 			child->has_repetition_in_history = false;
@@ -998,11 +969,11 @@ handle_mate_search(struct node *node)
 }
 
 static void
-new_best_move(struct node *node, move best)
+new_best_move(struct node *node, struct move best)
 {
 	node->best_move = best;
 
-	if (node->common->sd.settings.use_strict_repetition_check) {
+	if (node->common->sd->settings.use_strict_repetition_check) {
 		node->repetition_affected_best = max(
 		    node->repetition_affected_best,
 		    node[1].repetition_affected_any - 1);
@@ -1014,14 +985,14 @@ new_best_move(struct node *node, move best)
 		do {
 			node->pv[i + 1] = node[1].pv[i];
 			++i;
-		} while (node->pv[i] != 0);
+		} while (!is_null_move(node->pv[i]));
 	}
 }
 
 static int
-handle_beta_extension(struct node *node, move m, int value)
+handle_beta_extension(struct node *node, struct move m, int value)
 {
-	if (!node->common->sd.settings.use_beta_extensions)
+	if (!node->common->sd->settings.use_beta_extensions)
 		return value;
 
 	if (value >= node->beta
@@ -1033,8 +1004,8 @@ handle_beta_extension(struct node *node, move m, int value)
 	    && node->mo->picked_count > 1
 	    && !is_capture(m)
 	    && !is_promotion(m)
-	    && mtype(m) != mt_castle_kingside
-	    && mtype(m) != mt_castle_queenside) {
+	    && m.type != mt_castle_kingside
+	    && m.type != mt_castle_queenside) {
 		node[1].alpha = -node->beta;
 		node[1].beta = -node->alpha;
 		node[1].depth = node->depth;
@@ -1055,7 +1026,7 @@ negamax(struct node *node)
 	if (check_trivial_draw(node) == is_trivial_draw)
 		return;
 
-	ht_prefetch(node->tt, node->pos->zhash[0]);
+	tt_prefetch(node->tt, node->pos->zhash);
 
 	if (adjust_depth(node) == too_deep)
 		return;
@@ -1069,7 +1040,7 @@ negamax(struct node *node)
 	if (setup_moves(node) == no_legal_moves)
 		return;
 
-	if (node->forced_pv == 0) {
+	if (is_null_move(node->forced_pv)) {
 		if (fetch_hash_value(node) == hash_cutoff)
 			return;
 	}
@@ -1094,7 +1065,7 @@ negamax(struct node *node)
 		if (can_prune_moves(node))
 			break;
 
-		move m = mo_current_move(node->mo);
+		struct move m = mo_current_move(node->mo);
 
 		int LMR_factor;
 
@@ -1130,38 +1101,38 @@ negamax(struct node *node)
 		debug_trace_tree_pop_move(node);
 	} while (search_more_moves(node));
 
-	ht_entry entry = hash_current_node_value(node);
+	struct tt_entry entry = hash_current_node_value(node);
 	setup_best_move(node);
 
 	assert(node->repetition_affected_any == 0 || !node->is_GHI_barrier);
 	assert(node->repetition_affected_best == 0 || !node->is_GHI_barrier);
 
 	if (node->depth > 0) {
-		if (node->best_move != 0)
-			entry = ht_set_move(entry, node->best_move);
+		if (!is_null_move(node->best_move))
+			entry = tt_set_move(entry, node->best_move);
 		if (node->null_move_search_failed)
-			entry = ht_set_no_null(entry);
-		if (ht_value_type(entry) != 0 || node->best_move != 0)
-			ht_pos_insert(node->tt, node->pos, entry);
+			entry.no_null = true;
+		if (tt_has_value(entry) || !is_null_move(node->best_move))
+			tt_pos_insert(node->tt, node->pos, entry);
 	}
 	if (node->value < node->lower_bound)
 		node->value = node->lower_bound;
-	node->forced_pv = 0;
+	node->forced_pv = null_move();
 }
 
 
 
 static void
 setup_node_array(size_t count, struct node nodes[count],
-		struct search_description sd,
+		const struct search_description *sd,
 		struct nodes_common_data *common,
-		const move *prev_pv)
+		const struct move *prev_pv)
 {
 	for (unsigned i = 1; i < count; ++i) {
 		nodes[i].root_distance = i - 1;
-		nodes[i].tt = sd.tt;
+		nodes[i].tt = sd->tt;
 		nodes[i].common = common;
-		if (*prev_pv != 0) {
+		if (!is_null_move(*prev_pv)) {
 			nodes[i].forced_pv = *prev_pv;
 			++prev_pv;
 		}
@@ -1181,7 +1152,7 @@ setup_root_node(struct node *nodes, const struct position *pos)
 	nodes[0].is_search_root = true;
 	nodes[1].alpha = -max_value;
 	nodes[1].beta = max_value;
-	nodes[1].depth = nodes[1].common->sd.depth;
+	nodes[1].depth = nodes[1].common->sd->depth;
 	nodes[1].is_search_root = true;
 	nodes[1].expected_type = PV_node;
 	nodes[1].pos[0] = *pos;
@@ -1210,23 +1181,23 @@ find_qdepth(const struct node nodes[])
 }
 
 struct pv_store {
-	move pvs[100][MAX_PLY];
+	struct move pvs[100][MAX_PLY];
 	unsigned count;
 };
 
 static bool
-has_same_pv_in_pv_store(const struct pv_store *pv_store, const move *pv)
+has_same_pv_in_pv_store(const struct pv_store *pv_store, const struct move *pv)
 {
 	for (unsigned pv_i = 0; pv_i < pv_store->count; ++pv_i) {
-		const move *p0 = pv_store->pvs[pv_i];
-		const move *p1 = pv;
+		const struct move *p0 = pv_store->pvs[pv_i];
+		const struct move *p1 = pv;
 
-		while (*p0 != 0 && *p0 == *p1) {
+		while (move_eq(*p0, *p1) && !is_null_move(*p0)) {
 			++p0;
 			++p1;
 		}
 
-		if (*p0 == 0 && *p1 == 0)
+		if (is_null_move(*p0) && is_null_move(*p1))
 			return true;
 	}
 
@@ -1238,10 +1209,10 @@ find_common_prefix_length(const struct pv_store *pv_store)
 {
 	int length = 0;
 
-	while (pv_store->pvs[0][length] != 0) {
+	while (!is_null_move(pv_store->pvs[0][length])) {
 		for (unsigned i = 1; i < pv_store->count; ++i) {
-			if (pv_store->pvs[i][length]
-			    != pv_store->pvs[0][length])
+			if (!move_eq(pv_store->pvs[i][length],
+				     pv_store->pvs[0][length]))
 				return length;
 		}
 		++length;
@@ -1271,13 +1242,10 @@ next_iteration:
 	c = debug_move_stack;
 #endif
 
-	while (root->pv[pv_len] != 0) {
+	while (!is_null_move(root->pv[pv_len])) {
 #ifndef NDEBUG
 		*c++ = ' ';
-		c = print_coor_move(root->pv[pv_len], c,
-		    ((pv_len % 2)
-		    ? opponent_of(root->debug_player_to_move)
-		    : (int)root->debug_player_to_move));
+		c = print_coor_move(c, root->pv[pv_len]);
 #endif
 		result->pv[pv_len] = root->pv[pv_len];
 		root[pv_len].forced_pv = root->pv[pv_len];
@@ -1285,12 +1253,12 @@ next_iteration:
 		++pv_len;
 	}
 
-	result->pv[pv_len] = 0;
+	result->pv[pv_len] = null_move();
 
-	if (!root->common->sd.settings.use_pv_cleanup)
+	if (!root->common->sd->settings.use_pv_cleanup)
 		return;
 
-	pv_store->pvs[pv_store->count][pv_len] = 0;
+	pv_store->pvs[pv_store->count][pv_len] = null_move();
 
 	if (++iteration > 98)
 		return;
@@ -1319,7 +1287,7 @@ next_iteration:
 		root[extension_location].forced_extension = 1;
 
 		pv_store->pvs[0][0] = root->best_move;
-		pv_store->pvs[0][1] = 0;
+		pv_store->pvs[0][1] = null_move();
 		pv_store->count = 1;
 		goto next_iteration;
 	}
@@ -1327,7 +1295,7 @@ next_iteration:
 	pv_store->count++;
 
 	for (int i = pv_len; i < node_array_length - 1; ++i)
-		root[i].forced_pv = 0;
+		root[i].forced_pv = null_move();
 
 	if (root->value == 0)
 		return;
@@ -1348,10 +1316,9 @@ next_iteration:
 
 struct search_result
 search(const struct position *root_pos,
-	enum player debug_player_to_move,
-	struct search_description sd,
+	const struct search_description *sd,
 	volatile bool *run_flag,
-	const move *prev_pv)
+	const struct move *prev_pv)
 {
 	struct node *nodes;
 	struct nodes_common_data common;
@@ -1366,7 +1333,6 @@ search(const struct position *root_pos,
 	memset(&common, 0, sizeof common);
 	common.run_flag = run_flag;
 	common.sd = sd;
-	common.debug_root_player_to_move = debug_player_to_move;
 	setup_node_array(node_array_length, nodes, sd, &common, prev_pv);
 	root_node = setup_root_node(nodes, root_pos);
 

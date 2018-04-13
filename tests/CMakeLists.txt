@@ -23,7 +23,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_library(tests_main STATIC test_main.c)
+add_library(tests_main STATIC test_main.c munit.c)
 
 add_executable(test_bitboards bitboards.c)
 target_link_libraries(test_bitboards tests_main taltos_code)

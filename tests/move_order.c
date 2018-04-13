@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2016-2017, Gabor Buella
+ * Copyright 2016-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,16 +43,16 @@ static enum player turn;
 struct data {
 	struct move_order move_order[1];
 	struct position pos[1];
-	move check_moves[MOVE_ARRAY_LENGTH];
-	move original_moves[MOVE_ARRAY_LENGTH];
+	struct move check_moves[MOVE_ARRAY_LENGTH];
+	struct move original_moves[MOVE_ARRAY_LENGTH];
 	bool move_present[MOVE_ARRAY_LENGTH];
 };
 
 static void
-move_stack_append(move m)
+move_stack_append(struct move m)
 {
 	*move_stack_p++ = ' ';
-	move_stack_p = print_coor_move(m, move_stack_p, turn);
+	move_stack_p = print_coor_move(move_stack_p, m);
 	turn = opponent_of(turn);
 }
 
@@ -75,7 +75,7 @@ static void
 test_tree_walk(struct data *data, unsigned depth)
 {
 	unsigned count;
-	move hint_move;
+	struct move hint_move;
 
 	if (depth == 0)
 		return;
@@ -96,7 +96,7 @@ test_tree_walk(struct data *data, unsigned depth)
 		move_order_add_hint(data->move_order, hint_move, 1);
 	}
 	else {
-		hint_move = 0;
+		hint_move = null_move();
 	}
 
 	step_hint_index();
@@ -105,16 +105,16 @@ test_tree_walk(struct data *data, unsigned depth)
 		move_order_add_killer(data->move_order,
 				      data->move_order->moves[10]);
 	else
-		data->move_order->killers[0] = 0;
+		data->move_order->killers[0] = null_move();
 
-	data->move_order->killers[1] = 0;
+	data->move_order->killers[1] = null_move();
 
 	unsigned i = 0;
 	do {
 		move_order_pick_next(data->move_order);
-		move m = mo_current_move(data->move_order);
-		if (hint_move != 0 && i == 0)
-			assert(m == hint_move);
+		struct move m = mo_current_move(data->move_order);
+		if (i == 0 && !is_null_move(hint_move))
+			assert(move_eq(m, hint_move));
 		move_stack_append(m);
 		data->check_moves[i] = m;
 		make_move(data[1].pos, data->pos, m);
@@ -129,7 +129,8 @@ test_tree_walk(struct data *data, unsigned depth)
 	for (unsigned i = 0; i < count; ++i) {
 		unsigned j;
 		for (j = 0; j < count; ++j) {
-			if (data->original_moves[j] == data->check_moves[i]) {
+			if (move_eq(data->original_moves[j],
+				    data->check_moves[i])) {
 				assert(!data->move_present[j]);
 				data->move_present[j] = true;
 				break;

@@ -5,7 +5,13 @@
 
 #include <stdint.h>
 
-const uint64_t z_random[14][64] = {
+const uint64_t zobrist_ep_file_value[8] = {
+	UINT64_C(0x70CC73D90BC26E24), UINT64_C(0xE21A6B35DF0C3AD7),
+	UINT64_C(0x003A93D8B2806962), UINT64_C(0x1C99DED33CB890A1),
+	UINT64_C(0xCF3145DE0ADD4289), UINT64_C(0xD0E4427A5514FB72),
+	UINT64_C(0x77C621CC9FB3A483), UINT64_C(0x67A34DAC4356550B) };
+
+const uint64_t zobrist_random[14][64] = {
 	{0},
 	{0},
 	{

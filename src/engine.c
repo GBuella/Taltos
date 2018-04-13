@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,7 +35,7 @@
 #include "engine.h"
 #include "game.h"
 #include "search.h"
-#include "hash.h"
+#include "tt.h"
 #include "eval.h"
 #include "taltos.h"
 #include "move_order.h"
@@ -258,7 +258,7 @@ static unsigned history_length;
  * The best move known by the engine in the current position.
  * Before search, it is at least filled with the first known legal move.
  */
-static move engine_best_move;
+static struct move engine_best_move;
 
 /*
  * When thinking is done ( on all threads ) call this function.
@@ -325,7 +325,7 @@ filter_duplicates(struct position duplicates[], bool *is_root_duplicate)
 					*is_root_duplicate = true;
 
 				char fen[0x1000];
-				position_print_fen(history + i, fen, 0, turn);
+				position_print_fen(fen, history + i);
 				tracef("Duplicate found: %s", fen);
 
 				duplicates[count++] = history[i];
@@ -345,18 +345,21 @@ add_history_as_repetition(void)
 	static struct position duplicates[ARRAY_LENGTH(history)];
 
 	size_t duplicate_count;
-	ht_entry entry = ht_set_depth(HT_NULL, 99);
-	entry = ht_set_value(entry, vt_exact, 0);
+	struct tt_entry entry = {.depth = TT_ENTRY_MAX_DEPTH,
+	                         .value = 0,
+	                         .is_lower_bound = true,
+	                         .is_upper_bound = true};
+
 	bool is_root_duplicate;
 
 	duplicate_count = filter_duplicates(duplicates, &is_root_duplicate);
 	for (unsigned ti = 0; ti < MAX_THREAD_COUNT; ++ti) {
-		struct hash_table *tt = threads[ti].sd.tt;
+		struct tt *tt = threads[ti].sd.tt;
 		if (tt != NULL) {
 			if (is_root_duplicate)
-				ht_clear(tt);
+				tt_clear(tt);
 			for (size_t i = 0; i < duplicate_count; ++i)
-				ht_pos_insert(tt, duplicates + i, entry);
+				tt_pos_insert(tt, duplicates + i, entry);
 		}
 	}
 }
@@ -428,13 +431,13 @@ thinking_done(void)
 }
 
 int
-engine_get_best_move(move *m)
+engine_get_best_move(struct move *m)
 {
 	int result = 0;
 
 	mtx_lock(&engine_mutex);
 
-	if (engine_best_move != 0)
+	if (!is_null_move(engine_best_move))
 		*m = engine_best_move;
 	else
 		result = -1;
@@ -446,13 +449,13 @@ engine_get_best_move(move *m)
 static void
 fill_best_move(void)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
 	if (gen_moves(history + history_length - 1, moves) != 0) {
 		engine_best_move = moves[0];
 	}
 	else {
-		engine_best_move = 0;
+		engine_best_move = null_move();
 	}
 }
 
@@ -487,44 +490,43 @@ update_engine_result(const struct search_thread_data *data,
 	dst->sresult.node_count = node_count_sum;
 	dst->sresult.qnode_count = qnode_count_sum;
 	dst->time_spent = xseconds_since(data->sd.thinking_started);
-	dst->ht_usage =
-	    (int)(ht_usage(data->sd.tt) * 1000 / ht_slot_count(data->sd.tt));
+	dst->tt_usage =
+	    (int)(tt_usage(data->sd.tt) * 1000 / tt_slot_count(data->sd.tt));
 
 	memcpy(dst->pv, src->pv, sizeof(dst->pv));
-	dst->pv[data->sd.depth / PLY + 1] = 0;
+	dst->pv[data->sd.depth / PLY + 1] = null_move();
 }
 
-ht_entry
+struct tt_entry
 engine_current_entry(void)
 {
 	if (threads[0].sd.tt == NULL)
-		return HT_NULL;
-	return ht_lookup_deep(threads[0].sd.tt,
-	    history + history_length - 1, 1, max_value);
+		return tt_null();
+	return tt_lookup(threads[0].sd.tt, history + history_length - 1);
 }
 
-ht_entry
+struct tt_entry
 engine_get_entry(const struct position *pos)
 {
 	if (threads[0].sd.tt == NULL)
-		return HT_NULL;
-	return ht_lookup_deep(threads[0].sd.tt, pos, 1, max_value);
+		return tt_null();
+	return tt_lookup(threads[0].sd.tt, pos);
 }
 
 static void
 setup_search(struct search_thread_data *thread)
 {
-	ht_entry entry;
+	struct tt_entry entry;
 
 	thread->sd.depth = PLY;
-	entry = ht_lookup_deep(thread->sd.tt, &thread->root, 1, max_value);
-	if (ht_value_type(entry) == vt_exact && ht_depth(entry) > 0) {
-		if (ht_value(entry) == 0 && ht_depth(entry) == 99)
+	entry = tt_lookup(thread->sd.tt, &thread->root);
+	if (tt_has_exact_value(entry) && entry.depth > 0) {
+		if (entry.value == 0 && entry.depth == TT_ENTRY_MAX_DEPTH)
 			return;
 
-		thread->sd.depth = ht_depth(entry) + 1;
-		if (thread->export_best_move && ht_has_move(entry))
-			engine_best_move = ht_move(entry);
+		thread->sd.depth = entry.depth + 1;
+		if (thread->export_best_move && tt_has_move(entry))
+			engine_best_move = tt_move(entry);
 	}
 }
 
@@ -549,8 +551,9 @@ iterative_deepening(void *arg)
 
 		mtx_unlock(&engine_mutex);
 		tracef("iterative_deepening -- start depth %d", data->sd.depth);
-		result = search(&data->root, debug_player_to_move,
-		    data->sd, &data->run_flag, engine_result.pv);
+		tt_generation_step(data->sd.tt);
+		result = search(&data->root, &data->sd,
+				&data->run_flag, engine_result.pv);
 		update_engine_result(data, &engine_result, &result);
 		tracef("iterative_deepening -- done depth %d", data->sd.depth);
 		mtx_lock(&engine_mutex);
@@ -559,7 +562,7 @@ iterative_deepening(void *arg)
 		if (data->sd.node_count_limit > 0)
 			data->sd.node_count_limit -= result.node_count;
 		engine_result.depth = data->sd.depth / PLY;
-		if (data->export_best_move && result.best_move != 0)
+		if (data->export_best_move && !is_null_move(result.best_move))
 			engine_best_move = result.best_move;
 		if (data->show_thinking_cb != NULL) {
 			data->show_thinking_cb(engine_result);
@@ -623,7 +626,6 @@ think(bool infinite, bool single_thread)
 
 	thinking_started = threads[0].sd.thinking_started = xnow();
 
-	ht_swap(threads[0].sd.tt);
 	move_order_swap_history();
 
 	if (infinite || depth_limit == 0)
@@ -656,8 +658,8 @@ think(bool infinite, bool single_thread)
 
 	mtx_lock(horse->mutex);
 
-	struct hash_table *new_tt =
-	    ht_resize_mb(threads[0].sd.tt, horse->hash_table_size_mb);
+	struct tt *new_tt =
+	    tt_resize_mb(threads[0].sd.tt, horse->hash_table_size_mb);
 
 	mtx_unlock(horse->mutex);
 
@@ -745,7 +747,7 @@ xmtx_init(mtx_t *mtx, int type)
 }
 
 void
-engine_process_move(move m)
+engine_process_move(struct move m)
 {
 	trace(__func__);
 
@@ -753,7 +755,7 @@ engine_process_move(move m)
 
 	// todo: rotate_threads();
 	struct position *pos = history + history_length;
-	position_make_move(pos, pos - 1, m);
+	make_move(pos, pos - 1, m);
 	if (is_move_irreversible(pos - 1, m)) {
 		history_length = 1;
 		history[0] = *pos;
@@ -781,12 +783,12 @@ engine_ht_size(void)
 
 	mtx_lock(&engine_mutex);
 
-	struct hash_table *tt = threads[0].sd.tt;
+	struct tt *tt = threads[0].sd.tt;
 
 	if (tt == NULL)
 		size = 0;
 	else
-		size = ht_size(tt);
+		size = tt_size(tt);
 
 	mtx_unlock(&engine_mutex);
 
@@ -803,10 +805,10 @@ reset_engine(const struct position *pos)
 	stop_thinking();
 	for (unsigned i = 0; i < thread_count; ++i) {
 		if (threads[i].sd.tt != NULL) {
-			ht_clear(threads[i].sd.tt);
+			tt_clear(threads[i].sd.tt);
 			continue;
 		}
-		threads[i].sd.tt = ht_create_mb(horse->hash_table_size_mb);
+		threads[i].sd.tt = tt_create_mb(horse->hash_table_size_mb);
 		if (threads[i].sd.tt == NULL) {
 			fprintf(stderr,
 			    "Unable to allocate transposition "
@@ -817,7 +819,7 @@ reset_engine(const struct position *pos)
 	}
 	for (size_t i = thread_count; i < MAX_THREAD_COUNT; ++i) {
 		if (threads[i].sd.tt != NULL) {
-			ht_destroy(threads[i].sd.tt);
+			tt_destroy(threads[i].sd.tt);
 			threads[i].sd.tt = NULL;
 		}
 	}
@@ -841,8 +843,8 @@ engine_conf_change(void)
 		struct search_thread_data *thread = threads + i;
 		mtx_lock(&engine_mutex);
 		if (!thread->is_started_flag) {
-			struct hash_table *new_tt =
-			    ht_resize_mb(threads[0].sd.tt, new_hash_size);
+			struct tt *new_tt =
+			    tt_resize_mb(threads[0].sd.tt, new_hash_size);
 			if (new_tt != NULL)
 				thread->sd.tt = new_tt;
 		}
@@ -861,7 +863,7 @@ init_engine(const struct taltos_conf *h)
 
 	horse = h;
 
-	position_read_fen(&pos, start_position_fen, NULL, NULL);
+	position_read_fen(start_position_fen, &pos);
 	reset_engine(&pos);
 	depth_limit = 0;
 }

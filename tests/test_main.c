@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2016-2017, Gabor Buella
+ * Copyright 2016-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,7 @@
 #include "tests.h"
 
 #include "constants.h"
-#include "hash.h"
+#include "tt.h"
 #include "game.h"
 
 int prog_argc;
@@ -44,8 +44,6 @@ main(int argc, const char **argv)
 {
 	prog_argc = argc;
 	prog_argv = argv;
-
-	init_zhash_table();
 
 	run_tests();
 

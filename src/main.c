@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,7 +35,7 @@
 #include "macros.h"
 #include "chess.h"
 #include "engine.h"
-#include "hash.h"
+#include "tt.h"
 #include "taltos.h"
 #include "trace.h"
 #include "search.h"
@@ -51,8 +51,10 @@ static void init_book(struct book **book);
 static void setup_defaults(void);
 static void setup_display_name(void);
 
-const char *author_name = "Gabor Buella";
-static const char *author_name_unicode = "G\U000000e1bor Buella";
+static const char *const author_name_ascii = "Gabor Buella";
+static const char *const author_name_unicode = "G\U000000e1bor Buella";
+
+const char *author_name;
 
 int
 main(int argc, char **argv)
@@ -68,7 +70,6 @@ main(int argc, char **argv)
 	util_init();
 	setup_defaults();
 	trace_init(argv);
-	init_zhash_table();
 	init_search();
 	process_args(argv);
 	init_book(&book);
@@ -116,6 +117,7 @@ setup_defaults(void)
 	}
 	else {
 		conf.use_unicode = false;
+		author_name = author_name_ascii;
 	}
 
 	env = getenv("TALTOS_USE_NO_LMR");
@@ -188,11 +190,11 @@ set_default_hash_size(const char *arg)
 	if (n == 0 || *endptr != '\0')
 		usage(EXIT_FAILURE);
 
-	if (!ht_is_mb_size_valid(n)) {
+	if (!tt_is_mb_size_valid(n)) {
 		(void) fprintf(stderr,
 		    "Invalid hash table size \"%s\".\n"
 		    "Must be a power of two, minimum %u, maximum %u.\n",
-		    arg, ht_min_size_mb(), ht_max_size_mb());
+		    arg, tt_min_size_mb(), tt_max_size_mb());
 		exit(EXIT_FAILURE);
 	}
 
@@ -227,6 +229,10 @@ process_args(char **arg)
 		else if (strcmp(*arg, "--unicode") == 0) {
 			conf.use_unicode = true;
 			author_name = author_name_unicode;
+		}
+		else if (strcmp(*arg, "--nounicode") == 0) {
+			conf.use_unicode = false;
+			author_name = author_name_ascii;
 		}
 		else if (strcmp(*arg, "--help") == 0
 		    || strcmp(*arg, "-h") == 0) {

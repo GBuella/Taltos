@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,31 +37,33 @@
 #include "str_util.h"
 
 char
-index_to_file_ch(int index)
+index_to_file_ch(coordinate index)
 {
 	assert(ivalid(index));
 	return (char)('h' - ind_file(index));
 }
 
 char
-index_to_rank_ch(int index, enum player turn)
+index_to_rank_ch(coordinate index)
 {
 	assert(ivalid(index));
 	int rank = ind_rank(index);
-	return (char)((turn == black) ? ('1' + rank) : ('8' - rank));
+	return '8' - rank;
 }
 
 char*
-print_index(char str[static 2], int index, enum player turn)
+print_index(char *str, coordinate index)
 {
-	assert(str != NULL);
+	if (str == NULL)
+		return NULL;
+
 	*str++ = index_to_file_ch(index);
-	*str++ = index_to_rank_ch(index, turn);
+	*str++ = index_to_rank_ch(index);
 	return str;
 }
 
 const char*
-index_to_str(int index, enum player turn)
+index_to_str(coordinate index)
 {
 	static const char strs[64][3] = {
 		"h8", "g8", "f8", "e8", "d8", "c8", "b8", "a8",
@@ -74,7 +76,7 @@ index_to_str(int index, enum player turn)
 		"h1", "g1", "f1", "e1", "d1", "c1", "b1", "a1"
 	};
 
-	return strs[(turn == black) ? flip_i(index) : index];
+	return strs[index];
 }
 
 char
@@ -171,11 +173,18 @@ square_to_str_ascii(enum piece p, enum player pl)
 }
 
 char
-square_to_char(enum piece p, enum player pl)
+piece_player_to_char(enum piece p, enum player pl)
 {
 	char pc = piece_to_char(p);
 
 	return (pl == black) ? pc : (char)toupper((unsigned char)pc);
+}
+
+char
+square_to_char(int square)
+{
+	return piece_player_to_char(square_piece(square),
+				    square_player(square));
 }
 
 const char*
@@ -258,14 +267,14 @@ char_to_piece(char p)
 }
 
 bool
-is_file(char c)
+is_file_char(char c)
 {
 	return (((c >= 'a') && (c <= 'h'))
 	    || ((c >= 'A') && (c <= 'H')));
 }
 
 bool
-is_rank(char c)
+is_rank_char(char c)
 {
 	return ((c >= '1') && (c <= '8'));
 }
@@ -274,27 +283,27 @@ bool
 is_coordinate(const char *str)
 {
 	assert(str != NULL);
-	return is_file(str[0]) && is_rank(str[1]);
+	return is_file_char(str[0]) && is_rank_char(str[1]);
 }
 
-int
+file
 char_to_file(char ch)
 {
-	assert(is_file(ch));
+	assert(is_file_char(ch));
 	return 7 - (toupper((unsigned char)ch) - 'A');
 }
 
-int
-char_to_rank(char ch, enum player turn)
+rank
+char_to_rank(char ch)
 {
-	assert(is_rank(ch));
-	return (turn == black) ? (ch - '1') : (7 - (ch - '1'));
+	assert(is_rank_char(ch));
+	return 7 - (ch - '1');
 }
 
-int
-str_to_index(const char str[static 2], enum player turn)
+coordinate
+str_to_index(const char str[static 2])
 {
-	return ind(char_to_rank(str[1], turn), char_to_file(str[0]));
+	return ind(char_to_rank(str[1]), char_to_file(str[0]));
 }
 
 const char*
@@ -372,19 +381,16 @@ print_nice_ns(uintmax_t n, bool use_unicode)
 void
 board_print(char str[static BOARD_BUFFER_LENGTH],
 		const struct position *pos,
-		enum player turn,
-		bool use_unicode)
+		bool use_unicode,
+		bool white_on_top)
 {
 	for (int rank = rank_8; is_valid_rank(rank); rank += RSOUTH) {
 		for (int file = file_a; is_valid_file(file); file += EAST) {
 			int index = ind(rank, file);
-			if (turn == black)
+			if (white_on_top)
 				index = flip_i(index);
 			enum piece p = position_piece_at(pos, index);
 			enum player pl = position_player_at(pos, index);
-
-			if (turn == black)
-				pl = opponent_of(pl);
 
 			if (use_unicode)
 				*str++ = ' ';

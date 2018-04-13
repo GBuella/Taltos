@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017, Gabor Buella
+ * Copyright 2017-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -157,8 +157,6 @@ main(int argc, char **argv)
 	if (*argv != NULL)
 		return EXIT_FAILURE;
 
-	init_zhash_table();
-
 	struct game *g = game_create_fen(buf);
 	if (g == NULL)
 		return EXIT_FAILURE;
@@ -227,32 +225,28 @@ main(int argc, char **argv)
 	}
 
 	printf("\noffset 0x%zx: .zhash\n", offsetof(struct position, zhash));
-	printf(" 0x%016" PRIx64 " 0x%016" PRIx64 "\n\n",
-	       pos->zhash[0], pos->zhash[1]);
+	printf(" 0x%016" PRIx64 "\n\n", pos->zhash);
 
-	printf("\noffset 0x%zx: .cr_king_side\n",
-	       offsetof(struct position, cr_king_side));
-	printf(" 0x%02hhx\n\n", pos->cr_king_side);
+	printf("\noffset 0x%zx: .cr_white_king_side\n",
+	       offsetof(struct position, cr_white_king_side));
+	printf(" 0x%02hhx\n\n", pos->cr_white_king_side);
 
-	printf("\noffset 0x%zx: .cr_queen_side\n",
-	       offsetof(struct position, cr_queen_side));
-	printf(" 0x%02hhx\n\n", pos->cr_queen_side);
+	printf("\noffset 0x%zx: .cr_white_queen_side\n",
+	       offsetof(struct position, cr_white_queen_side));
+	printf(" 0x%02hhx\n\n", pos->cr_white_queen_side);
+
+	printf("\noffset 0x%zx: .cr_black_king_side\n",
+	       offsetof(struct position, cr_black_king_side));
+	printf(" 0x%02hhx\n\n", pos->cr_black_king_side);
+
+	printf("\noffset 0x%zx: .cr_black_queen_side\n",
+	       offsetof(struct position, cr_black_queen_side));
+	printf(" 0x%02hhx\n\n", pos->cr_black_queen_side);
 
 	printf("\noffset 0x%zx: .material_value\n",
 	       offsetof(struct position, material_value));
-	printf(" %" PRIi32 "\n\n", pos->material_value);
-
-	printf("\noffset 0x%zx: .cr_opponent_king_side\n",
-	       offsetof(struct position, cr_opponent_king_side));
-	printf(" 0x%02hhx\n\n", pos->cr_opponent_king_side);
-
-	printf("\noffset 0x%zx: .cr_opponent_queen_side\n",
-	       offsetof(struct position, cr_opponent_queen_side));
-	printf(" 0x%02hhx\n\n", pos->cr_opponent_queen_side);
-
-	printf("\noffset 0x%zx: .opponent_material_value\n",
-	       offsetof(struct position, opponent_material_value));
-	printf(" %" PRIi32 "\n\n", pos->opponent_material_value);
+	printf("[white] = %" PRIi32 " [black] = %" PRIi32 "\n\n",
+	       pos->material_value[white], pos->material_value[black]);
 
 	printf("\noffset 0x%zx: .king_pins\n",
 	       offsetof(struct position, king_pins));

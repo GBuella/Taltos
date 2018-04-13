@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,7 +28,6 @@
 #define TALTOS_CONSTANTS_H
 
 #include <stdint.h>
-#include "macros.h"
 
 #define FILE_A		UINT64_C(0x8080808080808080)
 #define FILE_B		(FILE_A >> 1)
@@ -56,6 +55,9 @@
 
 #define BLACK_SQUARES	UINT64_C(0xaa55aa55aa55aa55)
 #define WHITE_SQUARES	(~BLACK_SQUARES)
+
+#define CENTER_SQ	UINT64_C(0x0000001818000000)
+#define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
 #define SQ_A1		UINT64_C(0x8000000000000000)
 #define SQ_B1		(SQ_A1 >> 1)
@@ -128,10 +130,6 @@
 #define SQ_F8		(SQ_F7 >> 8)
 #define SQ_G8		(SQ_G7 >> 8)
 #define SQ_H8		(SQ_H7 >> 8)
-
-
-#define CENTER_SQ	UINT64_C(0x0000001818000000)
-#define CENTER4_SQ	UINT64_C(0x00003c3c3c3c0000)
 
 extern const uint64_t knight_pattern[64];
 extern const uint64_t king_pattern[64];

@@ -37,22 +37,11 @@
 #include "bitboard.h"
 #include "constants.h"
 #include "chess.h"
-#include "hash.h"
+#include "tt.h"
+#include "zobrist.h"
 
 enum { pos_alignment = 32 };
 
-/*
- * PIECE_ARRAY_SIZE - the length of an array that contains one item
- * for each player, followed by one for piece type of each player.
- * At index 0 is an item corresponding to the player next to move,
- * while at index 1 is the similar item corresponding to the opponent.
- * At indices 2, 4, 6, 8, 10, 12 are items corresponding to the players
- * pieces, and at odd indices starting at three are the opponent's items.
- * Such an array can be indexed by an index representing a player ( 0 or 1),
- * or by a piece, e.g. postion.map[pawn] is the map of pawns,
- * position.map[pawn + 1] == position.map[opponent_pawn] is the map of the
- * opponent's pawns.
- */
 #define PIECE_ARRAY_SIZE 14
 
 // make sure the piece emumeration values can be used for indexing such an array
@@ -69,71 +58,10 @@ struct position {
 	unsigned char board[64];
 
 	/*
-	 * In case the player to move is in check:
-	 * A bitboard of all pieces that attack the king, and the squares of any
-	 * sliding attack between the king and the attacking rook/queen/bishop.
-	 * These extra squares are valid move destinations for blocking the
-	 * attack, thus moving out of check. E.g. a rook attacking the king:
-	 *
-	 *    ........
-	 *    ..r..K..
-	 *    ........
-	 *
-	 *  The corresponding part of the king_attack_map:
-	 *
-	 *    ........
-	 *    ..XXX...
-	 *    ........
-	 */
-	uint64_t king_attack_map;
-	uint64_t king_danger_map;
-
-	uint64_t padding;
-
-	/*
-	 * Index of a pawn that can be captured en passant.
-	 * If there is no such pawn, ep_index is zero.
-	 */
-	uint64_t ep_index;
-
-	// A bitboard of all pieces
-	uint64_t occupied;
-
-	// The square of the king belonging to the player to move
-	int32_t ki;
-	int32_t opp_ki;
-
-	/*
-	 * The bitboards attack[0] and attack[1] contain maps all squares
-	 * attack by each side. Attack maps of each piece type for each side
-	 * start from attack[2] --- to be indexed by piece type.
-	 */
-	uint64_t attack[PIECE_ARRAY_SIZE];
-
-	/*
-	 * All sliding attacks ( attacks by bishop, rook, or queen ) of
-	 * each player.
-	 */
-	uint64_t sliding_attacks[2];
-
-	/*
 	 * The map[0] and map[1] bitboards contain maps of each players
 	 * pieces, the rest contain maps of individual pieces.
 	 */
 	uint64_t map[PIECE_ARRAY_SIZE];
-
-	/*
-	 * Each square of every file left half open by players pawns,
-	 * i.e. where player has no pawn, and another bitboard for
-	 * those files where the opponent has no pawns.
-	 */
-	uint64_t half_open_files[2];
-
-	/*
-	 * Each square that can be attacked by pawns, if they are pushed
-	 * forward, per player.
-	 */
-	uint64_t pawn_attack_reach[2];
 
 	/*
 	 * Thus given a bitboard of a players pawns:
@@ -170,49 +98,98 @@ struct position {
 	 * ........
 	 */
 
-	alignas(pos_alignment)
-	uint64_t rq[2]; // map[rook] | map[queen]
-	uint64_t bq[2]; // map[bishop] | map[queen]
+	/*
+	 * Each square of every file left half open by players pawns,
+	 * i.e. where player has no pawn, and another bitboard for
+	 * those files where the opponent has no pawns.
+	 */
+	uint64_t half_open_files[2];
 
-	alignas(pos_alignment)
+	/*
+	 * Each square that can be attacked by pawns, if they are pushed
+	 * forward, per player.
+	 */
+	uint64_t pawn_attack_reach[2];
+
 	uint64_t rays[2][64];
-
-	alignas(pos_alignment)
-	/*
-	 * The following four 64 bit contain two symmetric pairs, that can be
-	 * swapped in make_move, as in:
-	 *
-	 * new->zhash[0] = old->zhash[1]
-	 * new->zhash[1] = old->zhash[0]
-	 * new->cr_and_material[0] = old->cr_and_material[1]
-	 * new->cr_and_material[1] = old->cr_and_material[0]
-	 */
-
-	/*
-	 * The zobrist hash key of the position is in zhash[0], while
-	 * the key from the opponent's point of view is in zhash[1].
-	 * During make_move these two are exchanged with each, and both
-	 * are updated. This way, there is no need for information on the
-	 * current side to move in the hash - actually in the whole
-	 * position structure - and can recognize transpositions that
-	 * appear with opposite players.
-	 */
-	uint64_t zhash[2];
+	uint64_t zhash;
+	int16_t material_value[2];
 
 	/*
 	 * Two booleans corresponding to castling rights, and the sum of piece
 	 * values - updated on each move - stored for one playes in 64 bits.
 	 * The next 64 bits answer the same questions about the opposing side.
 	 */
-	int8_t cr_king_side;
-	int8_t cr_queen_side;
-	int8_t cr_padding0[2];
-	int32_t material_value;
+	int8_t cr_white_king_side;
+	int8_t cr_white_queen_side;
 
-	int8_t cr_opponent_king_side;
-	int8_t cr_opponent_queen_side;
-	int8_t cr_padding1[2];
-	int32_t opponent_material_value;
+	int8_t cr_black_king_side;
+	int8_t cr_black_queen_side;
+
+	enum player turn;
+	enum player opponent;
+	unsigned half_move_counter;
+	unsigned full_move_counter;
+
+	alignas(pos_alignment)
+	char memcpy_offset;
+
+	/*
+	 * In case the player to move is in check:
+	 * A bitboard of all pieces that attack the king, and the squares of any
+	 * sliding attack between the king and the attacking rook/queen/bishop.
+	 * These extra squares are valid move destinations for blocking the
+	 * attack, thus moving out of check. E.g. a rook attacking the king:
+	 *
+	 *    ........
+	 *    ..r..K..
+	 *    ........
+	 *
+	 *  The corresponding part of the king_attack_map:
+	 *
+	 *    ........
+	 *    ..XXX...
+	 *    ........
+	 */
+	uint64_t king_attack_map;
+	uint64_t king_danger_map;
+
+	/*
+	 * En passant index.
+	 * Set every time a pawn double-push.
+	 */
+	// en passant index, even when capture is not legal
+	coordinate actual_ep_index;
+
+	/*
+	 * Effective en passant index.
+	 * Index of a pawn that can be captured en passant.
+	 * If there is no such legal capture, ep_index is zero.
+	 */
+	coordinate ep_index;
+
+	// A bitboard of all pieces
+	uint64_t occupied;
+
+	// The square of the king belonging to the player to move
+	coordinate white_ki;
+	coordinate black_ki;
+
+	/*
+	 * The bitboards attack[0] and attack[1] contain maps all squares
+	 * attack by each side. Attack maps of each piece type for each side
+	 * start from attack[2] --- to be indexed by piece type.
+	 */
+	uint64_t attack[PIECE_ARRAY_SIZE];
+
+	/*
+	 * All sliding attacks ( attacks by bishop, rook, or queen ) of
+	 * each player.
+	 */
+	uint64_t sliding_attacks[2];
+
+	uint64_t rq[2]; // map[rook] | map[queen]
+	uint64_t bq[2]; // map[bishop] | map[queen]
 
 	// pinned pieces
 	uint64_t king_pins[2];
@@ -233,16 +210,6 @@ struct position {
 	uint64_t hanging_map;
 };
 
-static_assert(offsetof(struct position, opponent_material_value) +
-	sizeof(((struct position*)NULL)->opponent_material_value) -
-	offsetof(struct position, cr_king_side) == 16,
-	"struct position layout error");
-
-static_assert(offsetof(struct position, opponent_material_value) +
-	sizeof(((struct position*)NULL)->opponent_material_value) -
-	offsetof(struct position, zhash) == 32,
-	"struct position layout error");
-
 enum position_ray_directions {
 	pr_bishop,
 	pr_rook,
@@ -261,7 +228,7 @@ static inline enum player
 pos_player_at(const struct position *p, int i)
 {
 	invariant(ivalid(i));
-	return is_nonempty(p->map[1] & bit64(i)) ? 1 : 0;
+	return is_nonempty(p->map[black] & bit64(i)) ? black : white;
 }
 
 static inline int
@@ -316,84 +283,37 @@ ver_reach(const struct position *p, int i)
 static inline uint64_t
 pos_king_attackers(const struct position *p)
 {
-	return p->king_attack_map & p->map[1];
+	return p->king_attack_map & p->map[opponent_of(p->turn)];
 }
 
 static inline uint64_t
-absolute_pins(const struct position *p, int player)
+absolute_pins(const struct position *p, enum player player)
 {
 	return p->king_pins[player] & p->map[player];
 }
 
 static inline int
-pos_en_passant_file(const struct position *p)
+pos_has_ep_index(const struct position *p)
 {
-	return ind_file(p->ep_index);
+	return p->ep_index != 0;
 }
 
 static inline int
-pos_has_ep_target(const struct position *p)
+pos_en_passant_file(const struct position *p)
 {
-	return p->ep_index != 0;
+	invariant(pos_has_ep_index(p));
+	return ind_file(p->ep_index);
 }
 
 static inline uint64_t
 pos_hash(const struct position *p)
 {
-	uint64_t key = p->zhash[0];
-	if (pos_has_ep_target(p))
+	uint64_t key = p->zhash;
+
+	if (pos_has_ep_index(p))
 		key = z_toggle_ep_file(key, pos_en_passant_file(p));
+
 	return key;
-}
-
-static inline uint64_t
-rank64(int i)
-{
-	invariant(ivalid(i));
-	return RANK_8 << (i & 0x38);
-}
-
-static inline uint64_t
-file64(int i)
-{
-	invariant(ivalid(i));
-	return FILE_H << (i % 8);
-}
-
-static inline uint64_t
-pawn_reach_south(uint64_t map)
-{
-	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
-}
-
-static inline uint64_t
-pawn_reach_north(uint64_t map)
-{
-	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
-}
-
-static inline uint64_t
-pawn_attacks_opponent(uint64_t pawn_map)
-{
-	return pawn_reach_south(pawn_map);
-}
-
-static inline uint64_t
-pawn_attacks_player(uint64_t pawn_map)
-{
-	return pawn_reach_north(pawn_map);
-}
-
-static inline uint64_t
-pos_pawn_attacks_player(const struct position *p)
-{
-	return pawn_attacks_player(p->map[pawn]);
-}
-
-static inline uint64_t
-pos_pawn_attacks_opponent(const struct position *p)
-{
-	return pawn_attacks_player(p->map[opponent_pawn]);
 }
 
 static inline uint64_t
@@ -401,28 +321,6 @@ rook_full_attack(int i)
 {
 	invariant(ivalid(i));
 	return file64(i) | rank64(i);
-}
-
-static inline int
-pos_king_index_player(const struct position *p)
-{
-	uint64_t map = p->map[king];
-	invariant(map != 0);
-	return bsf(map);
-}
-
-static inline int
-pos_king_index_opponent(const struct position *p)
-{
-	uint64_t map = p->map[opponent_king];
-	invariant(map != 0);
-	return bsf(map);
-}
-
-static inline uint64_t
-pos_king_knight_attack(const struct position *p)
-{
-	return knight_pattern[p->opp_ki] & p->map[knight];
 }
 
 static inline bool
@@ -435,11 +333,12 @@ static inline bool
 has_insufficient_material(const struct position *p)
 {
 	// Look at all pieces except kings.
-	uint64_t pieces = p->occupied & ~(p->map[king] | p->map[opponent_king]);
+	uint64_t pieces = p->occupied;
+	pieces &= ~(p->map[white_king] | p->map[black_king]);
 
 	// Are there only kings and bishops left?
 	// This also covers the case where nothing but kings are left.
-	if (pieces == (p->map[bishop] | p->map[opponent_bishop])) {
+	if (pieces == (p->map[white_bishop] | p->map[black_bishop])) {
 		// All bishops on the same color?
 		if (is_empty(pieces & BLACK_SQUARES))
 			return true;
@@ -455,7 +354,20 @@ has_insufficient_material(const struct position *p)
 
 void make_move(struct position *restrict dst,
 		const struct position *restrict src,
-		move)
+		struct move)
 	attribute(nonnull);
+
+static inline void
+pos_switch_turn(struct position *pos)
+{
+	invariant(pos->turn == white || pos->turn == black);
+	invariant(pos->opponent == white || pos->opponent == black);
+	invariant(pos->opponent == opponent_of(pos->turn));
+
+	pos->turn ^= (white|black);
+	pos->opponent ^= (white|black);
+
+	invariant(pos->opponent == opponent_of(pos->turn));
+}
 
 #endif

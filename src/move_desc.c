@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017, Gabor Buella
+ * Copyright 2017-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -118,18 +118,22 @@ find_attackers(const struct move_square_desc *sq, const struct position *pos)
 	attackers |= pos->all_knights & knight_pattern[sq->index];
 	attackers |= pos->all_rq & sq->rreach;
 	attackers |= pos->all_bq & sq->breach;
-	attackers |= pos->map[pawn] & pawn_attacks_south[sq->index];
-	attackers |= pos->map[opponent_pawn] & pawn_attacks_north[sq->index];
+	attackers |= pos->map[white_pawn] & pawn_attacks_south[sq->index];
+	attackers |= pos->map[black_pawn] & pawn_attacks_north[sq->index];
 
 	return attackers;
 }
 
 static uint64_t
-find_piece_attacks(const struct move_square_desc *sq)
+find_piece_attacks(const struct position *pos,
+		   const struct move_square_desc *sq)
 {
 	switch (sq->piece) {
 	case pawn:
-		return pawn_attacks_north[sq->index];
+		if (pos->turn == white)
+			return pawn_attacks_north[sq->index];
+		else
+			return pawn_attacks_south[sq->index];
 	case knight:
 		return knight_pattern[sq->index];
 	case bishop:
@@ -153,7 +157,7 @@ compute_SEE_loss(struct move_square_desc *sq, const struct position *pos)
 		return;
 	}
 
-	uint64_t code = attack_code(pos, sq->attackers, 0);
+	uint64_t code = attack_code(pos, sq->attackers, pos->turn);
 
 	if (SEE_values[code] < md_pvalue[sq->piece])
 		sq->SEE_loss = md_pvalue[sq->piece] - SEE_values[code];
@@ -166,13 +170,13 @@ compute_SEE_loss(struct move_square_desc *sq, const struct position *pos)
 static void
 describe_source(struct move_desc *desc, const struct position *pos)
 {
-	int from = mfrom(desc->move);
+	int from = desc->move.from;
 
 	desc->src_sq.index = from;
 	desc->src_sq.piece = pos->board[from];
-	desc->src_sq.rreach = pos->rays[pr_rook][from];
-	desc->src_sq.breach = pos->rays[pr_bishop][from];
-	desc->src_sq.attacks = find_piece_attacks(&desc->src_sq);
+	desc->src_sq.rreach = rook_reach(pos, from);
+	desc->src_sq.breach = bishop_reach(pos, from);
+	desc->src_sq.attacks = find_piece_attacks(pos, &desc->src_sq);
 	desc->src_sq.attacks &= pos->occupied;
 	// desc->src_sq.attackers is not needed
 	// desc->src_sq.attackers = find_attackers(&desc->src_sq, pos);
@@ -182,20 +186,20 @@ describe_source(struct move_desc *desc, const struct position *pos)
 static void
 describe_destination(struct move_desc *desc, const struct position *pos)
 {
-	int to = mto(desc->move);
+	int to = desc->move.to;
 	uint64_t to64 = mto64(desc->move);
 
 	desc->dst_sq.index = to;
-	desc->dst_sq.piece = mresultp(desc->move);
-	desc->dst_sq.rreach = pos->rays[pr_rook][to];
-	desc->dst_sq.breach = pos->rays[pr_bishop][to];
+	desc->dst_sq.piece = desc->move.result;
+	desc->dst_sq.rreach = rook_reach(pos, to);
+	desc->dst_sq.breach = bishop_reach(pos, to);
 
 	if (is_nonempty(desc->src_sq.rreach & to64))
 		desc->dst_sq.rreach |= desc->src_sq.rreach & rook_masks[to];
 	else if (is_nonempty(desc->src_sq.breach & to64))
 		desc->dst_sq.breach |= desc->src_sq.breach & bishop_masks[to];
 
-	desc->dst_sq.attacks = find_piece_attacks(&desc->dst_sq);
+	desc->dst_sq.attacks = find_piece_attacks(pos, &desc->dst_sq);
 	desc->dst_sq.attacks &= pos->occupied & ~mfrom64(desc->move);
 	desc->dst_sq.attackers = find_attackers(&desc->dst_sq, pos);
 	desc->dst_sq.attackers &= ~mfrom64(desc->move);
@@ -208,31 +212,31 @@ find_discovered_attacks(struct move_desc *desc, const struct position *pos)
 	uint64_t discovered = EMPTY;
 	uint64_t reach = desc->src_sq.breach & ~desc->dst_sq.breach;
 
-	for (uint64_t b = reach & pos->bq[0]; is_nonempty(b); b = reset_lsb(b))
+	for (uint64_t b = reach & pos->bq[pos->turn]; is_nonempty(b); b = reset_lsb(b))
 		discovered |= reach & bishop_masks[bsf(b)];
 
 	reach = desc->src_sq.rreach & ~desc->dst_sq.rreach;
 
-	for (uint64_t r = reach & pos->rq[0]; is_nonempty(r); r = reset_lsb(r))
+	for (uint64_t r = reach & pos->rq[pos->turn]; is_nonempty(r); r = reset_lsb(r))
 		discovered |= reach & rook_masks[bsf(r)];
 
-	desc->discovered_attacks = discovered & ~pos->map[opponent_king];
+	desc->discovered_attacks = discovered & ~pos->map[pos->opponent | king];
 	desc->discovered_check =
-	    is_nonempty(discovered & pos->map[opponent_king]);
+	    is_nonempty(discovered & pos->map[pos->opponent | king]);
 }
 
 static void
 find_attacks(struct move_desc *desc, const struct position *pos)
 {
-	desc->direct_check = is_nonempty(desc->dst_sq.attacks &
-					 pos->map[opponent_king]);
+	uint16_t opponent_king = pos->map[king | opponent_of(pos->turn)];
+	desc->direct_check = is_nonempty(desc->dst_sq.attacks & opponent_king);
 	find_discovered_attacks(desc, pos);
 }
 
 static void
 compute_SEE_value(struct move_desc *desc)
 {
-	desc->SEE_value = piece_value[mcapturedp(desc->move)];
+	desc->SEE_value = piece_value[desc->move.captured];
 	desc->SEE_value -= piece_value[desc->src_sq.piece];
 	desc->SEE_value += piece_value[desc->dst_sq.piece];
 	desc->SEE_value += desc->src_sq.SEE_loss;
@@ -244,17 +248,17 @@ attacks_value(uint64_t all_attacks, const struct position *pos)
 {
 	uint16_t value = 0;
 
-	uint64_t attacks = all_attacks & pos->map[0] & pos->hanging_map;
+	uint64_t attacks = all_attacks & pos->map[pos->turn] & pos->hanging_map;
 
 	for (; is_nonempty(attacks); attacks = reset_lsb(attacks))
 		value += piece_value[pos->board[bsf(attacks)]] / 3;
 
-	attacks = all_attacks & pos->undefended[1];
+	attacks = all_attacks & pos->undefended[pos->opponent];
 
 	for (; is_nonempty(attacks); attacks = reset_lsb(attacks))
 		value += piece_value[pos->board[bsf(attacks)]] / 4;
 
-	attacks = all_attacks & pos->map[1] & ~pos->hanging_map;
+	attacks = all_attacks & pos->map[pos->opponent] & ~pos->hanging_map;
 
 	for (; is_nonempty(attacks); attacks = reset_lsb(attacks))
 		value += piece_value[pos->board[bsf(attacks)]] / 18;
@@ -270,34 +274,44 @@ is_passed_pawn(const struct move_square_desc *sq, const struct position *pos)
 
 	uint64_t p = bit64(sq->index);
 	p &= (RANK_7 | RANK_6 | RANK_5 | RANK_4);
-	p &= ~pos->pawn_attack_reach[1];
+	p &= ~pos->pawn_attack_reach[pos->opponent];
 	if (is_empty(p))
 		return false;
 
-	p &= ~kogge_stone_south(pos->map[1]);
+	if (pos->turn == white)
+		p &= ~kogge_stone_south(pos->map[black]);
+	else
+		p &= ~kogge_stone_north(pos->map[white]);
 
 	return is_nonempty(p);
 }
 
 static bool
-unblocks_passed_pawn(const struct position *pos, move m)
+unblocks_passed_pawn(const struct position *pos, struct move m)
 {
-	if (mresultp(m) == pawn)
+	if (m.result == pawn)
 		return false;
 
-	if (ind_file(mfrom(m)) == ind_file(mto(m)))
+	if (ind_file(m.from) == ind_file(m.to))
 		return false;
 
-	uint64_t p = pos->map[pawn] & south_of(mto64(m));
+	uint64_t p;
+	if (pos->turn == white)
+		p = pos->map[white_pawn] & south_of(mto64(m));
+	else
+		p = pos->map[black_pawn] & north_of(mto64(m));
 	if (is_empty(p))
 		return false;
 
 	p &= (RANK_7 | RANK_6 | RANK_5 | RANK_4);
-	p &= ~pos->pawn_attack_reach[1];
+	p &= ~pos->pawn_attack_reach[pos->opponent];
 	if (is_empty(p))
 		return false;
 
-	p &= ~kogge_stone_south(pos->map[1]);
+	if (pos->turn == white)
+		p &= ~kogge_stone_south(pos->map[black]);
+	else
+		p &= ~kogge_stone_north(pos->map[white]);
 
 	return is_nonempty(p);
 }
@@ -319,9 +333,16 @@ eval_piece_placement(struct move_desc *desc, const struct position *pos)
 	if (desc->SEE_value < 0)
 		return;
 
-	if (desc->dst_sq.piece != king || is_empty(pos->rq[1])) {
+	if (desc->dst_sq.piece == king && is_nonempty(pos->rq[pos->opponent]))
+		return;
+
+	if (pos->turn == white) {
 		desc->value += move_dest_table[desc->dst_sq.index];
 		desc->value -= move_dest_table[desc->src_sq.index];
+	}
+	else {
+		desc->value += move_dest_table[flip_i(desc->dst_sq.index)];
+		desc->value -= move_dest_table[flip_i(desc->src_sq.index)];
 	}
 }
 
@@ -350,7 +371,7 @@ eval_check(struct move_desc *desc, const struct position *pos)
 	if ((desc->dst_sq.SEE_loss == 0 && desc->direct_check)
 	    || desc->discovered_check) {
 		desc->value += 1100;
-		if (is_empty(desc->dst_sq.attackers & pos->map[1]))
+		if (is_empty(desc->dst_sq.attackers & pos->map[pos->opponent]))
 			desc->value += 80;
 	}
 }
@@ -361,16 +382,16 @@ has_strong_attack(uint64_t attacks, int piece, const struct position *pos)
 	if (piece == queen)
 		return false;
 
-	if (is_nonempty(attacks & pos->map[opponent_queen]))
+	if (is_nonempty(attacks & pos->map[pos->opponent | queen]))
 		return true;
 
 	if (piece == rook)
 		return false;
 
-	if (is_nonempty(attacks & pos->map[opponent_rook]))
+	if (is_nonempty(attacks & pos->map[pos->opponent | rook]))
 		return true;
 
-	if (piece == pawn && is_nonempty(attacks & pos->nb[1]))
+	if (piece == pawn && is_nonempty(attacks & pos->nb[pos->opponent]))
 		return true;
 
 	return false;
@@ -386,7 +407,7 @@ eval_direct_attacks(struct move_desc *desc, const struct position *pos)
 			desc->value += 90;
 	}
 
-	if (is_empty(mto64(desc->move) & pos->attack[1])
+	if (is_empty(mto64(desc->move) & pos->attack[pos->opponent])
 	    || desc->discovered_check) {
 		desc->value += attacks_value(new_direct, pos);
 	}
@@ -405,7 +426,7 @@ eval_direct_attacks(struct move_desc *desc, const struct position *pos)
 static void
 eval_discovered_attacks(struct move_desc *desc, const struct position *pos)
 {
-	if (is_empty(mto64(desc->move) & pos->attack[1])
+	if (is_empty(mto64(desc->move) & pos->attack[pos->opponent])
 	    || desc->direct_check) {
 		desc->value += attacks_value(desc->discovered_attacks, pos);
 	}
@@ -422,16 +443,16 @@ eval_passed_pawn_unblock(struct move_desc *desc, const struct position *pos)
 }
 
 void
-describe_move(struct move_desc *desc, const struct position *pos, move m)
+describe_move(struct move_desc *desc, const struct position *pos, struct move m)
 {
-	move prev_m = desc->move;
+	struct move prev_m = desc->move;
 
-	if (prev_m == m)
+	if (move_eq(prev_m, m))
 		return;
 
 	desc->move = m;
 
-	if (prev_m == 0 || (mfrom(prev_m) != mfrom(m)))
+	if (is_null_move(prev_m) || (prev_m.from != m.from))
 		describe_source(desc, pos);
 
 	describe_destination(desc, pos);
@@ -455,8 +476,8 @@ find_hanging_pieces(struct position *pos)
 	memset(pos->hanging, 0, sizeof(pos->hanging));
 	pos->hanging_map = EMPTY;
 
-	uint64_t pieces = pos->map[0] & pos->attack[1];
-	pieces |= pos->map[1] & pos->attack[0];
+	uint64_t pieces = pos->map[white] & pos->attack[black];
+	pieces |= pos->map[black] & pos->attack[white];
 	pieces &= ~pos->all_kings;
 
 	for (; is_nonempty(pieces); pieces = reset_lsb(pieces)) {
@@ -464,8 +485,8 @@ find_hanging_pieces(struct position *pos)
 
 		sq.index = bsf(pieces);
 		sq.piece = pos->board[sq.index];
-		sq.rreach = pos->rays[pr_rook][sq.index];
-		sq.breach = pos->rays[pr_bishop][sq.index];
+		sq.rreach = rook_reach(pos, sq.index);
+		sq.breach = bishop_reach(pos, sq.index);
 		int player = pos_player_at(pos, sq.index);
 		uint64_t attackers = find_attackers(&sq, pos);
 		uint64_t code = attack_code(pos, attackers, player);

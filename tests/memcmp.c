@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017, Gabor Buella
+ * Copyright 2017-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,23 +33,26 @@
 #include "game.h"
 
 static void
-position_memcmp(const struct position *pos0, enum player player)
+position_memcmp(const struct position *pos0)
 {
 	struct position pos1[1];
 	char fen[FEN_BUFFER_LENGTH];
-	int ep_index;
 
 	memset(pos1, 0, sizeof(pos1));
-	position_print_fen_full(pos0, fen, 0, 1, 1, player);
-	position_read_fen(pos1, fen, &ep_index, &player);
+	position_print_fen(fen, pos0);
+	position_read_fen(fen, pos1);
 
+	assert(pos0->turn == pos1->turn);
+	assert(pos0->opponent == pos1->opponent);
+	assert(pos0->half_move_counter == pos1->half_move_counter);
+	assert(pos0->full_move_counter == pos1->full_move_counter);
 	assert(memcmp(pos0->board, pos1->board, sizeof(pos0->board)) == 0);
 	assert(pos0->king_attack_map == pos1->king_attack_map);
 	assert(pos0->king_danger_map == pos1->king_danger_map);
 	assert(pos0->ep_index == pos1->ep_index);
 	assert(pos0->occupied == pos1->occupied);
-	assert(pos0->ki == pos1->ki);
-	assert(pos0->opp_ki == pos1->opp_ki);
+	assert(pos0->white_ki == pos1->white_ki);
+	assert(pos0->black_ki == pos1->black_ki);
 	assert(memcmp(pos0->attack, pos1->attack, sizeof(pos0->attack)) == 0);
 	assert(memcmp(pos0->sliding_attacks, pos1->sliding_attacks,
 	    sizeof(pos0->sliding_attacks)) == 0);
@@ -62,13 +65,13 @@ position_memcmp(const struct position *pos0, enum player player)
 	assert(memcmp(pos0->bq, pos1->bq, sizeof(pos0->bq)) == 0);
 	assert(memcmp(pos0->rays[0], pos1->rays[0], sizeof(pos0->rays[0])) == 0);
 	assert(memcmp(pos0->rays[1], pos1->rays[1], sizeof(pos0->rays[1])) == 0);
-	assert(memcmp(pos0->zhash, pos1->zhash, sizeof(pos0->zhash)) == 0);
-	assert(pos0->cr_king_side == pos1->cr_king_side);
-	assert(pos0->cr_queen_side == pos1->cr_queen_side);
-	assert(pos0->material_value == pos1->material_value);
-	assert(pos0->cr_opponent_king_side == pos1->cr_opponent_king_side);
-	assert(pos0->cr_opponent_queen_side == pos1->cr_opponent_queen_side);
-	assert(pos0->opponent_material_value == pos1->opponent_material_value);
+	assert(pos0->zhash == pos1->zhash);
+	assert(pos0->cr_white_king_side == pos1->cr_white_king_side);
+	assert(pos0->cr_white_queen_side == pos1->cr_white_queen_side);
+	assert(pos0->material_value[white] == pos1->material_value[white]);
+	assert(pos0->cr_black_king_side == pos1->cr_black_king_side);
+	assert(pos0->cr_black_queen_side == pos1->cr_black_queen_side);
+	assert(pos0->material_value[black]== pos1->material_value[black]);
 	assert(pos0->king_pins[0] == pos1->king_pins[0]);
 	assert(pos0->king_pins[1] == pos1->king_pins[1]);
 	assert(pos0->nb[0] == pos1->nb[0]);
@@ -85,39 +88,39 @@ position_memcmp(const struct position *pos0, enum player player)
 }
 
 static void
-check_memcmp(const struct position *pos, enum player player)
+check_memcmp(const struct position *pos)
 {
 	struct position temp[1];
 
 	memset(temp, 0, sizeof(temp));
 
-	position_memcmp(pos, player);
+	position_memcmp(pos);
 
-	if (is_in_check(pos) || pos_has_ep_target(pos))
+	if (is_in_check(pos) || position_has_en_passant_target(pos))
 		return;
 
-	position_flip(temp, pos);
+	assert(position_flip(temp, pos) == 0);
 
-	position_memcmp(temp, player);
+	position_memcmp(temp);
 }
 
 static void
-test_tree_walk(const struct position *pos, unsigned depth, enum player player)
+test_tree_walk(const struct position *pos, unsigned depth)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
-	check_memcmp(pos, player);
+	check_memcmp(pos);
 
 	if (depth == 0)
 		return;
 
 	gen_moves(pos, moves);
 
-	for (unsigned i = 0; moves[i] != 0; ++i) {
+	for (unsigned i = 0; !is_null_move(moves[i]); ++i) {
 		struct position child[1];
 		memset(child, 0, sizeof(child));
 		make_move(child, pos, moves[i]);
-		test_tree_walk(child, depth - 1, opponent_of(player));
+		test_tree_walk(child, depth - 1);
 	}
 }
 
@@ -126,5 +129,5 @@ run_tests(void)
 {
 	const struct game *g = parse_setboard_from_arg_file();
 
-	test_tree_walk(game_current_position(g), 3, game_turn(g));
+	test_tree_walk(game_current_position(g), 3);
 }

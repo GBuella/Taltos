@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,7 +39,7 @@ validate_fen_book_entry(const char *line_start)
 {
 	const char *str;
 
-	str = position_read_fen(NULL, line_start, NULL, NULL);
+	str = position_read_fen(line_start, NULL);
 	if (str == NULL)
 		return -1;
 
@@ -171,32 +171,28 @@ void
 fen_book_get_move(const struct book *book,
 		const struct position *position,
 		size_t size,
-		move m[size])
+		struct move m[size])
 {
 	char fen[FEN_BUFFER_LENGTH];
 	const char *entry;
 	const char *str;
 
-	m[0] = 0;
-	if (book == NULL || position == NULL)
+	m[0] = null_move();
+	if (book == NULL || position == NULL || size == 0)
 		return;
 
-	(void) position_print_fen(position, fen, 0, white);
+	(void) position_print_fen_no_move_count(fen, position);
 	entry = lookup_entry(&book->fen_book, fen);
-	if (entry == NULL) {
-		(void) position_print_fen(position, fen, 0, black);
-		entry = lookup_entry(&book->fen_book, fen);
-	}
 	if (entry == NULL)
 		return;
 
-	str = position_read_fen(NULL, entry, NULL, NULL);
+	str = position_read_fen(entry, NULL);
 	while ((size > 0) && ((str = next_token(str)) != NULL)) {
 		fen_read_move(entry, str, m);
 		++m;
 		--size;
 	}
-	*m = 0;
+	*m = null_move();
 }
 
 size_t

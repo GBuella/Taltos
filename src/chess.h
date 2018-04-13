@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "macros.h"
 
@@ -50,16 +51,26 @@ enum piece {
 	queen =		12
 };
 
-enum {
-	opponent_pawn = pawn|1,
-	opponent_rook = rook|1,
-	opponent_king = king|1,
-	opponent_bishop = bishop|1,
-	opponent_knight = knight|1,
-	opponent_queen = queen|1
+enum player {
+	white = 0,
+	black = 1
 };
 
-enum { player_mask = 1 };
+enum {
+	empty_squre = 0,
+	white_pawn = pawn|white,
+	white_rook = rook|white,
+	white_king = king|white,
+	white_bishop = bishop|white,
+	white_knight = knight|white,
+	white_queen = queen|white,
+	black_pawn = pawn|black,
+	black_rook = rook|black,
+	black_king = king|black,
+	black_bishop = bishop|black,
+	black_knight = knight|black,
+	black_queen = queen|black
+};
 
 static inline bool
 is_valid_piece(int piece)
@@ -72,58 +83,83 @@ is_valid_piece(int piece)
 	    || (piece == queen);
 }
 
-enum player {
-	white = 0,
-	black = 1
-};
+static inline bool
+is_valid_square(int square)
+{
+	return (square == empty_squre)
+	    || (square == white_pawn)
+	    || (square == white_rook)
+	    || (square == white_king)
+	    || (square == white_bishop)
+	    || (square == white_knight)
+	    || (square == white_queen)
+	    || (square == black_pawn)
+	    || (square == black_rook)
+	    || (square == black_king)
+	    || (square == black_bishop)
+	    || (square == black_knight)
+	    || (square == black_queen);
+}
 
-static inline int
-opponent_of(int p)
+static inline enum player
+square_player(int square)
+{
+	return square & (black|white);
+}
+
+static inline enum piece
+square_piece(int square)
+{
+	return square & ~(black|white);
+}
+
+static inline enum player
+opponent_of(enum player p)
 {
 	return p ^ 1;
 }
 
-enum {
-	sq_h1 = 56, sq_g1, sq_f1, sq_e1, sq_d1, sq_c1, sq_b1, sq_a1,
-	sq_h2 = 48, sq_g2, sq_f2, sq_e2, sq_d2, sq_c2, sq_b2, sq_a2,
-	sq_h3 = 40, sq_g3, sq_f3, sq_e3, sq_d3, sq_c3, sq_b3, sq_a3,
-	sq_h4 = 32, sq_g4, sq_f4, sq_e4, sq_d4, sq_c4, sq_b4, sq_a4,
-	sq_h5 = 24, sq_g5, sq_f5, sq_e5, sq_d5, sq_c5, sq_b5, sq_a5,
-	sq_h6 = 16, sq_g6, sq_f6, sq_e6, sq_d6, sq_c6, sq_b6, sq_a6,
-	sq_h7 = 8,  sq_g7, sq_f7, sq_e7, sq_d7, sq_c7, sq_b7, sq_a7,
-	sq_h8 = 0,  sq_g8, sq_f8, sq_e8, sq_d8, sq_c8, sq_b8, sq_a8
-};
+typedef enum {
+	h1 = 56, g1, f1, e1, d1, c1, b1, a1,
+	h2 = 48, g2, f2, e2, d2, c2, b2, a2,
+	h3 = 40, g3, f3, e3, d3, c3, b3, a3,
+	h4 = 32, g4, f4, e4, d4, c4, b4, a4,
+	h5 = 24, g5, f5, e5, d5, c5, b5, a5,
+	h6 = 16, g6, f6, e6, d6, c6, b6, a6,
+	h7 = 8,  g7, f7, e7, d7, c7, b7, a7,
+	h8 = 0,  g8, f8, e8, d8, c8, b8, a8
+} coordinate;
 
-enum {
+typedef enum {
 	rank_8 = 0, rank_7, rank_6, rank_5, rank_4, rank_3, rank_2, rank_1,
 	rank_invalid
-};
+} rank;
 
 #define RSOUTH (+1)
 #define RNORTH (-1)
 
-enum {
+typedef enum {
 	file_h = 0, file_g, file_f, file_e, file_d, file_c, file_b, file_a,
 	file_invalid
-};
+} file;
 
 #define FEAST (-1)
 #define FWEST (+1)
 
 static inline bool
-is_valid_file(int file)
+is_valid_file(file file)
 {
 	return (file & ~7) == 0;
 }
 
 static inline bool
-is_valid_rank(int rank)
+is_valid_rank(rank rank)
 {
 	return (rank & ~7) == 0;
 }
 
 static inline int
-ind(int rank, int file)
+ind(rank rank, file file)
 {
 	assert(is_valid_rank(rank));
 	assert(is_valid_file(file));
@@ -160,14 +196,14 @@ south_of(uint64_t bit)
 	return bit << 8;
 }
 
-static inline unsigned
-ind_rank(int i)
+static inline rank
+ind_rank(coordinate i)
 {
 	return i / 8;
 }
 
-static inline unsigned
-ind_file(int i)
+static inline file
+ind_file(coordinate i)
 {
 	return i & 7;
 }
@@ -184,51 +220,86 @@ ivalid(int i)
 	return i >= 0 && i < 64;
 }
 
-typedef int32_t move;
-
-/*
- * move layout:
- *
- * from           : bits  0 -  5
- * to             : bits  6 - 11
- * result piece   : bits 12 - 14
- * captured piece : bits 15 - 17
- * type           : bits 18 - 20
- *
- *
- *
- */
-
-enum move_bit_offsets {
-	move_bit_off_from = 0,
-
-	move_bit_off_to = move_bit_off_from + 6,
-
-	move_bit_off_result = move_bit_off_to + 6,
-	move_bit_off_result_bit1,
-	move_bit_off_result_bit2,
-
-	move_bit_off_captured,
-	move_bit_off_captured_bit1,
-	move_bit_off_captured_bit2,
-
-	move_bit_off_type,
-	move_bit_off_type_bit1,
-	move_bit_off_type_bit2,
-
-	move_bit_mask_plus_one_shift
-};
-
-#define MOVE_MASK ((1 << move_bit_mask_plus_one_shift) - 1)
-
 enum move_type {
-	mt_general = 0,
-	mt_pawn_double_push = 1 << move_bit_off_type,
-	mt_castle_kingside = 2 << move_bit_off_type,
-	mt_castle_queenside = 3 << move_bit_off_type,
-	mt_en_passant = 4 << move_bit_off_type,
-	mt_promotion = 5 << move_bit_off_type
+	mt_general,
+	mt_pawn_double_push,
+	mt_castle_kingside,
+	mt_castle_queenside,
+	mt_en_passant,
+	mt_promotion
 };
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
+struct move {
+
+#ifdef TALTOS_USE_NO_ENUM_BITFIELDS
+
+	uint32_t from:8;
+	uint32_t to:8;
+	uint32_t result:4;
+	uint32_t captured:4;
+	uint32_t type:3;
+
+#else
+
+	coordinate from:8;
+	coordinate to:8;
+	enum piece result:4;
+	enum piece captured:4;
+	enum move_type type:3;
+
+#endif
+
+	uint32_t reserved:32 - 8 - 8 - 3 - 4 - 4;
+};
+
+#pragma GCC diagnostic pop
+
+static_assert(sizeof(struct move) == sizeof(uint32_t), "Invalid struct move");
+
+static inline uint32_t
+movei(struct move m)
+{
+	uint32_t value;
+	char *dst = (void*)&value;
+	const char *src = (const void*)&m;
+
+	dst[0] = src[0];
+	dst[1] = src[1];
+	dst[2] = src[2];
+	dst[3] = src[3];
+
+	return value;
+}
+
+static inline struct move
+imove(uint32_t value)
+{
+	struct move m;
+	char *dst = (void*)&m;
+	const char *src = (const void*)&value;
+
+	dst[0] = src[0];
+	dst[1] = src[1];
+	dst[2] = src[2];
+	dst[3] = src[3];
+
+	return m;
+}
+
+static inline bool
+is_null_move(struct move m)
+{
+	return movei(m) == 0;
+}
+
+static inline struct move
+null_move(void)
+{
+	return (struct move){0, 0, 0, 0, 0, 0};
+}
 
 static inline bool
 is_valid_mt(int t)
@@ -241,188 +312,122 @@ is_valid_mt(int t)
 	    || (t == mt_promotion);
 }
 
-#define MOVE_TYPE_MASK (7 << move_bit_off_type)
-
-enum {
-	mcastle_king_side =
-		(sq_e1 << move_bit_off_from) |
-		(sq_g1 << move_bit_off_to) |
-		mt_castle_kingside |
-		(king << (move_bit_off_result - 1)),
-
-	mcastle_queen_side =
-		(sq_e1 << move_bit_off_from) |
-		(sq_c1 << move_bit_off_to) |
-		mt_castle_queenside |
-		(king << (move_bit_off_result - 1))
-};
-
-static inline int
-mfrom(move m)
+static inline struct move
+mcastle_white_king_side(void)
 {
-	return (m >> move_bit_off_from) & 0x3f;
+	return (struct move){.from = e1, .to = g1, .result = king,
+	        .captured = 0, .type = mt_castle_kingside, .reserved = 0};
+}
+
+static inline struct move
+mcastle_white_queen_side(void)
+{
+	return (struct move){.from = e1, .to = c1, .result = king,
+	        .captured = 0, .type = mt_castle_queenside, .reserved = 0};
+}
+
+static inline struct move
+mcastle_black_king_side(void)
+{
+	return (struct move){.from = e8, .to = g8, .result = king,
+	        .captured = 0, .type = mt_castle_kingside, .reserved = 0};
+}
+
+static inline struct move
+mcastle_black_queen_side(void)
+{
+	return (struct move){.from = e8, .to = c8, .result = king,
+	        .captured = 0, .type = mt_castle_queenside, .reserved = 0};
+}
+
+static inline struct move
+create_move_g(coordinate from, coordinate to,
+	      enum piece result, enum piece captured)
+{
+	return (struct move){.from = from, .to = to, .result = result,
+	        .captured = captured, .type = mt_general, .reserved = 0};
+}
+
+static inline struct move
+create_move_ep(coordinate from, coordinate to)
+{
+	return (struct move){.from = from, .to = to, .result = pawn,
+	        .captured = pawn, .type = mt_en_passant, .reserved = 0};
+}
+
+static inline struct move
+create_move_pr(coordinate from, coordinate to,
+	       enum piece result, enum piece captured)
+{
+	return (struct move){.from = from, .to = to, .result = result,
+	        .captured = captured, .type = mt_promotion, .reserved = 0};
+}
+
+static inline struct move
+create_move_pd(coordinate from, coordinate to)
+{
+	return (struct move){.from = from, .to = to, .result = pawn,
+	        .captured = 0, .type = mt_pawn_double_push, .reserved = 0};
 }
 
 static inline uint64_t
-mfrom64(move m)
+mfrom64(struct move m)
 {
-	return UINT64_C(1) << mfrom(m);
-}
-
-static inline int
-mto(move m)
-{
-	return (m >> move_bit_off_to) & 0x3f;
+	return UINT64_C(1) << m.from;
 }
 
 static inline uint64_t
-mto64(move m)
+mto64(struct move m)
 {
-	return UINT64_C(1) << mto(m);
+	return UINT64_C(1) << m.to;
 }
 
 static inline uint64_t
-set_mfrom(move m, int from)
-{
-	return m | from;
-}
-
-static inline uint64_t
-set_mto(move m, int to)
-{
-	return m | (to << move_bit_off_to);
-}
-
-static inline uint64_t
-m64(move m)
+m64(struct move m)
 {
 	return mfrom64(m) | mto64(m);
 }
 
-static inline move
-set_mt(move m, enum move_type mt)
+static inline bool
+is_promotion(struct move m)
 {
-	return m | mt;
-}
-
-static inline move
-set_resultp(move m, enum piece p)
-{
-	invariant(is_valid_piece(p));
-	return m | (p << (move_bit_off_result - 1));
-}
-
-static inline enum move_type
-mtype(move m)
-{
-	return m & MOVE_TYPE_MASK;
+	return m.type == mt_promotion;
 }
 
 static inline bool
-is_promotion(move m)
+is_under_promotion(struct move m)
 {
-	return mtype(m) == mt_promotion;
-}
-
-static inline enum piece
-mresultp(move m)
-{
-	return (m >> (move_bit_off_result - 1)) & 0xe;
+	return m.type == mt_promotion && m.result != queen;
 }
 
 static inline bool
-is_under_promotion(move m)
+is_capture(struct move m)
 {
-	return is_promotion(m) && mresultp(m) != queen;
-}
-
-static inline move
-flip_m(move m)
-{
-	return m ^ ((0x38 << move_bit_off_from) | (0x38 << move_bit_off_to));
-}
-
-static inline move
-set_capturedp(move m, int piece)
-{
-	invariant(piece == 0 || is_valid_piece(piece));
-	return m | (piece << (move_bit_off_captured - 1));
-}
-
-static inline enum piece
-mcapturedp(move m)
-{
-	return (m >> (move_bit_off_captured - 1)) & 0xe;
+	return m.captured != 0;
 }
 
 static inline bool
-is_capture(move m)
+is_move_valid(struct move m)
 {
-	return mcapturedp(m) != 0;
+	return ivalid(m.from) && ivalid(m.to)
+	    && m.from != m.to
+	    && is_valid_mt(m.type) && is_valid_piece(m.result)
+	    && (m.captured == 0 || is_valid_piece(m.captured));
 }
 
 static inline bool
-move_gives_check(move m)
+is_pawn_move(struct move m)
 {
-	(void) m;
-	return false;
-}
-
-static inline move
-create_move_t(int from, int to, enum move_type t, int result, int captured)
-{
-	invariant(ivalid(from));
-	invariant(ivalid(to));
-	invariant(is_valid_piece(result));
-	invariant(captured == 0 || is_valid_piece(captured));
-	invariant(is_valid_mt(t));
-
-	return (from << move_bit_off_from) |
-	    (to << move_bit_off_to) |
-	    t |
-	    (result << (move_bit_off_result - 1)) |
-	    (captured << (move_bit_off_captured - 1));
-}
-
-static inline move
-create_move_g(int from, int to, int result, int captured)
-{
-	return create_move_t(from, to, mt_general, result, captured);
-}
-
-static inline move
-create_move_pd(int from, int to)
-{
-	return create_move_t(from, to, mt_pawn_double_push, pawn, 0);
-}
-
-static inline move
-create_move_pr(int from, int to, int result, int captured)
-{
-	return create_move_t(from, to, mt_promotion, result, captured);
-}
-
-static inline move
-create_move_ep(int from, int to)
-{
-	return create_move_t(from, to, mt_en_passant, pawn, pawn);
+	return m.result == pawn || m.type == mt_promotion;
 }
 
 static inline bool
-is_move_valid(move m)
+move_eq(struct move a, struct move b)
 {
-	return ivalid(mfrom(m)) && ivalid(mto(m))
-	    && mfrom(m) != mto(m)
-	    && is_valid_mt(mtype(m)) && is_valid_piece(mresultp(m))
-	    && (mcapturedp(m) == 0 || is_valid_piece(mcapturedp(m)));
+	return movei(a) == movei(b);
 }
 
 struct position;
-
-enum {
-	none_move = 1,
-	illegal_move = 2
-};
 
 #define MOVE_STR_BUFFER_LENGTH 16
 #define FEN_BUFFER_LENGTH 128
@@ -437,134 +442,135 @@ extern const char *start_position_fen;
 
 
 
-int position_square_at(const struct position*, int index)
+enum player position_turn(const struct position*)
 	attribute(nonnull);
 
-enum piece position_piece_at(const struct position*, int index)
+int position_square_at(const struct position*, coordinate)
 	attribute(nonnull);
 
-enum player position_player_at(const struct position*, int index)
+enum piece position_piece_at(const struct position*, coordinate)
 	attribute(nonnull);
 
-bool position_cr_king_side(const struct position*)
+enum player position_player_at(const struct position*, coordinate)
 	attribute(nonnull);
 
-bool position_cr_queen_side(const struct position*)
+bool position_cr_white_king_side(const struct position*)
 	attribute(nonnull);
 
-bool position_cr_opponent_king_side(const struct position*)
+bool position_cr_white_queen_side(const struct position*)
 	attribute(nonnull);
 
-bool position_cr_opponent_queen_side(const struct position*)
+bool position_cr_black_king_side(const struct position*)
 	attribute(nonnull);
 
-void get_position_key(const struct position*, uint64_t key[static 2])
+bool position_cr_black_queen_side(const struct position*)
 	attribute(nonnull);
 
-int fen_read_move(const char *fen, const char*, move*)
+uint64_t get_position_key(const struct position*)
+	attribute(nonnull);
+
+unsigned position_full_move_count(const struct position*) attribute(nonnull);
+
+unsigned position_half_move_count(const struct position*) attribute(nonnull);
+
+int fen_read_move(const char *fen, const char*, struct move*)
 	attribute(nonnull(1, 2));
 
-int read_move(const struct position*, const char*, move*, enum player)
+int read_move(const struct position*, const char*, struct move*)
 	attribute(nonnull);
 
-char *print_coor_move(move, char[static MOVE_STR_BUFFER_LENGTH], enum player)
+char *print_coor_move(char[static MOVE_STR_BUFFER_LENGTH], struct move);
+
+char *print_san_move(char[static MOVE_STR_BUFFER_LENGTH],
+		     const struct position *pos, struct move);
+
+char *print_fan_move(char[static MOVE_STR_BUFFER_LENGTH],
+		     const struct position *pos, struct move);
+
+char *print_move(char[static MOVE_STR_BUFFER_LENGTH],
+		 const struct position*,
+		 struct move,
+		 enum move_notation_type)
 	attribute(nonnull, returns_nonnull);
 
-char *print_san_move(const struct position *pos, move m, char *str,
-		     enum player turn);
-
-char *print_fan_move(const struct position *pos, move m, char *str,
-		     enum player turn);
-
-char *print_move(const struct position*,
-		move,
-		char[static MOVE_STR_BUFFER_LENGTH],
-		enum move_notation_type,
-		enum player turn)
+char *position_print_fen_no_move_count(char[static FEN_BUFFER_LENGTH],
+				       const struct position*)
 	attribute(nonnull, returns_nonnull);
 
-char *position_print_fen(const struct position*,
-		char[static FEN_BUFFER_LENGTH],
-		int ep_index,
-		enum player turn)
+char *position_print_fen(char[static FEN_BUFFER_LENGTH], const struct position*)
 	attribute(nonnull, returns_nonnull);
 
-char *position_print_fen_full(const struct position*,
-		char[static FEN_BUFFER_LENGTH],
-		int ep_target,
-		unsigned full_move,
-		unsigned half_move,
-		enum player turn)
-	attribute(nonnull, returns_nonnull);
-
-const char *position_read_fen(struct position*, const char*,
-		int *ep_index, enum player*)
-	attribute(nonnull(2));
-
-const char *position_read_fen_full(struct position*,
-		const char *buffer,
-		int *ep_target,
-		unsigned *full_move,
-		unsigned *half_move,
-		enum player *turn)
-	attribute(nonnull, warn_unused_result);
+const char *position_read_fen(const char*, struct position*)
+	attribute(nonnull);
 
 unsigned gen_moves(const struct position*,
-		move[static MOVE_ARRAY_LENGTH])
+		struct move[static MOVE_ARRAY_LENGTH])
 	attribute(nonnull);
 
 unsigned gen_captures(const struct position*,
-		move[static MOVE_ARRAY_LENGTH])
+		struct move[static MOVE_ARRAY_LENGTH])
 	attribute(nonnull);
 
-bool is_move_irreversible(const struct position*, move)
+bool is_move_irreversible(const struct position*, struct move)
 	attribute(nonnull);
 
 struct position *position_dup(const struct position*)
 	attribute(nonnull, warn_unused_result, malloc);
 
-void position_flip(struct position *restrict dst,
-		const struct position *restrict src)
+int position_flip(struct position *restrict dst,
+		  const struct position *restrict src)
 	attribute(nonnull);
 
-void position_make_move(struct position *restrict dst,
-		const struct position *restrict src,
-		move)
+void make_move(struct position *restrict dst,
+	       const struct position *restrict src,
+	       struct move)
 	attribute(nonnull);
 
 struct position *position_allocate(void)
 	attribute(returns_nonnull, warn_unused_result, malloc);
 
-struct position *position_create(const char board[static 64],
-		const bool castle_rights[static 4],
-		int en_passant_index)
-	attribute(nonnull, warn_unused_result, malloc);
-
-enum castle_right_indices {
-	cri_king_side,
-	cri_queen_side,
-	cri_opponent_king_side,
-	cri_opponent_queen_side,
+struct position_desc {
+	char board[64];
+	bool castle_rights[4];
+	coordinate en_passant_index;
+	enum player turn;
+	unsigned half_move_counter;
+	unsigned full_move_counter;
 };
 
+int position_reset(struct position*, const struct position_desc)
+	attribute(warn_unused_result);
+
+struct position *position_create(const struct position_desc)
+	attribute(returns_nonnull, warn_unused_result, malloc);
+
+void position_destroy(struct position*);
+
+enum castle_right_indices {
+	cri_white_king_side,
+	cri_white_queen_side,
+	cri_black_king_side,
+	cri_black_queen_side
+};
+
+// en passant index - where the opponent's pawn is
 bool position_has_en_passant_index(const struct position*)
 	attribute(nonnull);
 
 int position_get_en_passant_index(const struct position*)
 	attribute(nonnull);
 
-int position_reset(struct position*,
-		const char board[static 64],
-		const bool castle_rights[static 4],
-		int en_passant_index)
-	attribute(nonnull(2, 3), warn_unused_result);
+// en passant target - north of the opponent's pawn (used in FEN)
+bool position_has_en_passant_target(const struct position*)
+	attribute(nonnull);
 
-void position_destroy(struct position*);
+int position_get_en_passant_target(const struct position*)
+	attribute(nonnull);
 
 bool has_any_legal_move(const struct position*)
 	attribute(nonnull);
 
-bool is_legal_move(const struct position*, move)
+bool is_legal_move(const struct position*, struct move)
 	attribute(nonnull);
 
 bool pos_is_check(const struct position*)
@@ -574,6 +580,9 @@ bool pos_has_insufficient_material(const struct position*)
 	attribute(nonnull);
 
 bool pos_equal(const struct position*, const struct position*)
+	attribute(nonnull);
+
+enum player position_turn(const struct position*)
 	attribute(nonnull);
 
 #endif /* TALTOS_CHESS_H */

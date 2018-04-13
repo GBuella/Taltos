@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -56,7 +56,7 @@ char *game_print_fen(const struct game*, char[static FEN_BUFFER_LENGTH])
 
 void game_destroy(struct game*);
 
-int game_append(struct game*, move)
+int game_append(struct game*, struct move)
 	attribute(nonnull);
 
 void game_truncate(struct game*)
@@ -74,7 +74,7 @@ int game_history_revert(struct game*)
 int game_history_forward(struct game*)
 	attribute(nonnull);
 
-move game_move_to_next(const struct game *g)
+struct move game_move_to_next(const struct game *g)
 	attribute(nonnull);
 
 enum player game_turn(const struct game*)
@@ -104,13 +104,16 @@ bool game_is_draw_by_repetition(const struct game*)
 bool game_is_draw_by_50_move_rule(const struct game*)
 	attribute(nonnull);
 
-move game_get_single_response(const struct game*)
+struct move game_get_single_response(const struct game*)
 	attribute(nonnull);
 
 bool game_has_single_response(const struct game*)
 	attribute(nonnull);
 
 size_t game_length(const struct game*)
+	attribute(nonnull);
+
+bool game_has_more_postions(const struct game*)
 	attribute(nonnull);
 
 #endif

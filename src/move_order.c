@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,34 +32,6 @@
 #include "move_order.h"
 #include "constants.h"
 
-static int64_t
-create_entry(move move, int16_t value, bool is_check)
-{
-	int64_t entry = move;
-	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
-	if (is_check)
-		entry |= bit64(mo_entry_check_flag_bit);
-
-	return entry;
-}
-
-static int64_t
-create_hint_entry(move move, int16_t value, bool is_check)
-{
-	int64_t entry = create_entry(move, value, is_check);
-	entry |= bit64(mo_entry_hint_flag_bit);
-
-	return entry;
-}
-
-static int64_t
-reset_entry_value(int64_t entry, int16_t value)
-{
-	entry &= (bit64(64 - mo_entry_value_bits) - 1);
-	entry |= value * (INT64_C(1) << (64 - mo_entry_value_bits));
-	return entry;
-}
-
 static bool use_history;
 
 struct history_value {
@@ -78,6 +50,8 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 	else
 		mo->count = gen_moves(pos, mo->moves);
 
+	for (unsigned i = 0; i < mo->count; ++i)
+		mo->move_is_scored[i] = false;
 	mo->raw_move_count = mo->count;
 	mo->entry_count = 0;
 	mo->picked_count = 0;
@@ -92,12 +66,12 @@ move_order_setup(struct move_order *mo, const struct position *pos,
 }
 
 static void
-insert_at(struct move_order *mo, unsigned i, int64_t entry)
+insert_at(struct move_order *mo, unsigned i, struct mo_entry entry)
 {
 	invariant(i >= mo->picked_count);
 	invariant(i <= mo->entry_count);
 
-	while (i > mo->picked_count && mo->entries[i - 1] < entry) {
+	while (i > mo->picked_count && mo->entries[i - 1].score < entry.score) {
 		mo->entries[i] = mo->entries[i - 1];
 		--i;
 	}
@@ -105,33 +79,23 @@ insert_at(struct move_order *mo, unsigned i, int64_t entry)
 }
 
 static void
-insert(struct move_order *mo, int64_t entry)
+insert(struct move_order *mo, struct mo_entry entry)
 {
 	insert_at(mo, mo->entry_count, entry);
 	mo->entry_count++;
 }
 
-static void
-remove_raw_move(struct move_order *mo, unsigned i)
-{
-	invariant(mo->raw_move_count > 0);
-	invariant(i < mo->raw_move_count);
-
-	mo->moves[i] = mo->moves[mo->raw_move_count - 1];
-	mo->raw_move_count--;
-}
-
 static int
-add_hint(struct move_order *mo, move hint_move, int16_t value)
+add_hint(struct move_order *mo, struct move hint_move, int16_t score)
 {
-	if (hint_move == 0)
+	if (is_null_move(hint_move))
 		return 0;
 
 	for (unsigned i = mo->picked_count; i < mo->entry_count; ++i) {
-		int64_t entry = mo->entries[i];
-		if (mo_entry_move(entry) == hint_move) {
-			if (mo_entry_value(entry) < value) {
-				entry = reset_entry_value(entry, value);
+		struct mo_entry entry = mo->entries[i];
+		if (move_eq(entry.move, hint_move)) {
+			if (entry.score < score) {
+				entry.score = score;
 				insert_at(mo, i, entry);
 			}
 			return 0;
@@ -139,9 +103,15 @@ add_hint(struct move_order *mo, move hint_move, int16_t value)
 	}
 
 	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
-		if (mo->moves[i] == hint_move) {
-			remove_raw_move(mo, i);
-			insert(mo, create_hint_entry(hint_move, value, false));
+		if (move_eq(mo->moves[i], hint_move)) {
+			assert(!mo->move_is_scored[i]);
+			insert(mo, (struct mo_entry) {
+			       .move = hint_move,
+			       .mg_index = i,
+			       .gives_check = false,
+			       .is_hint = true,
+			       .score = score });
+			mo->move_is_scored[i] = true;
 			return 0;
 		}
 	}
@@ -150,24 +120,49 @@ add_hint(struct move_order *mo, move hint_move, int16_t value)
 }
 
 int
-move_order_add_weak_hint(struct move_order *mo, move hint_move)
+move_order_add_weak_hint(struct move_order *mo, struct move hint_move)
 {
 	return add_hint(mo, hint_move, 3000);
 }
 
 int
-move_order_add_hint(struct move_order *mo, move hint_move, int16_t priority)
+move_order_add_hint(struct move_order *mo, struct move hint_move,
+		    int16_t priority)
 {
 	assert(priority >= 0);
 
-	if (hint_move == 0)
+	if (is_null_move(hint_move))
 		return 0;
 
 	return add_hint(mo, hint_move, INT16_MAX - priority);
 }
 
+int
+move_order_add_hint_by_mg_index(struct move_order *mo, uint8_t mg_index,
+				int16_t priority)
+{
+	assert(priority >= 0);
+
+	if (mg_index >= mo->count)
+		return 1;
+
+	if (!mo->move_is_scored[mg_index]) {
+		insert(mo, (struct mo_entry) {
+		       .move = mo->moves[mg_index],
+		       .mg_index = mg_index,
+		       .gives_check = false,
+		       .is_hint = true,
+		       .score = INT16_MAX - priority });
+		mo->move_is_scored[mg_index] = true;
+		return 0;
+	}
+	else {
+		return add_hint(mo, mo->moves[mg_index], INT16_MAX - priority);
+	}
+}
+
 void
-move_order_add_killer(struct move_order *mo, move killer_move)
+move_order_add_killer(struct move_order *mo, struct move killer_move)
 {
 	for (unsigned i = ARRAY_LENGTH(mo->killers) - 1; i > 0; --i)
 		mo->killers[i] = mo->killers[i - 1];
@@ -175,10 +170,10 @@ move_order_add_killer(struct move_order *mo, move killer_move)
 }
 
 static bool
-is_killer(const struct move_order *mo, move m)
+is_killer(const struct move_order *mo, struct move m)
 {
 	for (unsigned ki = 0; ki < ARRAY_LENGTH(mo->killers); ++ki) {
-		if (m == mo->killers[ki])
+		if (move_eq(m, mo->killers[ki]))
 			return true;
 	}
 	return false;
@@ -189,37 +184,37 @@ is_killer(const struct move_order *mo, move m)
  * resulting in smaller subtrees than other moves.
  */
 static bool
-is_strong_capture(const struct position *pos, move m)
+is_strong_capture(const struct position *pos, struct move m)
 {
 	if (!is_capture(m))
 		return false;
 
-	if (mcapturedp(m) == queen)
+	if (m.captured == queen)
 		return true;
 
-	if (mtype(m) == mt_en_passant)
+	if (m.type == mt_en_passant)
 		return true;
 
-	if (mtype(m) == mt_promotion)
-		return mresultp(m) == queen;
+	if (m.type == mt_promotion)
+		return m.result == queen;
 
-	if (ind_rank(mto(m)) == rank_1) {
+	if (ind_rank(m.to) == rank_1) {
 		/*
 		 * Such a capture would introduce a new queen on the
 		 * next move (when the pawns recaptures), and enlarge
 		 * the searchtree, instead of shrinking it.
 		 */
-		if (is_nonempty(mto64(m) & pos->attack[opponent_pawn]))
+		if (is_nonempty(mto64(m) & pos->attack[pos->opponent | pawn]))
 			return false;
 	}
 
-	if (mcapturedp(m) == rook)
+	if (m.captured == rook)
 		return true;
 
-	if (is_empty(mto64(m) & pos->attack[1]))
+	if (is_empty(mto64(m) & pos->attack[pos->opponent]))
 		return true;
 
-	if (piece_value[mcapturedp(m)] >= piece_value[mresultp(m)])
+	if (piece_value[m.captured] >= piece_value[m.result])
 		return true;
 
 	return false;
@@ -228,29 +223,36 @@ is_strong_capture(const struct position *pos, move m)
 static void
 add_strong_capture_entries(struct move_order *mo)
 {
-	for (unsigned i = 0; i < mo->raw_move_count; ) {
-		move m = mo->moves[i];
+	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
+		if (mo->move_is_scored[i])
+			continue;
+
+		struct move m = mo->moves[i];
 		if (is_strong_capture(mo->pos, m)) {
-			remove_raw_move(mo, i);
-			int value = 1000 + piece_value[mcapturedp(m)];
-			if (is_nonempty(mto64(m) & mo->pos->attack[1]))
-				value -= piece_value[mresultp(m)] / 20;
-			insert(mo, create_entry(m, value, false));
-		}
-		else {
-			++i;
+			int score = 1000 + piece_value[m.captured];
+			uint64_t attacked = mo->pos->attack[mo->pos->opponent];
+			if (is_nonempty(mto64(m) & attacked))
+				score -= piece_value[m.result] / 20;
+			mo->move_is_scored[i] = true;
+			insert(mo, (struct mo_entry) {
+			       .move = m,
+			       .mg_index = i,
+			       .gives_check = false,
+			       .is_hint = false,
+			       .score = score
+			       });
 		}
 	}
 	mo->strong_capture_entries_added = true;
 }
 
 static int16_t
-move_history_value(const struct move_order *mo, move m)
+move_history_value(const struct move_order *mo, struct move m)
 {
 	const struct history_value *h0 =
-	    &(history[0][mresultp(m) + mo->history_side][mto(m)]);
+	    &(history[0][m.result + mo->history_side][m.to]);
 	const struct history_value *h1 =
-	    &(history[1][mresultp(m) + mo->history_side][mto(m)]);
+	    &(history[1][m.result + mo->history_side][m.to]);
 
 	int16_t value = 0;
 
@@ -266,19 +268,27 @@ add_all_entries(struct move_order *mo)
 	static const int16_t base = -100;
 
 	for (unsigned i = 0; i < mo->raw_move_count; ++i) {
-		move m = mo->moves[i];
+		if (mo->move_is_scored[i])
+			continue;
+
+		struct move m = mo->moves[i];
 
 		describe_move(&mo->desc, mo->pos, m);
 		bool check = mo->desc.direct_check;
 		check |= mo->desc.discovered_check;
 
-		int16_t value = base;
-		value += mo->desc.value;
+		int16_t score = base;
+		score += mo->desc.value;
 		if (use_history)
-			value += move_history_value(mo, m);
-		if (value > -150 && value < killer_value && is_killer(mo, m))
-			value = killer_value;
-		insert(mo, create_entry(m, value, check));
+			score += move_history_value(mo, m);
+		if (score > -150 && score < killer_value && is_killer(mo, m))
+			score = killer_value;
+		insert(mo, (struct mo_entry) {
+		       .move = m,
+		       .score = score,
+		       .gives_check = check,
+		       .is_hint = false,
+		       .mg_index = i });
 	}
 	mo->raw_move_count = 0;
 }
@@ -332,20 +342,19 @@ move_order_adjust_history_on_cutoff(const struct move_order *mo)
 	if (mo->count == 1)
 		return;
 
-	move best = mo_current_move(mo);
+	struct move best = mo_current_move(mo);
 	int side = mo->history_side;
 	if (is_capture(best)) {
-		if (piece_value[mcapturedp(best)] >=
-		    piece_value[mresultp(best)])
+		if (piece_value[best.captured] >= piece_value[best.result])
 			return;
-		if (is_empty(mo->pos->attack[1] & mto64(best)))
+		if (is_empty(mo->pos->attack[mo->pos->opponent] & mto64(best)))
 			return;
 	}
 
 	for (unsigned i = 0; i < mo->picked_count; ++i) {
-		move m = mo_entry_move(mo->entries[i]);
+		struct move m = mo->entries[i].move;
 		struct history_value *h =
-		    &(history[1][mresultp(m) + side][mto(m)]);
+		    &(history[1][m.result + side][m.to]);
 
 		h->occurence++;
 		if (i + 1 == mo->picked_count)

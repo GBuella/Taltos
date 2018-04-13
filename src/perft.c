@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,8 +43,8 @@
 struct divide_info {
 	struct position pos;
 	unsigned depth;
-	move moves[MOVE_ARRAY_LENGTH];
-	move *m;
+	struct move moves[MOVE_ARRAY_LENGTH];
+	struct move *m;
 	char str[32];
 	enum player turn;
 	bool is_ordered;
@@ -54,7 +54,7 @@ static uintmax_t
 do_qperft(const struct position *pos, unsigned depth)
 {
 	uintmax_t n = 0;
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 	struct position child[1];
 
 	if (depth == 0)
@@ -62,7 +62,7 @@ do_qperft(const struct position *pos, unsigned depth)
 	if (depth == 1)
 		return gen_moves(pos, moves);
 	(void) gen_moves(pos, moves);
-	for (move *i = moves; *i != 0; ++i) {
+	for (struct move *i = moves; !is_null_move(*i); ++i) {
 		make_move(child, pos, *i);
 		n += do_qperft(child, depth - 1);
 	}
@@ -73,14 +73,14 @@ static uintmax_t
 do_perft(const struct position *pos, unsigned depth)
 {
 	uintmax_t n;
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 	struct position child[1];
 
 	if (depth == 0)
 		return 1;
 	(void) gen_moves(pos, moves);
 	n = 0;
-	for (move *i = moves; *i != 0; ++i) {
+	for (struct move *i = moves; !is_null_move(*i); ++i) {
 		make_move(child, pos, *i);
 		n += do_perft(child, depth - 1);
 	}
@@ -128,9 +128,9 @@ perft_ordered(const struct position *pos, unsigned depth)
 	if (move_order->count > 13)
 		move_order_add_killer(move_order, move_order->moves[10]);
 	else
-		move_order->killers[0] = 0;
+		move_order->killers[0] = null_move();
 
-	move_order->killers[1] = 0;
+	move_order->killers[1] = null_move();
 	n = 0;
 	do {
 		move_order_pick_next(move_order);
@@ -162,7 +162,7 @@ divide_init(const struct position *pos, unsigned depth,
 const char*
 divide(struct divide_info *dinfo, enum move_notation_type mn)
 {
-	if (*dinfo->m == 0)
+	if (is_null_move(*dinfo->m))
 		return NULL;
 
 	struct position t;
@@ -170,7 +170,7 @@ divide(struct divide_info *dinfo, enum move_notation_type mn)
 
 	char *str;
 
-	str = print_move(&dinfo->pos, *dinfo->m, dinfo->str, mn, dinfo->turn);
+	str = print_move(dinfo->str, &dinfo->pos, *dinfo->m, mn);
 	make_move(&t, &dinfo->pos, *dinfo->m);
 	if (dinfo->is_ordered) {
 		n = perft_ordered(&t, dinfo->depth - 1);

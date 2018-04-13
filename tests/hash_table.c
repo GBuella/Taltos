@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,187 +25,191 @@
  */
 
 #include "tests.h"
-#include "hash.h"
+#include "tt.h"
 #include "position.h"
 
-static ht_entry
+static struct tt_entry
 set_entry1(void)
 {
-	ht_entry entry = HT_NULL;
+	struct tt_entry entry = tt_null();
 
-	entry = ht_set_depth(entry, 3);
-	entry = ht_set_value(entry, vt_upper_bound, 77);
-	entry = ht_set_move(entry, mcastle_king_side);
+	entry.depth = 3;
+	entry.value = 77;
+	entry.is_upper_bound = true;
+	entry = tt_set_move(entry, mcastle_white_king_side());
 
 	return entry;
 }
 
 static void
-verify_entry1(ht_entry entry)
+verify_entry1(struct tt_entry entry)
 {
-	assert(ht_is_set(entry));
-	assert(ht_depth(entry) == 3);
-	assert(ht_value_type(entry) == vt_upper_bound);
-	assert(ht_value(entry) == 77);
-	assert(ht_has_move(entry));
-	assert(ht_move(entry) == mcastle_king_side);
+	assert(tt_entry_is_set(entry));
+	assert(entry.depth == 3);
+	assert(entry.is_upper_bound);
+	assert(!entry.is_lower_bound);
+	assert(entry.value == 77);
+	assert(tt_has_move(entry));
+	assert(move_eq(tt_move(entry), mcastle_white_king_side()));
 }
 
-static ht_entry
+static struct tt_entry
 set_entry2(void)
 {
-	ht_entry entry = HT_NULL;
+	struct tt_entry entry = tt_null();
 
-	entry = ht_set_depth(entry, 57);
-	entry = ht_set_value(entry, vt_lower_bound, -1234);
-	entry = ht_set_move(entry, mcastle_queen_side);
+	entry.depth = 57;
+	entry.is_lower_bound = true;
+	entry.value = -1234;
+
+	entry = tt_set_move(entry, mcastle_white_queen_side());
 
 	return entry;
 }
 
 static void
-verify_entry2(ht_entry entry)
+verify_entry2(struct tt_entry entry)
 {
-	assert(ht_is_set(entry));
-	assert(ht_depth(entry) == 57);
-	assert(ht_value_type(entry) == vt_lower_bound);
-	assert(ht_value(entry) == -1234);
-	assert(ht_has_move(entry));
-	assert(ht_move(entry) == mcastle_queen_side);
+	assert(tt_entry_is_set(entry));
+	assert(entry.depth == 57);
+	assert(entry.is_lower_bound);
+	assert(!entry.is_upper_bound);
+	assert(entry.value == -1234);
+	assert(tt_has_move(entry));
+	assert(move_eq(tt_move(entry), mcastle_white_queen_side()));
 }
 
-static ht_entry
+static const struct move m3 = {
+	.from = a1,
+	.to = a2,
+	.result = rook,
+	.captured = 0,
+	.type = mt_general,
+};
+
+static struct tt_entry
 set_entry3(void)
 {
-	ht_entry entry = HT_NULL;
+	struct tt_entry entry = tt_null();
 
-	entry = ht_set_depth(entry, 59);
-	entry = ht_set_value(entry, vt_exact, 3);
-	entry = ht_set_move(entry, create_move_g(sq_a1, sq_a2, rook, 0));
+	entry.depth = 50;
+	entry.is_lower_bound = entry.is_upper_bound = true;
+	entry.value = 3;
+	entry = tt_set_move(entry, m3);
 
 	return entry;
 }
 
 void
-verify_entry3(ht_entry entry)
+verify_entry3(struct tt_entry entry)
 {
-	assert(ht_is_set(entry));
-	assert(ht_depth(entry) == 59);
-	assert(ht_value_type(entry) == vt_exact);
-	assert(ht_value(entry) == 3);
-	assert(ht_has_move(entry));
-	assert(ht_move(entry) == create_move_g(sq_a1, sq_a2, rook, 0));
+	assert_true(tt_entry_is_set(entry));
+	assert_int(entry.depth, ==, 50);
+	assert_true(tt_has_exact_value(entry));
+	assert_int(entry.value, ==, 3);
+	assert_true(tt_has_move(entry));
+	assert_true(move_eq(tt_move(entry), m3));
 }
 
-static ht_entry
+static const struct move m4 = {
+	.from = c2,
+	.to = c3,
+	.result = queen,
+	.captured = 0,
+	.type = mt_general,
+};
+
+static struct tt_entry
 set_entry4(void)
 {
-	ht_entry entry = HT_NULL;
+	struct tt_entry entry = tt_null();
 
-	entry = ht_set_depth(entry, 99);
-	entry = ht_set_value(entry, vt_lower_bound, -33);
-	entry = ht_set_move(entry, create_move_g(sq_c2, sq_c3, queen, 0));
+	entry.depth = 99;
+	entry.is_lower_bound = true;
+	entry.value = -33;
+	entry = tt_set_move(entry, m4);
 
 	return entry;
 }
 
 void
-verify_entry4(ht_entry entry)
+verify_entry4(struct tt_entry entry)
 {
-	assert(ht_is_set(entry));
-	assert(ht_depth(entry) == 99);
-	assert(ht_value_type(entry) == vt_lower_bound);
-	assert(ht_value(entry) == -33);
-	assert(ht_has_move(entry));
-	assert(ht_move(entry) == create_move_g(sq_c2, sq_c3, queen, 0));
+	assert_true(tt_entry_is_set(entry));
+	assert_int(entry.depth, ==, 99);
+	assert_true(entry.is_lower_bound);
+	assert_false(entry.is_upper_bound);
+	assert_int(entry.value, ==, -33);
+	assert_true(tt_has_move(entry));
+	assert_true(move_eq(tt_move(entry), m4));
 }
 
 void
 run_tests(void)
 {
-	ht_entry entry;
-	move pv[16];
+	struct tt_entry entry;
+	struct move pv[16];
 	struct position pos1, pos2, pos3;
 
-	struct hash_table *table = ht_create(6);
-	position_read_fen(&pos1, "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1",
-	    NULL, NULL);
-	position_read_fen(&pos2, "4k3/pppppppp/8/8/8/8/2Q5/R3K2R w KQ - 0 1",
-	    NULL, NULL);
-
-	assert(pos1.zhash[0] != pos2.zhash[0]);
-	assert(pos1.zhash[1] != pos2.zhash[1]);
+	struct tt *table = tt_create(6);
 	assert(table != NULL);
-	assert(ht_usage(table) == 0);
+
+	position_read_fen("4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1", &pos1);
+	position_read_fen("4k3/pppppppp/8/8/8/8/2Q5/R3K2R w KQ - 0 1", &pos2);
+
+	assert_int64(pos1.zhash, !=, pos2.zhash);
+	assert_int(tt_usage(table), ==, 0);
 	// 16 bytes in a slot, 16 slots in a bucket
-	assert(ht_size(table) == (8 * 16) * (1 << 6));
+	assert_int64(tt_size(table), ==, (8 * 16) * (1 << 6));
 
-	assert(!ht_is_set(ht_lookup_deep(table, &pos1, 3, 0)));
-	assert(!ht_is_set(ht_lookup_deep(table, &pos2, 3, 0)));
-	assert(!ht_is_set(ht_lookup_fresh(table, &pos1)));
-	assert(!ht_is_set(ht_lookup_fresh(table, &pos2)));
+	assert_false(tt_entry_is_set(tt_lookup(table, &pos1)));
+	assert_false(tt_entry_is_set(tt_lookup(table, &pos2)));
 
-	ht_extract_pv(table, &pos1, 16, pv, 43);
-	assert(pv[0] == 0);
+	tt_extract_pv(table, &pos1, 16, pv, 43);
+	assert_true(is_null_move(pv[0]));
 
 	entry = set_entry1();
 	verify_entry1(entry);
-	ht_pos_insert(table, &pos1, entry);
-	assert(ht_usage(table) == 1);
-	verify_entry1(ht_lookup_deep(table, &pos1, 3, 0));
-	verify_entry1(ht_lookup_fresh(table, &pos1));
-	assert(!ht_is_set(ht_lookup_deep(table, &pos2, 3, 0)));
+	tt_pos_insert(table, &pos1, entry);
+	assert_int64(tt_usage(table), ==, 1);
+	verify_entry1(tt_lookup(table, &pos1));
 
-	ht_extract_pv(table, &pos1, 4, pv, 987);
-	assert(pv[0] == 0);
-	ht_extract_pv(table, &pos1, 3, pv, 0);
-	assert(pv[0] == 0);
-
+	tt_extract_pv(table, &pos1, 4, pv, 987);
+	assert_true(is_null_move(pv[0]));
+	tt_extract_pv(table, &pos1, 3, pv, 0);
+	assert_true(is_null_move(pv[0]));
 
 	entry = set_entry2();
 	verify_entry2(entry);
-	ht_pos_insert(table, &pos2, entry);
-	assert(ht_usage(table) == 2);
-	verify_entry2(ht_lookup_deep(table, &pos2, 3, 0));
-	verify_entry1(ht_lookup_deep(table, &pos1, 3, 0));
-	verify_entry2(ht_lookup_fresh(table, &pos2));
-	ht_extract_pv(table, &pos2, 59, pv, 0);
-	assert(pv[0] == 0);
-	ht_extract_pv(table, &pos2, 2, pv, 0);
-	assert(pv[0] == 0);
+	tt_pos_insert(table, &pos2, entry);
+	assert_int(tt_usage(table), ==, 2);
+	verify_entry2(tt_lookup(table, &pos2));
+	verify_entry1(tt_lookup(table, &pos1));
+	tt_extract_pv(table, &pos2, 59, pv, 0);
+	assert_true(is_null_move(pv[0]));
+	tt_extract_pv(table, &pos2, 2, pv, 0);
+	assert_true(is_null_move(pv[0]));
 
-	/*
-	 * multiple slots used in the same bucket
-	 * same zhash[0] ( used for indexing )
-	 * differenet zhash[1]
-	 */
 	pos3 = pos2;
-	pos3.zhash[1] = 123456;
+	pos3.zhash = 123456;
 	entry = set_entry3();
-	ht_pos_insert(table, &pos3, entry);
-	assert(ht_usage(table) == 3);
-	verify_entry3(ht_lookup_deep(table, &pos3, 3, 0));
-	verify_entry2(ht_lookup_deep(table, &pos2, 3, 0));
-	verify_entry3(ht_lookup_fresh(table, &pos3));
-	ht_extract_pv(table, &pos2, 59, pv, 0);
-	assert(pv[0] == 0);
-	ht_extract_pv(table, &pos3, 22, pv, 3);
-	assert(pv[0] == ht_move(entry));
-	assert(pv[1] == 0);
-	ht_extract_pv(table, &pos3, 22, pv, 4);
-	assert(pv[0] == 0);
+	tt_pos_insert(table, &pos3, entry);
+	assert_int(tt_usage(table), ==, 3);
+	verify_entry3(tt_lookup(table, &pos3));
+	verify_entry2(tt_lookup(table, &pos2));
+	tt_extract_pv(table, &pos2, 59, pv, 0);
+	assert_true(is_null_move(pv[0]));
+	tt_extract_pv(table, &pos3, 22, pv, 3);
+	assert_true(move_eq(pv[0], tt_move(entry)));
+	assert_true(is_null_move(pv[1]));
+	tt_extract_pv(table, &pos3, 22, pv, 4);
+	assert_true(is_null_move(pv[0]));
 
 	entry = set_entry4();
 	verify_entry4(entry);
-	ht_pos_insert(table, &pos2, entry);
-	assert(ht_usage(table) == 3);
-	verify_entry4(ht_lookup_deep(table, &pos2, 90, 0));
-	verify_entry4(ht_lookup_deep(table, &pos2, 3, 0));
-	verify_entry4(ht_lookup_fresh(table, &pos2));
-	ht_pos_insert(table, &pos2, set_entry3());
-	verify_entry4(ht_lookup_deep(table, &pos2, 90, 0));
-	verify_entry3(ht_lookup_deep(table, &pos2, 3, 0));
-	verify_entry3(ht_lookup_fresh(table, &pos2));
+	tt_pos_insert(table, &pos2, entry);
+	assert_int(tt_usage(table), ==, 4);
+	verify_entry2(tt_lookup(table, &pos2));
 
-	ht_destroy(table);
+	tt_destroy(table);
 }

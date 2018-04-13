@@ -59,6 +59,8 @@ bitbard square index map:
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "constants.h"
+#include "chess.h"
 #include "macros.h"
 
 #ifdef TALTOS_CAN_USE_IMMINTRIN_H
@@ -289,6 +291,44 @@ static inline uint64_t
 rol(uint64_t value, unsigned d)
 {
 	return (value << d) | (value >> (64 - d));
+}
+
+static inline uint64_t
+rank64(int i)
+{
+	invariant(ivalid(i));
+	return RANK_8 << (i & 0x38);
+}
+
+static inline uint64_t
+file64(int i)
+{
+	invariant(ivalid(i));
+	return FILE_H << (i % 8);
+}
+
+static inline uint64_t
+pawn_reach_south(uint64_t map)
+{
+	return ((map & ~FILE_H) << 7) | ((map & ~FILE_A) << 9);
+}
+
+static inline uint64_t
+pawn_reach_north(uint64_t map)
+{
+	return ((map & ~FILE_A) >> 7) | ((map & ~FILE_H) >> 9);
+}
+
+static inline uint64_t
+black_pawn_attacks(uint64_t pawn_map)
+{
+	return pawn_reach_south(pawn_map);
+}
+
+static inline uint64_t
+white_pawn_attacks(uint64_t pawn_map)
+{
+	return pawn_reach_north(pawn_map);
 }
 
 #endif

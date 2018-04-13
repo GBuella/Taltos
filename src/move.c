@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,53 +36,58 @@
 #include "str_util.h"
 
 static char*
-print_san_move_from(const struct position *pos, move m,
-			char *str, enum player turn)
+print_san_move_from(const struct position *pos, struct move m, char *str)
 {
-	move moves[MOVE_ARRAY_LENGTH];
-	uint64_t ambig_pieces = UINT64_C(0);
-	enum piece p = pos_piece_at(pos, mfrom(m));
+	struct move moves[MOVE_ARRAY_LENGTH];
+	enum piece p = pos_piece_at(pos, m.from);
+
+	if ((p == pawn) && is_capture(m)) {
+		*str++ = index_to_file_ch(m.from);
+		return str;
+	}
+
+	bool rank_is_ambiguous = false;
+	bool file_is_ambiguous = false;
 
 	(void) gen_moves(pos, moves);
-	for (move *im = moves; *im != 0; ++im) {
-		if ((mfrom(*im) != mfrom(m)) && (mto(*im) == mto(m))
-		    && (pos_piece_at(pos, mfrom(*im)) == p))
-			ambig_pieces |= mfrom64(*im);
-	}
-	if ((p == pawn) && is_capture(m)) {
-		*(str++) = index_to_file_ch(mfrom(m));
-	}
-	else if (is_nonempty(ambig_pieces)) {
-		if (is_nonempty(ambig_pieces & file64(mfrom(m)))) {
-			if (is_nonempty(ambig_pieces & rank64(mfrom(m)))) {
-				*(str++) = index_to_file_ch(mfrom(m));
-			}
-			*(str++) = index_to_rank_ch(mfrom(m), turn);
-		}
-		else {
-			*(str++) = index_to_file_ch(mfrom(m));
+	for (struct move *im = moves; !is_null_move(*im); ++im) {
+		if (im->from == m.from)
+			continue;
+		if ((im->to == m.to) && (pos_piece_at(pos, im->from) == p)) {
+			if (ind_rank(im->from) == ind_rank(m.from))
+				rank_is_ambiguous = true;
+			if (ind_file(im->from) == ind_file(m.from))
+				file_is_ambiguous = true;
 		}
 	}
+
+	if (file_is_ambiguous)
+		*str++ = index_to_file_ch(m.from);
+
+	if (rank_is_ambiguous)
+		*str++ = index_to_rank_ch(m.from);
+
 	return str;
 }
 
 static char*
-print_san_promotion(move m, char *str)
+print_san_promotion(char *str, struct move m)
 {
 	if (is_promotion(m)) {
 		*str++ = '=';
-		*str++ = toupper((unsigned char)piece_to_char(mresultp(m)));
+		*str++ = toupper((unsigned char)piece_to_char(m.result));
 	}
+
 	return str;
 }
 
 static char*
-print_san_check(const struct position *pos, move m, char *str)
+print_san_check(char *str, const struct position *pos, struct move m)
 {
 	struct position child;
 	make_move(&child, pos, m);
 	if (is_in_check(&child)) {
-		move moves[MOVE_ARRAY_LENGTH];
+		struct move moves[MOVE_ARRAY_LENGTH];
 		if (gen_moves(&child, moves) == 0)
 			*str++ = '#';
 		else
@@ -93,95 +98,95 @@ print_san_check(const struct position *pos, move m, char *str)
 }
 
 char*
-print_san_move_internal(const struct position *pos, move m, char *str,
-			enum player turn, bool use_unicode)
+print_san_move_internal(char *str, const struct position *pos, struct move m,
+			bool use_unicode)
 {
-	int piece = pos_piece_at(pos, mfrom(m));
+	enum piece piece = pos_piece_at(pos, m.from);
 
-	if (mtype(m) == mt_castle_kingside)
+	if (m.type == mt_castle_kingside)
 		return str + sprintf(str, "O-O");
-	else if (mtype(m) == mt_castle_queenside)
+	else if (m.type == mt_castle_queenside)
 		return str + sprintf(str, "O-O-O");
 
 	if (piece != pawn)
 		str = print_square(str, piece, white, use_unicode);
 
-	str = print_san_move_from(pos, m, str, turn);
+	str = print_san_move_from(pos, m, str);
 
 	if (is_capture(m))
 		*str++ = 'x';
 
-	str = print_index(str, mto(m), turn);
+	str = print_index(str, m.to);
 
-	if (mtype(m) == mt_en_passant)
+	if (m.type == mt_en_passant)
 		return str + sprintf(str, "e.p.");
 
-	str = print_san_promotion(m, str);
-	str = print_san_check(pos, m, str);
+	str = print_san_promotion(str, m);
+	str = print_san_check(str, pos, m);
 	*str = '\0';
 	return str;
 }
 
 char*
-print_san_move(const struct position *pos, move m, char *str, enum player turn)
+print_san_move(char *str, const struct position *pos, struct move m)
 {
-	return print_san_move_internal(pos, m, str, turn, false);
+	return print_san_move_internal(str, pos, m, false);
 }
 
 char*
-print_fan_move(const struct position *pos, move m, char *str,
-		       enum player turn)
+print_fan_move(char *str, const struct position *pos, struct move m)
 {
-	return print_san_move_internal(pos, m, str, turn, true);
+	return print_san_move_internal(str, pos, m, true);
 }
 
 char*
-print_coor_move(move m, char str[static MOVE_STR_BUFFER_LENGTH],
-		enum player turn)
+print_coor_move(char *str, struct move m)
 {
-	str = print_index(str, mfrom(m), turn);
-	str = print_index(str, mto(m), turn);
+	str = print_index(str, m.from);
+	str = print_index(str, m.to);
 	if (is_promotion(m))
-		*str++ = tolower((unsigned char)piece_to_char(mresultp(m)));
+		*str++ = tolower((unsigned char)piece_to_char(m.result));
 	*str = '\0';
+
 	return str;
 }
 
 char*
-print_move(const struct position *pos, move m,
-		char str[static MOVE_STR_BUFFER_LENGTH],
-		enum move_notation_type t,
-		enum player turn)
+print_move(char str[static MOVE_STR_BUFFER_LENGTH],
+	   const struct position *pos,
+	   struct move m,
+	   enum move_notation_type t)
 {
 	assert(is_move_valid(m));
-	assert(is_valid_piece(pos_piece_at(pos, mfrom(m))));
+	assert(is_valid_piece(pos_piece_at(pos, m.from)));
 
 	switch (t) {
 	case mn_coordinate:
-		return print_coor_move(m, str, turn);
+		return print_coor_move(str, m);
 		break;
 	case mn_fan:
-		return print_fan_move(pos, m, str, turn);
+		return print_fan_move(str, pos, m);
 		break;
 	default:
 	case mn_san:
-		return print_san_move(pos, m, str, turn);
+		return print_san_move(str, pos, m);
 		break;
 	}
 }
 
 int
-fen_read_move(const char *fen, const char *str, move *m)
+fen_read_move(const char *fen, const char *str, struct move *m)
 {
-	move t;
-	enum player turn;
+	struct move t;
 	struct position position[1];
 
 	if (m == NULL)
 		m = &t;
-	if (position_read_fen(position, fen, NULL, &turn) == NULL)
-		return -1;
-	return read_move(position, str, m, turn);
+
+	if (position_read_fen(fen, position) == NULL)
+		return 1;
+
+	return read_move(position, str, m);
 }
 
 static void
@@ -209,7 +214,7 @@ cleanup_move(char str[])
 	do {
 		if (strchr("KQNRBkqnrb", *src) != NULL)
 			*dst++ = tolower(*src);
-		else if (is_rank(*src) || is_file(*src))
+		else if (is_rank_char(*src) || is_file_char(*src))
 			*dst++ = *src;
 		else if (tolower(*src) == 'o' || *src == '-')
 			*dst++ = toupper(*src);
@@ -219,31 +224,32 @@ cleanup_move(char str[])
 }
 
 int
-read_move(const struct position *pos, const char *move_str,
-		move *m, enum player turn)
+read_move(const struct position *pos, const char *move_str, struct move *m)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 	char str[8] = {0, };
 
 	if (move_str[0] == '\0')
-		return none_move;
+		return 1;
+
 	strncpy(str, move_str, sizeof(str) - 1);
 	cleanup_move(str);
 	(void) gen_moves(pos, moves);
-	for (move *mp = moves; *mp != 0; ++mp) {
+	for (struct move *mp = moves; !is_null_move(*mp); ++mp) {
 		char tstr[MOVE_STR_BUFFER_LENGTH];
 
-		(void) print_coor_move(*mp, tstr, turn);
+		(void) print_coor_move(tstr, *mp);
 		if (strcmp(str, tstr) == 0) {
 			*m = *mp;
 			return 0;
 		}
-		(void) print_san_move(pos, *mp, tstr, turn);
+		(void) print_san_move(tstr, pos, *mp);
 		cleanup_move(tstr);
 		if (strcmp(str, tstr) == 0) {
 			*m = *mp;
 			return 0;
 		}
 	}
-	return none_move;
+
+	return 1;
 }

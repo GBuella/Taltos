@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
-/* vim: set noet ts=8 sw=8 cinoptions=(4: */
+/* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017, Gabor Buella
+ * Copyright 2017-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,18 +41,18 @@ run_tests(void)
 
 	struct {
 		const char *fen;
-		move moves[4];
+		struct move moves[4];
 	} test_book[] = {
 
 	{"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RN1QKBNR w KQkq -",
-		{ create_move_pd(sq_e2, sq_e4),
-		    create_move_g(sq_g1, sq_f3, knight, 0),
-		    create_move_pd(sq_d2, sq_d4),
-	            0, }},
+		{ create_move_pd(e2, e4),
+		    create_move_g(g1, f3, knight, 0),
+		    create_move_pd(d2, d4),
+	            null_move(), }},
 	{ "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -",
-		{ create_move_pd(sq_e2, sq_e4),
-		    create_move_pd(sq_c2, sq_c4),
-	            0, }},
+		{ create_move_pd(e2, e4),
+		    create_move_pd(c2, c4),
+	            null_move(), }},
 	};
 
 	assert(book_open(bt_fen, "/invalid_path") == NULL);
@@ -68,22 +68,20 @@ run_tests(void)
 
 	for (size_t i = 0; i < ARRAY_LENGTH(test_book); ++i) {
 		struct position pos;
-		enum player turn;
-		int ep_index;
-		move moves[MOVE_ARRAY_LENGTH];
+		struct move moves[MOVE_ARRAY_LENGTH];
 
-		position_read_fen(&pos, test_book[i].fen, &ep_index, &turn);
+		position_read_fen(test_book[i].fen, &pos);
 
 		book_get_move_list(book, &pos, moves);
 
-		const move *m0 = test_book[i].moves;
-		const move *m1 = moves;
-		while (*m0 != 0 && *m0 == *m1) {
+		const struct move *m0 = test_book[i].moves;
+		const struct move *m1 = moves;
+		while (move_eq(*m0, *m1) && !is_null_move(*m0)) {
 			++m0;
 			++m1;
 		}
 
-		assert(*m0 == 0);
+		assert(is_null_move(*m0));
 	}
 
 	book_close(book);

@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2016-2017, Gabor Buella
+ * Copyright 2016-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@ check_eval_symmetry(const struct position *pos)
 	struct eval_factors factors;
 	struct eval_factors flipped_factors;
 
-	position_flip(flipped, pos);
+	assert(position_flip(flipped, pos) == 0);
 
 	assert(pos->pawn_attack_reach[0] ==
 	    bswap(flipped->pawn_attack_reach[1]));
@@ -55,16 +55,16 @@ check_eval_symmetry(const struct position *pos)
 	    bswap(flipped->half_open_files[0]));
 
 #define CHECK_TERM(func) \
-	assert(func(pos) == bswap(opponent_##func(flipped))); \
-	assert(func(flipped) == bswap(opponent_##func(pos)));
-
-#define CHECK_BOOL_TERM(func) \
-	assert(func(pos) == opponent_##func(flipped)); \
-	assert(func(flipped) == opponent_##func(pos));
+	assert(white_##func(pos) == bswap(black_##func(flipped))); \
+	assert(white_##func(flipped) == bswap(black_##func(pos))); \
+	assert(black_##func(pos) == bswap(white_##func(flipped))); \
+	assert(black_##func(flipped) == bswap(white_##func(pos)));
 
 #define CHECK_INT_TERM(func) \
-	assert(func(pos) == opponent_##func(flipped)); \
-	assert(func(flipped) == opponent_##func(pos));
+	assert(white_##func(pos) == black_##func(flipped)); \
+	assert(white_##func(flipped) == black_##func(pos)); \
+	assert(black_##func(pos) == white_##func(flipped)); \
+	assert(black_##func(flipped) == white_##func(pos));
 
 	CHECK_TERM(pawn_chains);
 	CHECK_TERM(isolated_pawns);
@@ -81,46 +81,45 @@ check_eval_symmetry(const struct position *pos)
 	CHECK_TERM(pawns_on_center);
 	CHECK_TERM(pawns_on_center4);
 	CHECK_TERM(center4_attacks);
-	CHECK_BOOL_TERM(has_bishop_pair);
+	CHECK_INT_TERM(has_bishop_pair);
 	assert(pawns_on_white(pos) == bswap(pawns_on_black(flipped)));
 	assert(pawns_on_white(flipped) == bswap(pawns_on_black(pos)));
-	assert(bishops_on_white(pos) ==
-	    bswap(opponent_bishops_on_black(flipped)));
-	assert(bishops_on_white(flipped) ==
-	    bswap(opponent_bishops_on_black(pos)));
-	assert(bishops_on_black(pos) ==
-	    bswap(opponent_bishops_on_white(flipped)));
-	assert(bishops_on_black(flipped) ==
-	    bswap(opponent_bishops_on_white(pos)));
+	assert(white_bishops_on_white(pos) ==
+	    bswap(black_bishops_on_black(flipped)));
+	assert(white_bishops_on_white(flipped) ==
+	    bswap(black_bishops_on_black(pos)));
+	assert(white_bishops_on_black(pos) ==
+	    bswap(black_bishops_on_white(flipped)));
+	assert(white_bishops_on_black(flipped) ==
+	    bswap(black_bishops_on_white(pos)));
 	CHECK_TERM(free_squares);
 	CHECK_INT_TERM(non_pawn_material);
 	assert(bishop_c1_is_trapped(pos) ==
-	    opponent_bishop_c8_is_trapped(flipped));
+	    bishop_c8_is_trapped(flipped));
 	assert(bishop_f1_is_trapped(pos) ==
-	    opponent_bishop_f8_is_trapped(flipped));
+	    bishop_f8_is_trapped(flipped));
 	assert(bishop_c1_is_trapped(flipped) ==
-	    opponent_bishop_c8_is_trapped(pos));
+	    bishop_c8_is_trapped(pos));
 	assert(bishop_f1_is_trapped(flipped) ==
-	    opponent_bishop_f8_is_trapped(pos));
-	assert(bishop_trapped_at_a7(pos) ==
-	    opponent_bishop_trapped_at_a2(flipped));
-	assert(bishop_trapped_at_a7(flipped) ==
-	    opponent_bishop_trapped_at_a2(pos));
-	assert(bishop_trapped_at_h7(pos) ==
-	    opponent_bishop_trapped_at_h2(flipped));
-	assert(bishop_trapped_at_h7(flipped) ==
-	    opponent_bishop_trapped_at_h2(pos));
-	assert(rook_a1_is_trapped(pos) == opponent_rook_a8_is_trapped(flipped));
-	assert(rook_a1_is_trapped(flipped) == opponent_rook_a8_is_trapped(pos));
-	assert(rook_h1_is_trapped(pos) == opponent_rook_h8_is_trapped(flipped));
-	assert(rook_h1_is_trapped(flipped) == opponent_rook_h8_is_trapped(pos));
-	assert(knight_cornered_a8(pos) == opponent_knight_cornered_a1(flipped));
-	assert(knight_cornered_a8(flipped) == opponent_knight_cornered_a1(pos));
-	assert(knight_cornered_h8(pos) == opponent_knight_cornered_h1(flipped));
-	assert(knight_cornered_h8(flipped) == opponent_knight_cornered_h1(pos));
+	    bishop_f8_is_trapped(pos));
+	assert(white_bishop_trapped_at_a7(pos) ==
+	    black_bishop_trapped_at_a2(flipped));
+	assert(white_bishop_trapped_at_a7(flipped) ==
+	    black_bishop_trapped_at_a2(pos));
+	assert(white_bishop_trapped_at_h7(pos) ==
+	    black_bishop_trapped_at_h2(flipped));
+	assert(white_bishop_trapped_at_h7(flipped) ==
+	    black_bishop_trapped_at_h2(pos));
+	assert(rook_a1_is_trapped(pos) == rook_a8_is_trapped(flipped));
+	assert(rook_a1_is_trapped(flipped) == rook_a8_is_trapped(pos));
+	assert(rook_h1_is_trapped(pos) == rook_h8_is_trapped(flipped));
+	assert(rook_h1_is_trapped(flipped) == rook_h8_is_trapped(pos));
+	assert(white_knight_cornered_a8(pos) == black_knight_cornered_a1(flipped));
+	assert(white_knight_cornered_a8(flipped) == black_knight_cornered_a1(pos));
+	assert(white_knight_cornered_h8(pos) == black_knight_cornered_h1(flipped));
+	assert(white_knight_cornered_h8(flipped) == black_knight_cornered_h1(pos));
 
 #undef CHECK_TERM
-#undef CHECK_BOOL_TERM
 #undef CHECK_INT_TERM
 
 	value = eval(pos);
@@ -143,9 +142,9 @@ check_eval_symmetry(const struct position *pos)
 static void
 test_tree_walk(const struct position *pos, unsigned depth)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
-	if (!pos_has_ep_target(pos) && !is_in_check(pos))
+	if (!position_has_en_passant_target(pos) && !is_in_check(pos))
 		check_eval_symmetry(pos);
 
 	if (depth == 0)
@@ -153,7 +152,7 @@ test_tree_walk(const struct position *pos, unsigned depth)
 
 	gen_moves(pos, moves);
 
-	for (unsigned i = 0; moves[i] != 0; ++i) {
+	for (unsigned i = 0; !is_null_move(moves[i]); ++i) {
 		struct position child[1];
 		make_move(child, pos, moves[i]);
 		test_tree_walk(child, depth - 1);

@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +33,7 @@
 
 #include "chess.h"
 #include "position.h"
-#include "hash.h"
+#include "tt.h"
 #include "util.h"
 #include "taltos.h"
 
@@ -48,9 +48,9 @@ struct search_description {
 	int depth;
 	int depth_limit;
 
-	struct hash_table *tt;
+	struct tt *tt;
 
-	// todo: const struct hash_table *tt_paralell[MAX_THREAD_COUNT];
+	// todo: const struct tt *tt_paralell[MAX_THREAD_COUNT];
 
 	struct position repeated_positions[26];
 
@@ -65,23 +65,22 @@ struct search_description {
 struct search_result {
 	bool is_terminated;
 	int value;
-	move best_move;
+	struct move best_move;
 	unsigned selective_depth;
 	unsigned qdepth;
 	uintmax_t node_count;
 	uintmax_t qnode_count;
 	uintmax_t cutoff_count;
 	uintmax_t first_move_cutoff_count;
-	move pv[MAX_PLY];
+	struct move pv[MAX_PLY];
 };
 
 void init_search(void);
 
 struct search_result search(const struct position*,
-				enum player debug_player_to_move,
-				struct search_description,
+				const struct search_description*,
 				volatile bool *run_flag,
-				const move *prev_pv)
+				const struct move *prev_pv)
 	attribute(nonnull);
 
 #endif

@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,7 +35,7 @@ void
 run_tests(void)
 {
 	struct game *game, *other;
-	move move;
+	struct move move;
 
 	game = game_create();
 	if (game == NULL)
@@ -45,7 +45,9 @@ run_tests(void)
 	assert(game_history_forward(game) != 0);
 	assert(game_full_move_count(game) == 1);
 	assert(game_half_move_count(game) == 0);
-	move = create_move_pd(ind(rank_2, file_e), ind(rank_4, file_e));
+	move = (struct move){.from = e2, .to = e4,
+		.result = pawn, .captured = 0, .type = mt_pawn_double_push,
+		.reserved = 0}; 
 	assert(game_append(game, move) == 0);
 	other = game_copy(game);
 	if (other == NULL)
@@ -54,8 +56,9 @@ run_tests(void)
 	assert(game_turn(other) == black);
 	assert(game_history_revert(other) == 0);
 	game_destroy(other);
-	move = create_move_pd(str_to_index("e7", black),
-	    str_to_index("e5", black));
+	move = (struct move){.from = e7, .to = e5,
+		.result = pawn, .captured = 0, .type = mt_pawn_double_push,
+		.reserved = 0}; 
 	assert(game_append(game, move) == 0);
 	assert(game_turn(game) == white);
 	game_destroy(game);

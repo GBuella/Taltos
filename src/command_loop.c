@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,7 +42,7 @@
 #include "game.h"
 #include "engine.h"
 #include "taltos.h"
-#include "hash.h"
+#include "tt.h"
 #include "eval.h"
 #include "str_util.h"
 #include "trace.h"
@@ -205,27 +205,27 @@ has_single_response(void)
 	return game_has_single_response(game);
 }
 
-static move
+static struct move
 get_single_response(void)
 {
 	return game_get_single_response(game);
 }
 
 static char*
-printm(const struct position *pos, move m, char *str, enum player pl)
+printm(char *str, const struct position *pos, struct move m)
 {
-	return print_move(pos, m, str, conf->move_not, pl);
+	return print_move(str, pos, m, conf->move_not);
 }
 
 static void
-add_move(move m)
+add_move(struct move m)
 {
 	mtx_lock(&game_mutex);
 
 
 	char move_str[MOVE_STR_BUFFER_LENGTH];
 
-	(void) print_move(current_position(), m, move_str, mn_san, turn());
+	(void) print_move(move_str, current_position(), m, mn_san);
 	if (game_append(game, m) == 0) {
 		engine_process_move(m);
 		debug_engine_set_player_to_move(turn());
@@ -274,7 +274,7 @@ set_uci(void)
 	printf("id name %s%s", conf->display_name, conf->display_name_postfix);
 	printf("id author %s", author_name);
 	printf("option name Hash type spin default %u min %u max %u\n",
-	    conf->hash_table_size_mb, ht_min_size_mb(), ht_max_size_mb());
+	    conf->hash_table_size_mb, tt_min_size_mb(), tt_max_size_mb());
 	puts("uciok");
 }
 
@@ -336,7 +336,7 @@ get_str_arg_lower(void)
 }
 
 static void
-print_computer_move(move m)
+print_computer_move(struct move m)
 {
 	char str[MOVE_STR_BUFFER_LENGTH];
 	enum move_notation_type mn;
@@ -350,7 +350,7 @@ print_computer_move(move m)
 
 	mtx_lock(&game_mutex);
 
-	(void) print_move(current_position(), m, str, mn, turn());
+	(void) print_move(str, current_position(), m, mn);
 	move_counter = game_full_move_count(game);
 	is_black = (turn() == black);
 
@@ -382,7 +382,7 @@ computer_move(uintmax_t key)
 	if (key != callback_key)
 		return -1;
 
-	move m;
+	struct move m;
 
 	mtx_lock(&game_mutex);
 
@@ -409,15 +409,15 @@ decide_move(void)
 
 	if (game_started && !is_end() && !is_force_mode) {
 		if (game_started && has_single_response()) {
-			move m = get_single_response();
+			struct move m = get_single_response();
 
 			print_computer_move(m);
 			add_move(m);
 			engine_move_count_inc();
 		}
 		else {
-			move m = book_get_move(book, current_position());
-			if (m != none_move) {
+			struct move m = book_get_move(book, current_position());
+			if (!is_null_move(m)) {
 				print_computer_move(m);
 				add_move(m);
 				engine_move_count_inc();
@@ -437,7 +437,7 @@ decide_move(void)
 }
 
 static void
-operator_move(move m)
+operator_move(struct move m)
 {
 	stop_thinking();
 
@@ -452,7 +452,7 @@ operator_move(move m)
 }
 
 static void
-print_move_path(const struct game *original_game, const move *m)
+print_move_path(const struct game *original_game, const struct move *m)
 {
 	char str[MOVE_STR_BUFFER_LENGTH];
 	bool first = true;
@@ -460,7 +460,7 @@ print_move_path(const struct game *original_game, const move *m)
 
 	if (g == NULL)
 		INTERNAL_ERROR();
-	for (; *m != 0; ++m) {
+	for (; !is_null_move(*m); ++m) {
 		if (!is_uci) {
 			if (game_turn(g) == white || first)
 				printf("%u. ", game_full_move_count(g));
@@ -468,7 +468,7 @@ print_move_path(const struct game *original_game, const move *m)
 				printf("... ");
 		}
 		first = false;
-		(void) printm(game_current_position(g), *m, str, game_turn(g));
+		(void) printm(str, game_current_position(g), *m);
 		printf("%s ", str);
 		if (game_append(g, *m) != 0)
 			INTERNAL_ERROR();
@@ -493,7 +493,7 @@ static void
 print_result_header(void)
 {
 	if (verbose)
-		printf("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tqnodes\tPV\n");
+		printf("  D\tQD\ttime\tvalue\tfmc\thuse\tnodes\tPV\n");
 	else
 		printf("  D\ttime\tvalue\tnodes\tPV\n");
 }
@@ -508,7 +508,7 @@ print_verbose_search_info(struct engine_result res)
 	else
 		print_percent(0);
 	putchar('\t');
-	print_percent(res.ht_usage);
+	print_percent(res.tt_usage);
 	putchar('\t');
 }
 
@@ -597,27 +597,19 @@ print_current_result(struct engine_result res)
 static int
 try_read_move(const char *cmd)
 {
-	move move;
+	struct move move;
 
 	if (is_end())
 		return 1;
 
-	switch (read_move(current_position(), cmd, &move, turn())) {
-		case none_move:
-			return 1;
-		case illegal_move:
-			printf("Illegal move: %s\n", cmd);
-			return 0;
-		case 0:
-			if (!is_force_mode && !is_opp_turn()) {
-				printf("It is not %s's turn\n",
-				    whose_turn[opponent_of(computer_side)]);
-				return 0;
-			}
-			operator_move(move);
-			return 0;
-		default: assert(0);
+	if (read_move(current_position(), cmd, &move) != 0)
+		return 1;
+	if (!is_force_mode && !is_opp_turn()) {
+		printf("It is not %s's turn\n",
+		       whose_turn[opponent_of(computer_side)]);
+		return 0;
 	}
+	operator_move(move);
 	return 0;
 }
 
@@ -814,7 +806,7 @@ cmd_printboard(void)
 
 	mtx_lock(&game_mutex);
 
-	(void) board_print(str, current_position(), turn(), conf->use_unicode);
+	(void) board_print(str, current_position(), conf->use_unicode, false);
 
 	mtx_unlock(&game_mutex);
 
@@ -878,13 +870,13 @@ cmd_nps(void)
 static void
 cmd_hint(void)
 {
-	move m;
+	struct move m;
 	char str[MOVE_STR_BUFFER_LENGTH];
 
 	mtx_lock(&game_mutex);
 
 	if (engine_get_best_move(&m) == 0) {
-		printm(current_position(), m, str, turn());
+		printm(str, current_position(), m);
 		printf("Hint: %s\n", str);
 	}
 
@@ -1075,7 +1067,7 @@ search_cb(uintmax_t key)
 	if (key != callback_key)
 		return -1;
 
-	move m;
+	struct move m;
 
 	mtx_lock(&game_mutex);
 
@@ -1245,16 +1237,13 @@ cmd_eval(void)
 static void
 cmd_poskey(void)
 {
-	uint64_t key[2];
-	get_position_key(current_position(), key);
-	printf("%016" PRIx64 " %016" PRIx64 "\n", key[0], key[1]);
+	printf("%016" PRIx64 "\n", get_position_key(current_position()));
 }
 
 static void
 cmd_polyglotkey(void)
 {
-	printf("%016" PRIx64 "\n",
-	    position_polyglot_key(current_position(), turn()));
+	printf("%016" PRIx64 "\n", position_polyglot_key(current_position()));
 }
 
 static void
@@ -1262,11 +1251,9 @@ cmd_hash_size(void)
 {
 	mtx_lock(&stdout_mutex);
 
-	/* BEGIN CSTYLED */ /* cstyle does not know about this syntax yet */
 	print_nice_number(engine_ht_size(),
 	    (const char *[]) {"b", "kb", "mb", "gb", NULL},
 	    (const uintmax_t[]) {1, 1024, 1024 * 1024, 1024 * 1024 * 1024, 0});
-	/* END CSTYLED */
 
 	mtx_unlock(&stdout_mutex);
 }
@@ -1274,7 +1261,7 @@ cmd_hash_size(void)
 static void
 cmd_hash_entry(void)
 {
-	ht_entry entry;
+	struct tt_entry entry;
 	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
 
 	if (fen != NULL) {
@@ -1290,28 +1277,31 @@ cmd_hash_entry(void)
 		entry = engine_current_entry();
 	}
 
-	if (!ht_is_set(entry)) {
+	if (!tt_entry_is_set(entry)) {
 		puts("hash_value: none");
 		return;
 	}
 
 	mtx_lock(&stdout_mutex);
 
-	printf("hash_depth: %d\n", ht_depth(entry));
+	printf("hash_depth: %d\n", entry.depth);
 
 	printf("hash_value: ");
-	if (ht_value_type(entry) == vt_none) {
+
+	if (!tt_has_move(entry)) {
 		puts("none");
-		return;
 	}
-	if (ht_value_type(entry) == vt_exact)
-		printf("exact ");
-	else if (ht_value_type(entry) == vt_upper_bound)
-		printf("upper bound ");
-	else
-		printf("upper bound ");
-	print_centipawns(ht_value(entry));
-	putchar('\n');
+	else {
+		if (tt_has_exact_value(entry))
+			printf("exact ");
+		else if (entry.is_upper_bound)
+			printf("upper bound ");
+		else
+			printf("lower bound ");
+
+		print_centipawns(entry.value);
+		putchar('\n');
+	}
 
 	mtx_unlock(&stdout_mutex);
 }
@@ -1321,9 +1311,9 @@ cmd_hash_value_exact_min(void)
 {
 	int minimum = get_int(-max_value, max_value);
 
-	ht_entry entry = engine_current_entry();
-	if (ht_is_set(entry) && ht_value_type(entry) == vt_exact
-	    && ht_value(entry) >= minimum)
+	struct tt_entry entry = engine_current_entry();
+	if (tt_entry_is_set(entry) && tt_has_exact_value(entry)
+	    && (entry.value >= minimum))
 		puts("ok");
 	else
 		puts("no");
@@ -1334,9 +1324,9 @@ cmd_hash_value_exact_max(void)
 {
 	int maximum = get_int(-max_value, max_value);
 
-	ht_entry entry = engine_current_entry();
-	if (ht_is_set(entry) && ht_value_type(entry) == vt_exact
-	    && ht_value(entry) <= maximum)
+	struct tt_entry entry = engine_current_entry();
+	if (tt_entry_is_set(entry) && tt_has_exact_value(entry)
+	    && (entry.value <= maximum))
 		puts("ok");
 	else
 		puts("no");
@@ -1367,10 +1357,9 @@ process_uci_move_list(struct game *g)
 	const char *next;
 
 	while ((next = xstrtok_r(NULL, " \t\n\r", &line_lasts)) != NULL) {
-		move m;
+		struct move m;
 
-		if (read_move(game_current_position(g),
-		    next, &m, game_turn(g)) != 0)
+		if (read_move(game_current_position(g), next, &m) != 0)
 			return -1;
 
 		if (game_append(g, m) != 0)
@@ -1441,7 +1430,7 @@ replay_new_moves(struct game *g)
 	while (delta_count-- != 0)
 		game_history_revert(g);
 
-	while (game_move_to_next(g) != 0) {
+	while (game_has_more_postions(g)) {
 		add_move(game_move_to_next(g));
 		game_history_forward(g);
 	}
@@ -1488,7 +1477,7 @@ cmd_position(void)
 static void
 cmd_memory(void)
 {
-	unsigned value = get_uint(ht_min_size_mb(), ht_max_size_mb());
+	unsigned value = get_uint(tt_min_size_mb(), tt_max_size_mb());
 
 	tracef("repro: memory %u", value);
 
@@ -1577,7 +1566,7 @@ cmd_stop(void)
 }
 
 static void
-print_move_order(const struct position *pos, enum player player)
+print_move_order(const struct position *pos)
 {
 	struct move_order move_order;
 	move_order_setup(&move_order, pos, false, 0);
@@ -1587,18 +1576,18 @@ print_move_order(const struct position *pos, enum player player)
 		return;
 	}
 
-	ht_entry entry = engine_get_entry(pos);
-	if (ht_is_set(entry) && ht_has_move(entry))
-		move_order_add_hint(&move_order, ht_move(entry), 0);
+	struct tt_entry entry = engine_get_entry(pos);
+	if (tt_entry_is_set(entry) && tt_has_move(entry))
+		move_order_add_hint(&move_order, tt_move(entry), 0);
 
 	do {
 		move_order_pick_next(&move_order);
 
 		char buf[MOVE_STR_BUFFER_LENGTH];
-		move m = mo_current_move(&move_order);
+		struct move m = mo_current_move(&move_order);
 		int value = mo_current_move_value(&move_order);
 
-		(void) printm(pos, m, buf, player);
+		(void) printm(buf, pos, m);
 
 		printf("#%u %s %d\n", move_order.picked_count, buf, value);
 	} while (!move_order_done(&move_order));
@@ -1607,12 +1596,12 @@ print_move_order(const struct position *pos, enum player player)
 static int
 cmp_move(const void *a, const void *b)
 {
-	move ma = *((move*)a);
-	move mb = *((move*)b);
+	struct move ma = *((struct move*)a);
+	struct move mb = *((struct move*)b);
 
-	if (ma > mb)
+	if (movei(ma) > movei(mb))
 		return 1;
-	else if (ma < mb)
+	else if (movei(ma) < movei(mb))
 		return -1;
 	else
 		return 0;
@@ -1643,9 +1632,9 @@ print_move_desc(const char *move_str, const struct move_desc *desc)
 }
 
 static void
-print_move_descs(const struct position *pos, enum player player)
+print_move_descs(const struct position *pos)
 {
-	move moves[MOVE_ARRAY_LENGTH];
+	struct move moves[MOVE_ARRAY_LENGTH];
 
 	unsigned count = gen_moves(pos, moves);
 	if (count == 0)
@@ -1657,7 +1646,7 @@ print_move_descs(const struct position *pos, enum player player)
 
 	for (unsigned i = 0; i < count; ++i) {
 		char str[MOVE_STR_BUFFER_LENGTH];
-		printm(pos, moves[i], str, player);
+		printm(str, pos, moves[i]);
 		describe_move(&desc, pos, moves[i]);
 		print_move_desc(str, &desc);
 		putchar('\n');
@@ -1665,7 +1654,7 @@ print_move_descs(const struct position *pos, enum player player)
 }
 
 static void
-cmd_with_optional_fen_arg(void (*cmd)(const struct position*, enum player))
+cmd_with_optional_fen_arg(void (*cmd)(const struct position*))
 {
 	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
 
@@ -1675,11 +1664,11 @@ cmd_with_optional_fen_arg(void (*cmd)(const struct position*, enum player))
 			(void) fprintf(stderr, "Unable to parse FEN\n");
 			return;
 		}
-		cmd(game_current_position(g), game_turn(g));
+		cmd(game_current_position(g));
 		game_destroy(g);
 	}
 	else {
-		cmd(current_position(), turn());
+		cmd(current_position());
 	}
 }
 

@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2017-2018, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,45 +24,66 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "tests.h"
+#ifndef TALTOS_ZOBRIST_H
+#define TALTOS_ZOBRIST_H
 
-#include "book.h"
-#include "position.h"
+#include "chess.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
-void
-run_tests(void)
+static inline uint64_t
+z_toggle_ep_file(uint64_t hash, int file)
 {
-	if (prog_argc < 2)
-		exit(EXIT_FAILURE);
+	invariant(is_valid_file(file));
 
-	struct book *book = book_open(bt_polyglot, prog_argv[1]);
-	if (book == NULL) {
-		perror(prog_argv[1]);
-		exit(EXIT_FAILURE);
-	}
+	extern const uint64_t zobrist_ep_file_value[8];
 
-	struct position pos;
-	struct move moves[MOVE_ARRAY_LENGTH];
-
-	position_read_fen(
-	    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-	    &pos);
-
-	book_get_move_list(book, &pos, moves);
-	assert(move_eq(moves[0], create_move_pd(e2, e4)));
-	assert(is_null_move(moves[1]));
-
-	position_read_fen(
-	    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
-	    &pos);
-
-	book_get_move_list(book, &pos, moves);
-	assert(move_eq(moves[0], create_move_pd(e2, e4)));
-	assert(move_eq(moves[1], create_move_g(h2, h3, pawn, 0)));
-	assert(is_null_move(moves[2]));
-
-	book_close(book);
+	return hash ^ zobrist_ep_file_value[file];
 }
+
+static inline uint64_t
+z_toggle_pp(uint64_t hash, int index, enum piece p, enum player pl)
+{
+	invariant(ivalid(index));
+	invariant(is_valid_piece(p));
+	invariant(pl == white || pl == black);
+
+	extern const uint64_t zobrist_random[14][64];
+
+	return hash ^= zobrist_random[p + pl][index];
+}
+
+static inline uint64_t
+z_toggle_sq(uint64_t hash, int index, int square)
+{
+	invariant(ivalid(index));
+	invariant(is_valid_square(square));
+
+	extern const uint64_t zobrist_random[14][64];
+
+	return hash ^= zobrist_random[square][index];
+}
+
+static inline uint64_t
+z_toggle_white_castle_queen_side(uint64_t hash)
+{
+	return hash ^ UINT64_C(0xF165B587DF898190);
+}
+
+static inline uint64_t
+z_toggle_black_castle_queen_side(uint64_t hash)
+{
+	return hash ^ UINT64_C(0x1EF6E6DBB1961EC9);
+}
+
+static inline uint64_t
+z_toggle_white_castle_king_side(uint64_t hash)
+{
+	return hash ^ UINT64_C(0x31D71DCE64B2C310);
+}
+
+static inline uint64_t
+z_toggle_black_castle_king_side(uint64_t hash)
+{
+	return hash ^ UINT64_C(0xA57E6339DD2CF3A0);
+}
+
+#endif
