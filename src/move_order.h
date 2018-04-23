@@ -90,6 +90,13 @@ mo_current_move(const struct move_order *mo)
 	return entry.move;
 }
 
+static inline uint8_t
+mo_current_move_index(const struct move_order *mo)
+{
+	struct mo_entry entry = mo_current_entry(mo);
+	return entry.mg_index;
+}
+
 static inline int16_t
 mo_current_move_value(const struct move_order *mo)
 {

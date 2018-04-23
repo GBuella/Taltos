@@ -32,101 +32,100 @@
 #include "macros.h"
 
 #include "tt.h"
-#include "search.h"
 #include "util.h"
-#include "eval.h"
 #include "trace.h"
 
-#include "str_util.h"
-
-#ifdef TALTOS_TT_MIN_SIZE
-#define TT_MIN_SIZE (TALTOS_TT_MIN_SIZE)
-#else
-#define TT_MIN_SIZE 5
-#endif
-
-#ifdef TALTOS_TT_MAX_SIZE
-#define TT_MAX_SIZE (TALTOS_TT_MAX_SIZE)
-#else
-#define TT_MAX_SIZE 26
-#endif
-
-static_assert(TT_MIN_SIZE > 1, "invalid TT min size");
-static_assert(TT_MIN_SIZE < TT_MAX_SIZE,
-	      "TT min should be smalller than TT max");
+enum {
 
 #ifdef TALTOS_TT_GENERATION_BIT_COUNT
-#define TT_GENERATION_BIT_COUNT (TALTOS_TT_GENERATION_BIT_COUNT)
+	generation_bit_count = (TALTOS_TT_GENERATION_BIT_COUNT),
 #else
-#define TT_GENERATION_BIT_COUNT 4
+	generation_bit_count = 4,
 #endif
 
-static_assert(TT_GENERATION_BIT_COUNT > 0,
+	min_log2_size = 5,
+	max_log2_size = 26,
+	key_bit_count  = (39 - generation_bit_count),
+//	depth_delta_bits = 5,
+//	depth_delta_max = ((1 << depth_delta_bits) - 1),
+	no_move = 127
+};
+
+static_assert(min_log2_size > 1, "invalid TT min size");
+static_assert(min_log2_size < max_log2_size,
+	      "TT min should be smalller than TT max");
+
+static_assert(generation_bit_count > 0,
 	      "invalid bit count for TT generation field");
 
-static_assert(TT_GENERATION_BIT_COUNT < 28,
+static_assert(generation_bit_count < 39,
 	      "invalid bit count for TT generation field");
 
-#define TT_KEY_BIT_COUNT (29 - TT_KEY_BIT_COUNT)
-
-/************************
-
-struct value_entry {
+struct entry {
+	uint32_t key;
 	int16_t value;
-	uint16_t depth : 14;
-	bool no_null : 1;
-	bool is_exact_value : 1;
-};
-
-static_assert(sizeof(struct value_entry) == sizeof(uint32_t), "layout");
-
-struct packed_value_entry {
-	int16_t value : 10;
-	uint16_t depth : 7;
-	int16_t value2_delta : 9;
-	uint16_t depth2_delta : 6;
-};
-
-static_assert(sizeof(struct packed_value_entry) == sizeof(uint16_t), "layout");
-
-static_assert(sizeof(struct move) == sizeof(uint32_t), "layout");
-
-struct x {
-	int16_t value;
-	uint8_t move_index : 7;
-	bool no_null : 1;
-	uint8_t depth : 8;
-};
-
-struct internal_entry {
-	uint32_t key : TT_KEY_BIT_COUNT;
-	uint32_t generation : TT_GENERATION_BIT_COUNT;
-	bool contains_packed_values : 1;
+	uint32_t generation : 7;
 	bool contains_exact_value : 1;
-	union {
-		struct value_entry value;
-		struct packed_value_entry packed_values[2];
-		struct move best_move;
-	};
+
+	uint32_t reserved : 8;
+
+	int16_t value2;
+	uint32_t depth : 8;
+	uint32_t depth2 : 8;
+
+	uint32_t mg_index : 8;
+	uint32_t mg_index2 : 8;
+	uint32_t reserved3 : 5;
+	bool contains_value : 1;
+	bool contains_second_value : 1;
+	bool no_null_flag : 1;
+
+	uint32_t reserved2 : 8;
 };
 
-static_assert(sizeof(struct internal_entry) == sizeof(uint64_t), "layout");
+static_assert(sizeof(struct entry) == 2 * sizeof(uint64_t), "layout");
+static_assert(offsetof(struct entry, value2) == sizeof(uint64_t), "layout");
 
-************************/
-
-struct slot {
-	alignas(16) uint64_t key;
-	uint64_t entry;
-};
-
-enum {
-	bucket_slot_count = 8
+struct raw_entry {
+	// TODO: use atomic_uin64_t + use reserved fields as thread ids
+	uint64_t raw[2];
 };
 
 struct bucket {
-	alignas(bucket_slot_count * sizeof(struct slot))
-		struct slot slots[bucket_slot_count];
+	struct raw_entry entries[4];
 };
+
+static struct entry
+load_entry(const struct raw_entry *raw)
+{
+	uint64_t ints[2];
+	ints[0] = raw->raw[0]; // TODO: atomic load
+	ints[1] = raw->raw[1];
+	struct entry entry;
+
+	tmemcpy(&entry, ints, sizeof(entry));
+
+	return entry;
+}
+
+static void
+store_entry(struct raw_entry *raw, struct entry entry)
+{
+	uint64_t ints[2];
+
+	tmemcpy(ints, &entry, sizeof(entry));
+
+	raw->raw[0] = ints[0]; // TODO: atomic store
+	raw->raw[1] = ints[1];
+}
+
+static bool
+is_empty_entry(struct entry entry)
+{
+	uint64_t x;
+	tmemcpy(&x, &entry, sizeof(x));
+	return x == 0;
+}
 
 struct tt {
 	unsigned long bucket_count;
@@ -139,7 +138,7 @@ struct tt {
 size_t
 tt_slot_count(const struct tt *tt)
 {
-	return tt->bucket_count * bucket_slot_count;
+	return tt->bucket_count * ARRAY_LENGTH(tt->table[0].entries);
 }
 
 size_t
@@ -163,7 +162,7 @@ tt_min_size_mb(void)
 unsigned
 tt_max_size_mb(void)
 {
-	return (((size_t)1 << TT_MAX_SIZE) * sizeof(struct bucket))
+	return (((size_t)1 << max_log2_size) * sizeof(struct bucket))
 	    / (1024 * 1024);
 }
 
@@ -174,7 +173,7 @@ tt_create(unsigned log2_size)
 
 	struct tt *tt;
 
-	if (log2_size < TT_MIN_SIZE || log2_size > TT_MAX_SIZE)
+	if (log2_size < min_log2_size || log2_size > max_log2_size)
 		return NULL;
 
 	tt = xmalloc(sizeof *tt);
@@ -298,166 +297,279 @@ tt_prefetch(const struct tt *tt, uint64_t hash)
 	const char *address = (const char*)find_bucket(tt, hash);
 
 	prefetch(address);
-	prefetch(address + 64);
 }
 #endif
 
-static bool
-move_ok(struct tt_entry e, const struct position *pos)
+static uint32_t
+ekey(uint64_t key)
 {
-	if (!tt_has_move(e))
-		return true;
-
-	if (pos_piece_at(pos, e.best_move_from) == 0)
-		return false;
-
-	if (pos_player_at(pos, e.best_move_from) != pos->turn)
-		return false;
-
-	if (pos_piece_at(pos, e.best_move_to) == 0)
-		return true;
-
-	return pos_player_at(pos, e.best_move_to) != pos->turn;
-}
-
-struct tt_entry
-tt_lookup(const struct tt *tt, const struct position *pos)
-{
-	struct bucket *bucket = find_bucket(tt, pos->zhash);
-
-	for (int i = 0; i < bucket_slot_count; ++i) {
-		if (bucket->slots[i].key != pos->zhash)
-			continue;
-
-		struct tt_entry e = int_to_tt_entry(bucket->slots[i].entry);
-		if (!move_ok(e, pos))
-			continue;
-
-		if (e.generation != tt->current_generation) {
-			e.generation = tt->current_generation;
-			bucket->slots[i].entry = tt_entry_to_int(e);
-		}
-
-		return e;
-	}
-
-	return tt_null();
-}
-
-static void
-overwrite_slot(struct slot *slot, const struct position *pos, struct tt_entry e)
-{
-	slot->key = pos->zhash;
-	slot->entry = tt_entry_to_int(e);
-}
-
-static unsigned
-candidate_value(struct tt_entry e)
-{
-	unsigned value = e.generation + e.depth * 2;
-	if (tt_has_exact_value(e))
-		value += 4;
-	if (tt_has_move(e))
-		++value;
-	return value;
-}
-
-static bool
-should_overwrite_at_same_key(struct tt_entry old, struct tt_entry new)
-{
-	if (old.depth + 1 * PLY < new.depth)
-		return true;
-
-	if (old.depth <= new.depth)
-		return tt_has_exact_value(new) || !tt_has_exact_value(old);
-
-	if (old.depth < new.depth + 2 * PLY)
-		return tt_has_exact_value(new) && !tt_has_exact_value(old);
-
-	return false;
+	return key >> 32;
 }
 
 void
-tt_pos_insert(struct tt *tt, const struct position *pos, struct tt_entry e)
+tt_lookup(struct tt *tt, uint64_t key, int d,
+	  struct tt_lookup_result *result)
 {
-	struct bucket *bucket = find_bucket(tt, pos->zhash);
+	struct bucket *bucket = find_bucket(tt, key);
+	uint8_t depth = clamp(d, 0, 100);
 
-	struct slot *replace_candidate = NULL;
-	e.generation = tt->current_generation;
-	unsigned best_candidate_value = 0;
+	key = ekey(key);
+	result->move_count = 0;
+	result->found_value = result->found_exact_value = false;
+	result->no_null_flag = false;
 
-	for (int i = 0; i < bucket_slot_count; ++i) {
-		struct tt_entry old_e = int_to_tt_entry(bucket->slots[i].entry);
+	for (size_t i = 0; i < ARRAY_LENGTH(bucket->entries); ++i) {
+		struct entry entry = load_entry(bucket->entries + i);
 
-		if (bucket->slots[i].key == pos->zhash) {
-			if (should_overwrite_at_same_key(old_e, e)) {
-				if (tt_has_move(old_e) && !tt_has_move(e))
-					e = tt_set_move(e, tt_move(old_e));
-				overwrite_slot(bucket->slots + i, pos, e);
-			} else {
-				if (tt_has_move(e) && !tt_has_move(old_e))
-					old_e = tt_set_move(old_e, tt_move(e));
-				old_e.generation = tt->current_generation;
-				overwrite_slot(bucket->slots + i, pos, old_e);
+		if (entry.key != key)
+			continue;
+
+		result->no_null_flag = entry.no_null_flag;
+
+		if (entry.mg_index != no_move) {
+			result->moves[0] = entry.mg_index;
+			if (entry.mg_index2 != no_move) {
+				result->moves[1] = entry.mg_index;
+				result->move_count = 2;
 			}
+			else {
+				result->move_count = 1;
+			}
+		}
+
+		if (entry.depth >= depth) {
+			result->found_value = true;
+			result->found_exact_value = entry.contains_exact_value;
+			result->value = entry.value;
+			result->depth = entry.depth;
+		}
+		else if (entry.depth2 >= depth) {
+			result->found_value = true;
+			result->found_exact_value = false;
+			result->value = entry.value2;
+			result->depth = entry.depth2;
+		}
+
+		if (entry.generation != tt->current_generation) {
+			entry.generation = tt->current_generation;
+			store_entry(bucket->entries + i, entry);
+		}
+
+		return;
+	}
+}
+
+static unsigned
+candidate_value(struct entry entry)
+{
+	unsigned value = entry.generation + entry.depth;
+
+	if (entry.contains_exact_value)
+		value += 3;
+
+	if (entry.depth2 != 0)
+		++value;
+
+	return value;
+}
+
+static struct entry
+update_to_exact_value(struct entry entry, int16_t value, uint8_t depth)
+{
+	entry.value = value;
+	entry.depth = depth;
+	entry.contains_exact_value = true;
+
+	if (entry.depth2 <= depth || entry.value2 >= value)
+		entry.depth2 = 0;
+
+	return entry;
+}
+
+static struct entry
+update_exact_values(struct entry entry, int16_t value, uint8_t depth)
+{
+	if (entry.depth > depth)
+		return entry;
+
+	return update_to_exact_value(entry, value, depth);
+}
+
+static struct entry
+add_lower_bound(struct entry entry, int16_t value, uint8_t depth)
+{
+	if (!entry.contains_value) {
+		entry.value = value;
+		entry.depth = depth;
+		entry.contains_value = true;
+		return entry;
+	}
+
+	if (entry.depth2 > depth)
+		return entry;
+
+	if (entry.depth > depth && entry.depth2 <= depth) {
+		entry.contains_second_value = true;
+		entry.depth2 = depth;
+		entry.value2 = value;
+	}
+
+	return entry;
+}
+
+static struct entry
+update_lower_bound(struct entry entry, int16_t value, uint8_t depth)
+{
+	if (!entry.contains_value) {
+		entry.value = value;
+		entry.depth = depth;
+		entry.contains_value = true;
+		return entry;
+	}
+
+	if (entry.depth <= depth) {
+		entry.depth = depth;
+		entry.value = value;
+		if (entry.depth2 <= depth)
+			entry.depth2 = 0;
+	}
+	else if (entry.depth2 <= depth) {
+		entry.contains_second_value = true;
+		entry.depth2 = depth;
+		entry.value2 = value;
+	}
+
+	return entry;
+}
+
+static struct entry
+update_entry_move(struct entry entry, uint8_t mg_index)
+{
+	if (mg_index != no_move && mg_index != entry.mg_index) {
+		entry.mg_index2 = entry.mg_index;
+		entry.mg_index = mg_index;
+	}
+
+	return entry;
+}
+
+static struct entry
+update_entry_value(struct entry entry, int16_t value, bool is_exact_value,
+		   uint8_t depth)
+{
+	if (is_exact_value && entry.contains_exact_value)
+		entry = update_exact_values(entry, value, depth);
+	else if (is_exact_value && !entry.contains_exact_value)
+		entry = update_to_exact_value(entry, value, depth);
+	else if (entry.contains_exact_value && !is_exact_value)
+		entry = add_lower_bound(entry, value, depth);
+	else
+		entry = update_lower_bound(entry, value, depth);
+
+	return entry;
+}
+
+static void
+insert(struct tt *tt, uint64_t key, int16_t value, bool insert_value,
+       bool is_exact_value, bool no_null_flag, uint8_t mg_index, int d)
+{
+	struct bucket *bucket = find_bucket(tt, key);
+	struct raw_entry *replacement_candidate = NULL;
+	unsigned best_value = UINT_MAX;
+	uint8_t depth = clamp(d, 0, 100);
+
+	key = ekey(key);
+
+	for (size_t i = 0; i < ARRAY_LENGTH(bucket->entries); ++i) {
+		struct raw_entry *raw = bucket->entries + i;
+		struct entry entry = load_entry(raw);
+
+		if (is_empty_entry(entry)) {
+			replacement_candidate = raw;
+			break;
+		}
+		else if (entry.key == key) {
+			entry.generation = tt->current_generation;
+			entry.no_null_flag = entry.no_null_flag || no_null_flag;
+			entry = update_entry_move(entry, mg_index);
+			if (insert_value)
+				entry = update_entry_value(entry, value,
+							   is_exact_value,
+							   depth);
+			store_entry(raw, entry);
 
 			return;
 		}
-	}
-
-	for (int i = 0; i < bucket_slot_count; ++i) {
-		struct tt_entry old_e = int_to_tt_entry(bucket->slots[i].entry);
-
-		if (!tt_entry_is_set(old_e)) {
-			overwrite_slot(bucket->slots + i, pos, e);
-			tt->usage++;
-			return;
-		}
-
-		unsigned value = candidate_value(old_e);
-		if (replace_candidate == NULL || value < best_candidate_value) {
-			replace_candidate = bucket->slots + i;
-			best_candidate_value = value;
+		else {
+			unsigned value = candidate_value(entry);
+			if (value < best_value) {
+				best_value = value;
+				replacement_candidate = raw;
+			}
 		}
 	}
 
-	if (replace_candidate != NULL)
-		overwrite_slot(replace_candidate, pos, e);
+	if (replacement_candidate != NULL) {
+		struct entry entry = {
+			.key = key,
+			.generation = tt->current_generation,
+			.contains_exact_value = is_exact_value,
+			.contains_value = insert_value,
+			.contains_second_value = false,
+			.value = value,
+			.depth = depth,
+			.no_null_flag = no_null_flag,
+			.reserved = 0,
+			.value2 = 0,
+			.depth2 = 0,
+			.mg_index = mg_index,
+			.mg_index2 = no_move,
+			.reserved2 = 0,
+			.reserved3 = 0
+		};
+		store_entry(replacement_candidate, entry);
+	}
+}
+
+void
+tt_insert_exact_value(struct tt *tt, uint64_t key, int16_t value, int depth,
+		      bool no_null_flag)
+{
+	insert(tt, key, value, true, true, no_null_flag, no_move, depth);
+}
+
+void
+tt_insert_exact_valuem(struct tt *tt, uint64_t key, uint8_t mg_index,
+		       int16_t value, int depth, bool no_null_flag)
+{
+	invariant(mg_index != no_move);
+	insert(tt, key, value, true, true, no_null_flag, mg_index, depth);
+}
+
+void
+tt_insert_lower_bound(struct tt *tt, uint64_t key, int16_t value, int depth,
+		      bool no_null_flag)
+{
+	insert(tt, key, value, true, false, no_null_flag, no_move, depth);
+}
+
+void
+tt_insert_lower_boundm(struct tt *tt, uint64_t key, uint8_t mg_index,
+		       int16_t value, int depth, bool no_null_flag)
+{
+	invariant(mg_index != no_move);
+	insert(tt, key, value, true, false, no_null_flag, mg_index, depth);
+}
+
+void
+tt_insert_move(struct tt *tt, uint64_t key, uint8_t mg_index, bool no_null_flag)
+{
+	invariant(mg_index != no_move);
+	insert(tt, key, 0, false, false, no_null_flag, mg_index, 0);
 }
 
 void
 tt_generation_step(struct tt *tt)
 {
 	tt->current_generation++;
-}
-
-void
-tt_extract_pv(const struct tt *tt, const struct position *pos,
-	      int depth, struct move pv[], int value)
-{
-	struct move moves[MOVE_ARRAY_LENGTH];
-	struct tt_entry e;
-	struct position child[1];
-
-	pv[0] = null_move();
-	if (depth <= 0)
-		return;
-	(void) gen_moves(pos, moves);
-	e = tt_lookup(tt, pos);
-	if (!tt_entry_is_set(e))
-		return;
-	if (!tt_has_move(e))
-		return;
-	if (e.depth < depth && depth > PLY)
-		return;
-	if (!tt_has_exact_value(e))
-		return;
-	if (e.value != value)
-		return;
-	for (struct move *m = moves; !move_eq(*m, tt_move(e)); ++m)
-		if (is_null_move(*m))
-			return;
-	pv[0] = tt_move(e);
-	make_move(child, pos, pv[0]);
-	tt_extract_pv(tt, child, depth - PLY, pv + 1, -value);
 }

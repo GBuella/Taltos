@@ -74,7 +74,7 @@ struct node {
 	int depth;
 	int value;
 	bool is_search_root;
-	struct tt_entry tt_entry;
+	struct tt_lookup_result lookup_result;
 	struct move best_move;
 	bool is_GHI_barrier;
 	bool has_repetition_in_history;
@@ -210,12 +210,13 @@ hash_current_node_value(const struct node *node)
 }
 
 static void
-setup_best_move(struct node *node)
+update_tt(struct node *node)
 {
-	if (is_null_move(node->best_move)) {
-		if (tt_has_move(node->tt_entry))
-			node->best_move = tt_move(node->tt_entry);
-	}
+	if (node->depth <= 0)
+		return;
+
+	if (node->is_null_move(node->best_move))
+		return;
 }
 
 static void
@@ -549,46 +550,69 @@ try_null_move_prune(struct node *node)
 
 enum { hash_cutoff = 1 };
 
-static int
-check_hash_value_lower_bound(struct node *node, struct tt_entry entry)
+static void
+use_hash_bm(struct node *node)
 {
-	int hash_bound = entry.value;
+	if (node->lookup_result.move_count > 0)
+		node->best_move = node->mo.moves[node->lookup_result.moves[0]];
+}
+
+static int
+check_hash_value_lower_bound(struct node *node)
+{
+	if (!node->lookup_result.found_value)
+		return 0;
+
+	int16_t hash_bound = node->lookup_result.value;
 
 	if (hash_bound > 0 && node->has_repetition_in_history)
 		hash_bound = 0;
 
 	if (node->lower_bound < hash_bound) {
 		node->lower_bound = hash_bound;
-		if (node->lower_bound >= node->beta) {
-			node->best_move = tt_move(entry);
+		if (node->lower_bound >= node->beta
+		    || node->lower_bound >= mate_value)
+		{
+			use_hash_bm(node);
 			node->value = node->lower_bound;
 			return hash_cutoff;
 		}
 	}
+
 	return 0;
 }
 
 static int
 check_hash_value_upper_bound(struct node *node, struct tt_entry entry)
 {
-	int hash_bound = entry.value;
+	if (!node->lookup_result.found_exact_value)
+		return 0;
+
+	int16_t hash_bound = node->lookup_result.value;
 
 	if (hash_bound < 0 && node->has_repetition_in_history)
 		hash_bound = 0;
 
 	if (node->upper_bound > hash_bound) {
 		node->upper_bound = hash_bound;
-		if (node->upper_bound <= node->alpha) {
+		if (node->upper_bound <= node->alpha
+		    || node->lower_bound <= -mate_value)
+		{
 			node->value = node->upper_bound;
+			use_hash_bm(node);
 			return hash_cutoff;
 		}
 	}
+
 	return 0;
 }
 
 static int
-check_hash_value(struct node *node, struct tt_entry entry)
+check_hash_value(struct node *node)
 {
+	if (!node->lookup_result.found_value)
+		return 0;
+
 	if (node->root_distance == 0)
 		return 0;
 
@@ -597,50 +621,14 @@ check_hash_value(struct node *node, struct tt_entry entry)
 	    && node->beta == max_value)
 		return 0;
 
-	if (node->depth > entry.depth) {
-		if (entry.is_lower_bound) {
-			if (entry.value >= mate_value) {
-				if (!node->has_repetition_in_history) {
-					node->value = entry.value;
-					node->best_move = tt_move(entry);
-					return hash_cutoff;
-				}
-				else if (node->lower_bound < 0) {
-					node->lower_bound = 0;
-					if (0 >= node->beta) {
-						node->value = node->beta;
-						return hash_cutoff;
-					}
-				}
-			}
-		}
-		if (entry.is_upper_bound) {
-			if (entry.value <= -mate_value) {
-				if (!node->has_repetition_in_history) {
-					node->value = entry.value;
-					return hash_cutoff;
-				}
-				else if (node->upper_bound > 0) {
-					node->upper_bound = 0;
-					if (node->alpha >= 0) {
-						node->value = node->alpha;
-						return hash_cutoff;
-					}
-				}
-			}
-		}
+	if (node->depth < node->lookup_result.depth)
 		return 0;
-	}
 
-	if (entry.is_lower_bound) {
-		if (check_hash_value_lower_bound(node, entry) == hash_cutoff)
-			return hash_cutoff;
-	}
+	if (check_hash_value_lower_bound(node) == hash_cutoff)
+		return hash_cutoff;
 
-	if (entry.is_upper_bound) {
-		if (check_hash_value_upper_bound(node, entry) == hash_cutoff)
-			return hash_cutoff;
-	}
+	if (check_hash_value_upper_bound(node) == hash_cutoff)
+		return hash_cutoff;
 
 	if (node->lower_bound >= node->upper_bound) {
 		node->value = node->lower_bound;
@@ -674,19 +662,37 @@ adjust_depth(struct node *node)
 	return 0;
 }
 
+static void
+validate_hash_moves(struct node *node)
+{
+	for (unsigned i = 0; i < node->lookup_result.move_count; ++i) {
+		if (node->lookup_result.moves[i] >= node->mo->count) {
+			node->lookup_result.move_count = 0;
+			node->found_value = false;
+			node->no_null_flag = false;
+		}
+	}
+}
+
+static void
+add_hash_moves(struct node *node)
+{
+	for (unsigned i = 0; i < node->lookup_result.move_count; ++i) {
+		move_order_add_hint_by_mg_index(node->mo,
+						node->lookup_result.moves[i],
+						0);
+	}
+}
+
 static int
 fetch_hash_value(struct node *node)
 {
-	struct tt_entry entry = tt_lookup(node->tt, node->pos);
-	if (tt_entry_is_set(entry)) {
-		if (move_order_add_hint(node->mo, tt_move(entry), 1) == 0) {
-			node->tt_entry = entry;
-			if (check_hash_value(node, entry) == hash_cutoff)
-				return hash_cutoff;
-		}
-	}
+	tt_lookup(node->tt, node->pos->zhash, node->depth,
+		  &node->lookup_result);
 
-	return 0;
+	validate_hash_moves(node);
+	add_hash_moves(node);
+	return check_hash_value(node);
 }
 
 enum { no_legal_moves = 1 };
@@ -1101,19 +1107,24 @@ negamax(struct node *node)
 		debug_trace_tree_pop_move(node);
 	} while (search_more_moves(node));
 
-	struct tt_entry entry = hash_current_node_value(node);
-	setup_best_move(node);
-
 	assert(node->repetition_affected_any == 0 || !node->is_GHI_barrier);
 	assert(node->repetition_affected_best == 0 || !node->is_GHI_barrier);
 
-	if (node->depth > 0) {
-		if (!is_null_move(node->best_move))
-			entry = tt_set_move(entry, node->best_move);
-		if (node->null_move_search_failed)
-			entry.no_null = true;
-		if (tt_has_value(entry) || !is_null_move(node->best_move))
-			tt_pos_insert(node->tt, node->pos, entry);
+	update_tt(node);
+	if (node->depth > 0 && !is_null_move(node->best_move)) {
+		if (node->value >= node->beta) {
+			tt_insert_exact_valuem(node->tt, node->pos->zhash,
+					       node->best_move_index,
+					       node->value, node->depth,
+					       node->null_move_search_failed);
+		}
+		else {
+			tt_insert_lower_boundm(node->tt, node->pos->zhash,
+					       node->best_move_index,
+					       node->value, node->depth,
+					       node->null_move_search_failed);
+		}
+
 	}
 	if (node->value < node->lower_bound)
 		node->value = node->lower_bound;

@@ -345,22 +345,19 @@ add_history_as_repetition(void)
 	static struct position duplicates[ARRAY_LENGTH(history)];
 
 	size_t duplicate_count;
-	struct tt_entry entry = {.depth = TT_ENTRY_MAX_DEPTH,
-	                         .value = 0,
-	                         .is_lower_bound = true,
-	                         .is_upper_bound = true};
-
 	bool is_root_duplicate;
 
 	duplicate_count = filter_duplicates(duplicates, &is_root_duplicate);
 	for (unsigned ti = 0; ti < MAX_THREAD_COUNT; ++ti) {
 		struct tt *tt = threads[ti].sd.tt;
-		if (tt != NULL) {
-			if (is_root_duplicate)
-				tt_clear(tt);
-			for (size_t i = 0; i < duplicate_count; ++i)
-				tt_pos_insert(tt, duplicates + i, entry);
-		}
+		if (tt == NULL)
+			continue;
+
+		if (is_root_duplicate)
+			tt_clear(tt);
+		for (size_t i = 0; i < duplicate_count; ++i)
+			tt_insert_exact_value(tt, duplicates[i].zhash, 0,
+					      tt_max_depth, true);
 	}
 }
 
@@ -497,36 +494,42 @@ update_engine_result(const struct search_thread_data *data,
 	dst->pv[data->sd.depth / PLY + 1] = null_move();
 }
 
-struct tt_entry
-engine_current_entry(void)
+struct tt_lookup_result
+engine_current_position_in_tt(void)
 {
-	if (threads[0].sd.tt == NULL)
-		return tt_null();
-	return tt_lookup(threads[0].sd.tt, history + history_length - 1);
+	return engine_lookup_position(history + history_length - 1);
 }
 
-struct tt_entry
-engine_get_entry(const struct position *pos)
+struct tt_lookup_result
+engine_lookup_position(const struct position *pos)
 {
+	struct tt_lookup_result result = {0, };
+
 	if (threads[0].sd.tt == NULL)
-		return tt_null();
-	return tt_lookup(threads[0].sd.tt, pos);
+		tt_lookup(threads[0].sd.tt, pos->zhash,
+			  0, &result);
+
+	return result;
 }
 
 static void
 setup_search(struct search_thread_data *thread)
 {
-	struct tt_entry entry;
+	struct tt_lookup_result lr;
 
-	thread->sd.depth = PLY;
-	entry = tt_lookup(thread->sd.tt, &thread->root);
-	if (tt_has_exact_value(entry) && entry.depth > 0) {
-		if (entry.value == 0 && entry.depth == TT_ENTRY_MAX_DEPTH)
-			return;
+	tt_lookup(thread->sd.tt, thread->root.zhash, 0, &lr);
+	if (!lr.found_exact_value)
+		return;
 
-		thread->sd.depth = entry.depth + 1;
-		if (thread->export_best_move && tt_has_move(entry))
-			engine_best_move = tt_move(entry);
+	if (lr.value == 0 && lr.depth == tt_max_depth)
+		return;
+
+	thread->sd.depth = lr.depth + 1;
+	if (thread->export_best_move && lr.move_count > 0) {
+		struct move moves[MOVE_ARRAY_LENGTH];
+		unsigned move_count = gen_moves(&thread->root, moves);
+		if (move_count > lr.moves[0])
+			engine_best_move = moves[lr.moves[0]];
 	}
 }
 

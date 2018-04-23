@@ -1261,23 +1261,23 @@ cmd_hash_size(void)
 static void
 cmd_hash_entry(void)
 {
-	struct tt_entry entry;
+	struct tt_lookup_result entry;
 	char *fen = xstrtok_r(NULL, "\n\r", &line_lasts);
 
 	if (fen != NULL) {
 		struct game *g = game_create_fen(fen);
 		if (g == NULL) {
-			(void) fprintf(stderr, "Unable to parse FEN\n");
+			(void) fputs("Unable to parse FEN\n", stderr);
 			return;
 		}
-		entry = engine_get_entry(game_current_position(g));
+		entry = engine_lookup_position(game_current_position(g));
 		game_destroy(g);
 	}
 	else {
-		entry = engine_current_entry();
+		entry = engine_current_position_in_tt();
 	}
 
-	if (!tt_entry_is_set(entry)) {
+	if (!entry.found_value) {
 		puts("hash_value: none");
 		return;
 	}
@@ -1286,22 +1286,19 @@ cmd_hash_entry(void)
 
 	printf("hash_depth: %d\n", entry.depth);
 
-	printf("hash_value: ");
+	if (entry.found_exact_value)
+		printf("hash_value: exact ");
+	else
+		printf("hash_value: lower bound ");
+	print_centipawns(entry.value);
+	putchar('\n');
 
-	if (!tt_has_move(entry)) {
-		puts("none");
-	}
-	else {
-		if (tt_has_exact_value(entry))
-			printf("exact ");
-		else if (entry.is_upper_bound)
-			printf("upper bound ");
-		else
-			printf("lower bound ");
+	if (entry.no_null_flag)
+		puts("no_null_flag == true");
+	else
+		puts("no_null_flag == false");
 
-		print_centipawns(entry.value);
-		putchar('\n');
-	}
+	// TODO: print moves
 
 	mtx_unlock(&stdout_mutex);
 }
@@ -1311,9 +1308,9 @@ cmd_hash_value_exact_min(void)
 {
 	int minimum = get_int(-max_value, max_value);
 
-	struct tt_entry entry = engine_current_entry();
-	if (tt_entry_is_set(entry) && tt_has_exact_value(entry)
-	    && (entry.value >= minimum))
+	struct tt_lookup_result entry = engine_current_position_in_tt();
+
+	if (entry.found_value && entry.value >= minimum)
 		puts("ok");
 	else
 		puts("no");
@@ -1324,9 +1321,10 @@ cmd_hash_value_exact_max(void)
 {
 	int maximum = get_int(-max_value, max_value);
 
-	struct tt_entry entry = engine_current_entry();
-	if (tt_entry_is_set(entry) && tt_has_exact_value(entry)
-	    && (entry.value <= maximum))
+	struct tt_lookup_result entry = engine_current_position_in_tt();
+
+	// lower bound is obviously not good enough, so only allow exact values
+	if (entry.found_exact_value && entry.value <= maximum)
 		puts("ok");
 	else
 		puts("no");
@@ -1576,9 +1574,15 @@ print_move_order(const struct position *pos)
 		return;
 	}
 
-	struct tt_entry entry = engine_get_entry(pos);
-	if (tt_entry_is_set(entry) && tt_has_move(entry))
-		move_order_add_hint(&move_order, tt_move(entry), 0);
+	struct move moves[MOVE_ARRAY_LENGTH];
+	unsigned move_count = gen_moves(pos, moves);
+	struct tt_lookup_result entry = engine_lookup_position(pos);
+
+	for (unsigned i = 0; i < entry.move_count; ++i) {
+		if (entry.moves[i] < move_count)
+			move_order_add_hint(&move_order, moves[entry.moves[i]],
+					    0);
+	}
 
 	do {
 		move_order_pick_next(&move_order);

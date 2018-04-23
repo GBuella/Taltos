@@ -1,7 +1,7 @@
 /* vim: set filetype=c : */
 /* vim: set noet tw=80 ts=8 sw=8 cinoptions=+4,(0,t0: */
 /*
- * Copyright 2014-2017, Gabor Buella
+ * Copyright 2014-2018, Gabor Buella
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -85,5 +85,26 @@ char *xstrtok_r(char *restrict str, const char *restrict sep,
 	attribute(nonnull(2, 3));
 
 void util_init(void);
+
+static inline void
+tmemcpy(void *restrict dst, const void *restrict src, size_t size)
+{
+	char *d = dst;
+	const char *s = src;
+
+	while (size-- != 0)
+		*d++ = *s++;
+}
+
+static inline int
+clamp(int value, int min, int max)
+{
+	if (value < min)
+		return min;
+	else if (value > max)
+		return max;
+	else
+		return value;
+}
 
 #endif

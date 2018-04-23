@@ -36,143 +36,6 @@
 
 struct tt;
 
-#define TT_GENERATION_BITS 10
-#define TT_DEPTH_BITS 8
-
-#define TT_ENTRY_MAX_DEPTH ((1u << TT_DEPTH_BITS) - 1)
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-
-enum { tt_entry_value_count = 3 };
-
-/*
- * Disable pedantic warnings here. ISO says:
- * "A bit-field shall have a type that is a qualified or unqualified version of
- * _Bool, signed int, unsigned int, or some other implementation-defined type.
- * It is implementation-defined whether atomic types are permitted."
- *
- * Thus gcc-4.8 complains about uint64_t bit-fields:
- *
- * taltos/src/tt.h:43:2: error: type of bit-field best_move_from is a GCC extension [-Werror=pedantic]
- *  uint64_t best_move_from : 6;
- *   ^
- */
-
-struct tt_entry {
-	int16_t value;
-	uint64_t best_move_from : 6;
-	uint64_t best_move_to : 6;
-	uint64_t best_move_result : 4;
-	uint64_t best_move_captured : 4;
-	uint64_t best_move_type : 3;
-	uint64_t is_lower_bound : 1;
-	uint64_t is_upper_bound : 1;
-	uint64_t depth : TT_DEPTH_BITS;
-	uint64_t no_null : 1;
-	uint64_t generation : TT_GENERATION_BITS;
-	uint64_t reserved : (64 - 16 - 6 - 6 - 4 - 4 - 3 - 1 - 1 - 1
-			     - TT_DEPTH_BITS - TT_GENERATION_BITS);
-};
-
-#pragma GCC diagnostic pop
-
-static_assert(sizeof(struct tt_entry) == sizeof(uint64_t), "layout error");
-static_assert(alignof(struct tt_entry) == alignof(uint64_t), "layout error");
-
-
-
-static inline struct tt_entry
-tt_set_move(struct tt_entry e, struct move m)
-{
-	e.best_move_from = m.from;
-	e.best_move_to = m.to;
-	e.best_move_result = m.result;
-	e.best_move_captured = m.captured;
-	e.best_move_type = m.type;
-
-	return e;
-}
-
-static inline struct move
-tt_move(struct tt_entry entry)
-{
-	return (struct move) {
-		.from = entry.best_move_from,
-		.to = entry.best_move_to,
-		.result = entry.best_move_result,
-		.captured = entry.best_move_captured,
-		.type = entry.best_move_type,
-		.reserved = 0
-	};
-}
-
-static inline bool
-tt_has_move(struct tt_entry e)
-{
-	return e.best_move_result != 0;
-}
-
-static inline struct tt_entry
-tt_set_no_move(struct tt_entry e)
-{
-	e.best_move_from = 0;
-	e.best_move_to = 0;
-	e.best_move_result = 0;
-	return e;
-}
-
-static inline bool
-tt_has_exact_value(struct tt_entry e)
-{
-	return e.is_lower_bound && e.is_upper_bound;
-}
-
-static inline bool
-tt_has_value(struct tt_entry entry)
-{
-	return entry.is_lower_bound || entry.is_upper_bound;
-}
-
-static inline uint64_t
-tt_entry_to_int(struct tt_entry e)
-{
-	uint64_t value;
-	char *dst = (void*)&value;
-	const char *src = (const void*)&e;
-
-	for (size_t i = 0; i < sizeof(value); ++i)
-		dst[i] = src[i];
-
-	return value;
-}
-
-static inline struct tt_entry
-int_to_tt_entry(uint64_t value)
-{
-	struct tt_entry e;
-	char *dst = (void*)&e;
-	const char *src = (const void*)&value;
-
-	for (size_t i = 0; i < sizeof(value); ++i)
-		dst[i] = src[i];
-
-	
-	return e;
-}
-
-static inline bool
-tt_entry_is_set(struct tt_entry e)
-{
-	return tt_entry_to_int(e) != 0;
-}
-
-static inline struct tt_entry
-tt_null(void)
-{
-	return int_to_tt_entry(0);
-}
-
 
 
 struct tt *tt_create(unsigned log2_size);
@@ -184,9 +47,6 @@ struct tt *tt_resize(struct tt*, unsigned log2_size);
 struct tt* tt_resize_mb(struct tt*, unsigned megabytes);
 
 void tt_destroy(struct tt*);
-
-struct tt_entry tt_lookup(const struct tt*, const struct position*)
-	attribute(nonnull);
 
 #ifdef TALTOS_CAN_USE_BUILTIN_PREFETCH
 
@@ -202,11 +62,40 @@ static inline void tt_prefetch(const struct tt *table, uint64_t key)
 
 #endif
 
-size_t tt_slot_count(const struct tt*)
-	attribute(nonnull);
+size_t tt_slot_count(const struct tt*);
 
-void tt_pos_insert(struct tt*, const struct position*, struct tt_entry)
-	attribute(nonnull);
+void tt_insert_exact_value(struct tt*, uint64_t key,
+			   int16_t value, int depth, bool no_null_flag);
+
+void tt_insert_lower_bound(struct tt*, uint64_t key,
+			   int16_t value, int depth, bool no_null_flag);
+
+void tt_insert_exact_valuem(struct tt*, uint64_t key, uint8_t mg_index,
+			    int16_t value, int depth, bool no_null_flag);
+
+void tt_insert_lower_boundm(struct tt*, uint64_t key, uint8_t mg_index,
+			    int16_t value, int depth, bool no_null_flag);
+
+void tt_insert_move(struct tt*, uint64_t key, uint8_t mg_index,
+		    bool no_null_flag);
+
+struct tt_lookup_result {
+	int16_t value;
+	uint8_t depth;
+	uint8_t moves[3];
+	uint8_t move_count;
+	bool found_value;
+	bool found_exact_value;
+	bool no_null_flag;
+};
+
+void tt_lookup(struct tt*, uint64_t key, int depth,
+	       struct tt_lookup_result*);
+
+struct tt_value {
+	int16_t value;
+	bool is_exact_value;
+};
 
 void tt_extract_pv(const struct tt*, const struct position*,
 			int depth, struct move pv[], int value)
@@ -235,5 +124,7 @@ uint64_t position_polyglot_key(const struct position*)
 
 void tt_generation_step(struct tt*)
 	attribute(nonnull);
+
+enum { tt_max_depth = 255 };
 
 #endif
