@@ -47,8 +47,7 @@ enum {
 	max_log2_size = 26,
 	key_bit_count  = (39 - generation_bit_count),
 //	depth_delta_bits = 5,
-//	depth_delta_max = ((1 << depth_delta_bits) - 1),
-	no_move = 127
+//	depth_delta_max = ((1 << depth_delta_bits) - 1)
 };
 
 static_assert(min_log2_size > 1, "invalid TT min size");

@@ -79,6 +79,8 @@ void tt_insert_lower_boundm(struct tt*, uint64_t key, uint8_t mg_index,
 void tt_insert_move(struct tt*, uint64_t key, uint8_t mg_index,
 		    bool no_null_flag);
 
+enum { no_move = 127 };
+
 struct tt_lookup_result {
 	int16_t value;
 	uint8_t depth;

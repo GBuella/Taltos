@@ -76,6 +76,7 @@ struct node {
 	bool is_search_root;
 	struct tt_lookup_result lookup_result;
 	struct move best_move;
+	uint8_t best_move_index;
 	bool is_GHI_barrier;
 	bool has_repetition_in_history;
 	bool search_reached;
@@ -212,11 +213,32 @@ hash_current_node_value(const struct node *node)
 static void
 update_tt(struct node *node)
 {
-	if (node->depth <= 0)
-		return;
-
+	// If no best move was found, the value is an upper bound,
+	// which is not saved in the TT.
 	if (node->is_null_move(node->best_move))
 		return;
+
+	/*
+	 * If the best move's value reached beta due to a repetition
+	 * returning zero, it can't be accepted as a lower bound - it
+	 * might be just a result of a zero due some repetition(s) in
+	 * the search tree under this node.
+	 */
+	if (node->value <= 0 && node->repetition_affected_best != 0)
+		return;
+
+	if (node->value < node->beta
+	    && (node->value < 0 || node->repetition_affected_any == 0))
+	{
+		tt_insert_exact_valuem(node->tt, node->pos->zhash,
+				       node->best_move_index, node->depth,
+				       node->null_move_search_failed);
+	}
+	else {
+		tt_insert_lower_boundm(node->tt, node->pos->zhash,
+				       node->best_move_index, node->depth,
+				       node->null_move_search_failed);
+	}
 }
 
 static void
@@ -378,6 +400,7 @@ node_init(struct node *node)
 
 	node->value = NON_VALUE;
 	node->best_move = null_move();
+	node->best_move_index = no_move;
 	node->static_value_computed = false;
 	node->king_reach_maps_computed = false;
 
@@ -553,8 +576,10 @@ enum { hash_cutoff = 1 };
 static void
 use_hash_bm(struct node *node)
 {
-	if (node->lookup_result.move_count > 0)
-		node->best_move = node->mo.moves[node->lookup_result.moves[0]];
+	if (node->lookup_result.move_count > 0) {
+		node->best_move_index = node->lookup_result.moves[0];
+		node->best_move = node->mo.moves[node->best_move_index];
+	}
 }
 
 static int
@@ -797,12 +822,12 @@ setup_bounds(struct node *node)
 
 	// if a side has only a king left, the best value it can get is zero
 	if (node->root_distance > 0) {
-		if (is_singular(node->pos->map[1]))
+		if (is_singular(node->pos->map[node->pos->turn]))
 			node->lower_bound = max(0, node->lower_bound);
 
 		// no need to use "min(0, node->upper_bound)",
 		// upper_bound is not affected before this
-		if (is_singular(node->pos->map[0]))
+		if (is_singular(node->pos->map[node->pos->opponent]))
 			node->upper_bound = 0;
 	}
 
@@ -963,7 +988,7 @@ handle_mate_search(struct node *node)
 	}
 	else if (node->alpha >= max_value - 2) {
 		/*
-		 * Nothin can raise such alpha. A checkmate on
+		 * Nothing can raise such alpha. A checkmate on
 		 * next move would just return the same value here.
 		 */
 		node->value = node->alpha;
@@ -975,9 +1000,10 @@ handle_mate_search(struct node *node)
 }
 
 static void
-new_best_move(struct node *node, struct move best)
+new_best_move(struct node *node, uint8_t best)
 {
-	node->best_move = best;
+	node->best_move_index = best;
+	node->best_move = node->mo.moves[best];
 
 	if (node->common->sd->settings.use_strict_repetition_check) {
 		node->repetition_affected_best = max(
@@ -986,7 +1012,7 @@ new_best_move(struct node *node, struct move best)
 	}
 
 	if (node->alpha < node->beta) {
-		node->pv[0] = best;
+		node->pv[0] = node->best_move;
 		unsigned i = 0;
 		do {
 			node->pv[i + 1] = node[1].pv[i];
@@ -1062,6 +1088,7 @@ negamax(struct node *node)
 	if (recheck_bounds(node) == alpha_beta_range_too_small)
 		return;
 
+	assert(node->alpha < node->beta);
 	assert(node->beta > -max_value + 2);
 	assert(node->alpha < max_value - 2);
 
@@ -1072,6 +1099,7 @@ negamax(struct node *node)
 			break;
 
 		struct move m = mo_current_move(node->mo);
+		uint8_t mi = mo_current_move_index(node->mo);
 
 		int LMR_factor;
 
@@ -1096,7 +1124,7 @@ negamax(struct node *node)
 			node->value = value;
 			if (value > node->alpha) {
 				node->alpha = value;
-				new_best_move(node, m);
+				new_best_move(node, mi);
 
 				if (node->alpha >= node->beta)
 					fail_high(node);
@@ -1110,7 +1138,8 @@ negamax(struct node *node)
 	assert(node->repetition_affected_any == 0 || !node->is_GHI_barrier);
 	assert(node->repetition_affected_best == 0 || !node->is_GHI_barrier);
 
-	update_tt(node);
+	if (node->depth > 0)
+		update_tt(node);
 	if (node->depth > 0 && !is_null_move(node->best_move)) {
 		if (node->value >= node->beta) {
 			tt_insert_exact_valuem(node->tt, node->pos->zhash,
