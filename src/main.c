@@ -47,7 +47,6 @@ static struct taltos_conf conf;
 static void exit_routine(void);
 static void usage(int status);
 static void process_args(char **arg);
-static void init_book(struct book **book);
 static void setup_defaults(void);
 static void setup_display_name(void);
 
@@ -57,7 +56,6 @@ static const char *author_name_unicode = "G\U000000e1bor Buella";
 int
 main(int argc, char **argv)
 {
-	struct book *book;
 	mtx_t conf_mutex;
 
 	if (mtx_init(&conf_mutex, mtx_plain | mtx_recursive) != thrd_success)
@@ -65,13 +63,11 @@ main(int argc, char **argv)
 
 	conf.mutex = &conf_mutex;
 	(void) argc;
-	util_init();
 	setup_defaults();
 	trace_init(argv);
 	init_zhash_table();
 	init_search();
 	process_args(argv);
-	init_book(&book);
 	init_engine(&conf);
 	if (conf.search.use_history_heuristics)
 		move_order_enable_history();
@@ -83,7 +79,7 @@ main(int argc, char **argv)
 	(void) setvbuf(stdout, NULL, _IONBF, 0);
 
 	setup_display_name();
-	loop_cli(&conf, book);
+	loop_cli(&conf);
 }
 
 static void
@@ -105,9 +101,6 @@ setup_defaults(void)
 
 	// Default main hash table size in megabytes
 	conf.hash_table_size_mb = 32;
-
-	conf.book_path = NULL;   // book path, none by default
-	conf.book_type = bt_empty;  // use the empty book by default
 
 	const char *e = getenv("LANG");
 	if (e != NULL && strstr(e, "UTF-8") != NULL) {
@@ -213,17 +206,6 @@ process_args(char **arg)
 			if (*arg == NULL)
 				usage(EXIT_FAILURE);
 		}
-		else if (strcmp(*arg, "--book") == 0
-		    || strcmp(*arg, "--fenbook") == 0) {
-			if (arg[1] == NULL || conf.book_type != bt_empty)
-				usage(EXIT_FAILURE);
-			if (strcmp(*arg, "--book") == 0)
-				conf.book_type = bt_polyglot;
-			else
-				conf.book_type = bt_fen;
-			++arg;
-			conf.book_path = *arg;
-		}
 		else if (strcmp(*arg, "--unicode") == 0) {
 			conf.use_unicode = true;
 			author_name = author_name_unicode;
@@ -279,8 +261,6 @@ usage(int status)
 	    "OPTIONS:\n"
 	    "  -t                  print time after quitting\n"
 	    "  --trace path        log debug information to file at path\n"
-	    "  --book path         load polyglot book at path\n"
-	    "  --fenbook path      load FEN book at path\n"
 	    "  --hash              hash table size in megabytes\n"
 	    "  --unicode           use some unicode characters in the output\n"
 	    "  --nolmr             do not use LMR heuristics\n"
@@ -293,23 +273,4 @@ usage(int status)
 	    "  --name_postfix      Append string to display name\n",
 	    author_name, progname);
 	exit(status);
-}
-
-static void
-init_book(struct book **book)
-{
-	trace(__func__);
-
-	errno = 0;
-
-	*book = book_open(conf.book_type, conf.book_path);
-
-	if (*book == NULL) {
-		if (errno != 0 && conf.book_path != NULL)
-			perror(conf.book_path);
-		else
-			fprintf(stderr, "Unable to load book %s\n",
-			    conf.book_path);
-		exit(EXIT_FAILURE);
-	}
 }

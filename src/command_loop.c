@@ -37,7 +37,6 @@
 #include <stdarg.h>
 #include <threads.h>
 
-#include "book.h"
 #include "perft.h"
 #include "game.h"
 #include "engine.h"
@@ -56,7 +55,6 @@ struct cmd_entry {
 };
 
 static struct taltos_conf *conf;
-static struct book *book;
 static jmp_buf command_error;
 static int error_condition;
 static char *line_lasts;
@@ -416,17 +414,8 @@ decide_move(void)
 			engine_move_count_inc();
 		}
 		else {
-			move m = book_get_move(book, current_position());
-			if (m != none_move) {
-				print_computer_move(m);
-				add_move(m);
-				engine_move_count_inc();
-			}
-			else {
-				set_thinking_done_cb(computer_move,
-				    ++callback_key);
-				start_thinking();
-			}
+			set_thinking_done_cb(computer_move, ++callback_key);
+			start_thinking();
 		}
 	}
 	else {
@@ -624,15 +613,14 @@ try_read_move(const char *cmd)
 static void init_settings(void);
 
 void
-loop_cli(struct taltos_conf *arg_conf, struct book *arg_book)
+loop_cli(struct taltos_conf *arg_conf)
 {
 	trace(__func__);
 
 	char *cmd;
 
-	assert(arg_conf != NULL && arg_book != NULL);
+	assert(arg_conf != NULL);
 	conf = arg_conf;
-	book = arg_book;
 	init_settings();
 
 	setup_mutexes();
@@ -1701,12 +1689,6 @@ cmd_nodes(void)
 	set_exact_node_count(get_uint(1, UINT_MAX));
 }
 
-static void
-cmd_booksize(void)
-{
-	printf("%zu\n", book_get_size(book));
-}
-
 static void nop(void) {}
 
 static struct cmd_entry cmd_list[] = {
@@ -1780,7 +1762,6 @@ static struct cmd_entry cmd_list[] = {
 	{"stop",         cmd_stop,               NULL},
 	{"mo",           cmd_mo,                 NULL},
 	{"nodes",        cmd_nodes,              NULL},
-	{"booksize",     cmd_booksize,           NULL},
 	{"md",           cmd_md,                 NULL}
 /* END CSTYLED */
 };

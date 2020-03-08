@@ -1,7 +1,7 @@
 # vim: set filetype=cmake :
 # vim: set noet ts=8 sw=8 cinoptions=+4,(4: #
 #
-# Copyright 2014-2017, Gabor Buella
+# Copyright 2014-2020, Gabor Buella
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -59,7 +59,6 @@ include(perftsuite/CMakeLists_move_order.txt)
 include(perftsuite/CMakeLists_eval_symmetry.txt)
 include(perftsuite/CMakeLists_memcmp.txt)
 include(positions/CMakeLists.txt)
-add_subdirectory(books)
 
 set_property(TEST perft_000 PROPERTY LABELS long)
 set_property(TEST perft_001 PROPERTY LABELS long)

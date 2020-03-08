@@ -96,24 +96,10 @@ else()
 	endif()
 endif()
 
-# fstat or GetFileSizeEx is used to find out the size of a file
-CHECK_INCLUDE_FILES(sys/stat.h TALTOS_CAN_USE_SYS_STAT_H)
-if(TALTOS_CAN_USE_SYS_STAT_H)
-	CHECK_FUNCTION_EXISTS(fstat TALTOS_CAN_USE_POSIX_FSTAT)
-endif()
-
 CHECK_INCLUDE_FILES(Windows.h TALTOS_CAN_USE_WINDOWS_H)
-
-if(TALTOS_CAN_USE_WINDOWS_H)
-	CHECK_FUNCTION_EXISTS(_filelengthi64 TALTOS_CAN_USE_W_FILELENGTHI64)
-endif()
-
-CHECK_FUNCTION_EXISTS(getrusage TALTOS_CAN_USE_GETRUSAGE)
-
 
 include(cmake/feature_tests_gcc.cmake)
 include(cmake/feature_tests_intel.cmake)
-
 
 
 # Warnings must be set before doing feature tests for intrinsics/builtins
@@ -175,13 +161,10 @@ int main() {
 
 set(CMAKE_REQUIRED_FLAGS ${orig_req_flags})
 
-CHECK_FUNCTION_EXISTS(mach_absolute_time TALTOS_CAN_USE_MACH_ABS_TIME)
-if(NOT TALTOS_CAN_USE_MACH_ABS_TIME)
-	CHECK_FUNCTION_EXISTS(clock_gettime TALTOS_CAN_USE_CLOCK_GETTIME)
-	if(TALTOS_CAN_USE_WINDOWS_H AND NOT TALTOS_CAN_USE_CLOCK_GETTIME)
-		CHECK_FUNCTION_EXISTS(QueryPerformanceFrequency
-				TALTOS_CAN_USE_W_PERFCOUNTER)
-	endif()
+CHECK_FUNCTION_EXISTS(clock_gettime TALTOS_CAN_USE_CLOCK_GETTIME)
+if(TALTOS_CAN_USE_WINDOWS_H AND NOT TALTOS_CAN_USE_CLOCK_GETTIME)
+	CHECK_FUNCTION_EXISTS(QueryPerformanceFrequency
+			TALTOS_CAN_USE_W_PERFCOUNTER)
 endif()
 
 CHECK_C_SOURCE_COMPILES("
